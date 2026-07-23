@@ -1,0 +1,51 @@
+export type TipoAporte = 'OBLIGATORIO' | 'EXTRAORDINARIO' | 'VOLUNTARIO'
+export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO'
+export type EstadoAporte = 'ACTIVO' | 'ANULADO'
+
+export interface Aporte {
+  id: number
+  tipo: TipoAporte
+  monto: number
+  periodo: string
+  fechaAporte: string
+  metodoPago: MetodoPago
+  comprobante: string | null
+  observacion: string | null
+  estado: EstadoAporte
+  createdAt: string
+  updatedAt: string
+  fondoId: number
+  socioId: number
+  registradorId: number
+  socio: {
+    id: number
+    codigo: string
+    nombres: string
+    apellidoPaterno: string
+    apellidoMaterno: string
+    dni: string
+  }
+  fondo: {
+    id: number
+    nombre: string
+    moneda: string
+  }
+  registrador?: {
+    id: number
+    nombres: string
+    apellidoPaterno: string
+    apellidoMaterno?: string
+  }
+}
+
+export interface AporteFormData {
+  tipo: TipoAporte
+  monto: number
+  periodo: string
+  fechaAporte?: string
+  metodoPago: MetodoPago
+  comprobante?: string
+  observacion?: string
+  fondoId: number
+  socioId: number
+}
