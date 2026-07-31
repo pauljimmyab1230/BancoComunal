@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Search, Filter, ArrowDownRight, ArrowUpRight, TrendingUp, TrendingDown } from 'lucide-react'
+import { z } from 'zod'
+import { Filter, ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { useFlujoCaja } from '../hooks/useTesoreria'
 import { useCajas } from '@/modules/caja/hooks/useCajas'
-import { flujoCajaParamsSchema, type FlujoCajaFormInput } from '../validations'
-import { Button, Card, FormField, Input, Select, SectionHeader, Badge, LoadingSpinner, EmptyState } from '@/components/ui'
+import { flujoCajaParamsSchema } from '../validations'
+import { Card, FormField, Input, Select, SectionHeader, Badge, LoadingSpinner, EmptyState } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
 import type { FlujoCajaGrupo } from '../types'
 
@@ -44,9 +45,8 @@ function FlujoCajaTab() {
 
   const {
     register,
-    handleSubmit,
     watch,
-  } = useForm<FlujoCajaFormInput>({
+  } = useForm<z.input<typeof flujoCajaParamsSchema>, any, z.output<typeof flujoCajaParamsSchema>>({
     resolver: zodResolver(flujoCajaParamsSchema),
     defaultValues: {
       fechaInicio: dates.inicio,

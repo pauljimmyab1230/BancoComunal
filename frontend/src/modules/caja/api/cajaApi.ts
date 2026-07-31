@@ -6,7 +6,6 @@ import type {
   ArqueoCaja,
   FlujoCajaProyectado,
   PaginatedResponse,
-  ApiResponse,
   PaginationParams,
   CreateCajaInput,
   UpdateCajaInput,

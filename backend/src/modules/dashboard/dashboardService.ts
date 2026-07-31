@@ -26,8 +26,12 @@ export const dashboardService = {
         where: { estado: 'ACTIVO' },
         select: {
           id: true, monto: true, tasaInteres: true, fechaDesembolso: true,
-          socio: { select: { id: true, codigo: true, nombres: true, apellidoPaterno: true } },
-          fondo: { select: { id: true, nombre: true } },
+          fondoSocio: {
+            select: {
+              socio: { select: { id: true, codigo: true, nombres: true, apellidoPaterno: true } },
+              fondo: { select: { id: true, nombre: true } },
+            },
+          },
           cuotas: { select: { monto: true, montoPagado: true, saldoPendiente: true, estado: true, fechaVencimiento: true, numero: true } },
         },
       }),
@@ -39,8 +43,12 @@ export const dashboardService = {
         include: {
           prestamo: {
             select: {
-              socio: { select: { id: true, nombres: true, apellidoPaterno: true, telefono: true } },
-              fondo: { select: { nombre: true } },
+              fondoSocio: {
+                select: {
+                  socio: { select: { id: true, nombres: true, apellidoPaterno: true, telefono: true } },
+                  fondo: { select: { nombre: true } },
+                },
+              },
             },
           },
         },
@@ -71,7 +79,6 @@ export const dashboardService = {
         include: {
           caja: { select: { nombre: true } },
           concepto: { select: { nombre: true } },
-          registrador: { select: { nombres: true, apellidoPaterno: true } },
         },
         orderBy: { fechaMovimiento: 'desc' },
         take: 10,
@@ -81,7 +88,7 @@ export const dashboardService = {
     try {
       arqueosPendientes = await prisma.arqueoCaja.findMany({
         where: { estado: 'PENDIENTE' },
-        include: { caja: { select: { nombre: true } }, responsable: { select: { nombres: true, apellidoPaterno: true } } },
+        include: { caja: { select: { nombre: true } } },
         orderBy: { fechaArqueo: 'desc' },
       })
     } catch { /* tabla puede no existir */ }
@@ -90,7 +97,6 @@ export const dashboardService = {
       actividadReciente = await prisma.auditLog.findMany({
         take: 8,
         orderBy: { createdAt: 'desc' },
-        include: { usuario: { select: { id: true, nombres: true, apellidoPaterno: true, username: true } } },
       })
     } catch { /* tabla AuditLog puede no existir aún */ }
 
@@ -114,8 +120,8 @@ export const dashboardService = {
         const cuotasPagadas = p.cuotas.filter(c => c.estado === 'PAGADO').length
         return {
           id: p.id,
-          socio: p.socio,
-          fondo: p.fondo,
+          socio: p.fondoSocio?.socio ?? null,
+          fondo: p.fondoSocio?.fondo ?? null,
           monto: Number(p.monto),
           totalPagado,
           saldoPendiente: saldo,
@@ -147,9 +153,9 @@ export const dashboardService = {
       cajas,
       movimientosHoy,
       cuotasProximas: cuotasProximas.slice(0, 10).map(c => ({
-        socio: `${c.prestamo?.socio?.nombres} ${c.prestamo?.socio?.apellidoPaterno}`,
-        telefono: c.prestamo?.socio?.telefono,
-        fondo: c.prestamo?.fondo?.nombre,
+        socio: `${c.prestamo?.fondoSocio?.socio?.nombres} ${c.prestamo?.fondoSocio?.socio?.apellidoPaterno}`,
+        telefono: c.prestamo?.fondoSocio?.socio?.telefono,
+        fondo: c.prestamo?.fondoSocio?.fondo?.nombre,
         monto: Number(c.monto),
         saldoPendiente: Number(c.saldoPendiente),
         fechaVencimiento: c.fechaVencimiento,

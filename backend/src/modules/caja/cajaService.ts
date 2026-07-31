@@ -11,13 +11,14 @@ function generateCodigo(prefix: string): string {
 
 export const cajaService = {
   // Cajas
-  async list(params: { search?: string; page?: number; limit?: number; estado?: string; tipo?: string }) {
-    const { search, page = 1, limit = 10, estado, tipo } = params
+  async list(params: { search?: string; page?: number; limit?: number; estado?: string; tipo?: string; fondoId?: number }) {
+    const { search, page = 1, limit = 10, estado, tipo, fondoId } = params
     const skip = (page - 1) * limit
 
     const where: any = {}
     if (estado) where.estado = estado
     if (tipo) where.tipo = tipo
+    if (fondoId) where.fondoId = fondoId
     if (search) {
       where.OR = [
         { codigo: { contains: search } },
@@ -32,36 +33,44 @@ export const cajaService = {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          responsable: { select: { id: true, nombres: true, apellidoPaterno: true } },
+          fondo: { select: { id: true, nombre: true, moneda: true } },
           _count: { select: { movimientos: true, arqueos: true } },
         },
       }),
       prisma.caja.count({ where }),
     ])
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
+    return {
+      data: data.map((c) => ({
+        ...c,
+        saldoInicial: Number(c.saldoInicial),
+        saldoActual: Number(c.saldoActual),
+        _count: undefined,
+        totalMovimientos: c._count.movimientos,
+        totalArqueos: c._count.arqueos,
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    }
   },
 
   async getById(id: number) {
     const caja = await prisma.caja.findUnique({
       where: { id },
       include: {
-        responsable: { select: { id: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true } },
+        fondo: { select: { id: true, nombre: true, moneda: true } },
         movimientos: {
           take: 20,
           orderBy: { fechaMovimiento: 'desc' },
           include: {
             concepto: true,
-            registrador: { select: { id: true, nombres: true, apellidoPaterno: true } },
           },
         },
         arqueos: {
           take: 10,
           orderBy: { fechaArqueo: 'desc' },
-          include: {
-            responsable: { select: { id: true, nombres: true, apellidoPaterno: true } },
-            aprobador: { select: { id: true, nombres: true, apellidoPaterno: true } },
-          },
         },
         flujoProyectados: {
           where: { fecha: { gte: new Date() } },
@@ -71,10 +80,32 @@ export const cajaService = {
       },
     })
 
-    return caja
+    if (!caja) return null
+
+    return {
+      ...caja,
+      saldoInicial: Number(caja.saldoInicial),
+      saldoActual: Number(caja.saldoActual),
+      movimientos: caja.movimientos.map((m) => ({
+        ...m,
+        monto: Number(m.monto),
+      })),
+      arqueos: caja.arqueos.map((a) => ({
+        ...a,
+        saldoSistema: Number(a.saldoSistema),
+        saldoFisico: Number(a.saldoFisico),
+        diferencia: Number(a.diferencia),
+      })),
+    }
   },
 
   async create(data: any) {
+    if (!data.fondoId) throw new Error('La caja debe pertenecer a un fondo rotatorio')
+
+    const fondo = await prisma.fondoRotatorio.findUnique({ where: { id: data.fondoId } })
+    if (!fondo) throw new Error('Fondo no encontrado')
+    if (fondo.estado !== 'ACTIVO') throw new Error('El fondo no está activo')
+
     let codigo = generateCodigo('CAJ-')
     let exists = await prisma.caja.findUnique({ where: { codigo } })
     while (exists) {
@@ -91,10 +122,10 @@ export const cajaService = {
         moneda: data.moneda,
         saldoInicial: data.saldoInicial || 0,
         saldoActual: data.saldoInicial || 0,
-        responsableId: data.responsableId,
+        fondoId: data.fondoId,
         estado: data.estado,
       },
-      include: { responsable: true },
+      include: { fondo: { select: { id: true, nombre: true } } },
     })
 
     await this.crearConceptosPorDefecto()
@@ -134,10 +165,14 @@ export const cajaService = {
     if (data.descripcion !== undefined) updateData.descripcion = data.descripcion
     if (data.tipo !== undefined) updateData.tipo = data.tipo
     if (data.moneda !== undefined) updateData.moneda = data.moneda
-    if (data.responsableId !== undefined) updateData.responsableId = data.responsableId
+    if (data.fondoId !== undefined) {
+      const fondo = await prisma.fondoRotatorio.findUnique({ where: { id: Number(data.fondoId) } })
+      if (!fondo) throw new Error('Fondo no encontrado')
+      updateData.fondoId = Number(data.fondoId)
+    }
     if (data.estado !== undefined) updateData.estado = data.estado
 
-    return prisma.caja.update({ where: { id }, data: updateData, include: { responsable: true } })
+    return prisma.caja.update({ where: { id }, data: updateData, include: { fondo: { select: { id: true, nombre: true } } } })
   },
 
   async delete(id: number) {
@@ -208,23 +243,28 @@ export const cajaService = {
         include: {
           caja: { select: { id: true, codigo: true, nombre: true } },
           concepto: { select: { id: true, codigo: true, nombre: true, tipo: true } },
-          registrador: { select: { id: true, nombres: true, apellidoPaterno: true } },
         },
       }),
       prisma.movimientoCaja.count({ where }),
     ])
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
+    return {
+      data: data.map((m) => ({ ...m, monto: Number(m.monto) })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    }
   },
 
   async getMovimientoById(id: number) {
     return prisma.movimientoCaja.findUnique({
       where: { id },
-      include: { caja: true, concepto: true, registrador: true, arqueo: true },
+      include: { caja: true, concepto: true },
     })
   },
 
-  async createMovimiento(data: any, registradorId: number) {
+  async createMovimiento(data: any) {
     const caja = await prisma.caja.findUnique({ where: { id: data.cajaId } })
     if (!caja) throw new Error('Caja no encontrada')
     if (caja.estado !== 'ACTIVA') throw new Error('La caja no está activa')
@@ -251,9 +291,9 @@ export const cajaService = {
           codigo, tipo: data.tipo, monto: data.monto, descripcion: data.descripcion,
           comprobante: data.comprobante, metodoPago: data.metodoPago, referencia: data.referencia,
           fechaMovimiento, estado: 'REGISTRADO', cajaId: data.cajaId,
-          conceptoId: data.conceptoId, registradorId,
+          conceptoId: data.conceptoId,
         },
-        include: { caja: true, concepto: true, registrador: true },
+        include: { caja: true, concepto: true },
       })
       await tx.caja.update({ where: { id: data.cajaId }, data: { saldoActual: saldoNuevo } })
       return mov
@@ -262,13 +302,12 @@ export const cajaService = {
     return movimiento
   },
 
-  async anularMovimiento(id: number, _registradorId: number) {
+  async anularMovimiento(id: number) {
     const movimiento = await prisma.movimientoCaja.findUnique({
       where: { id }, include: { caja: true, concepto: true },
     })
     if (!movimiento) throw new Error('Movimiento no encontrado')
     if (movimiento.estado === 'ANULADO') throw new Error('Movimiento ya anulado')
-    if (movimiento.arqueoId) throw new Error('No se puede anular: pertenece a un arqueo')
 
     const caja = movimiento.caja
     const concepto = movimiento.concepto
@@ -301,30 +340,47 @@ export const cajaService = {
         orderBy: { fechaArqueo: 'desc' },
         include: {
           caja: { select: { id: true, codigo: true, nombre: true } },
-          responsable: { select: { id: true, nombres: true, apellidoPaterno: true } },
-          aprobador: { select: { id: true, nombres: true, apellidoPaterno: true } },
-          _count: { select: { movimientos: true } },
         },
       }),
       prisma.arqueoCaja.count({ where }),
     ])
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
+    return {
+      data: data.map((a) => ({
+        ...a,
+        saldoSistema: Number(a.saldoSistema),
+        saldoFisico: Number(a.saldoFisico),
+        diferencia: Number(a.diferencia),
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    }
   },
 
   async getArqueoById(id: number) {
-    return prisma.arqueoCaja.findUnique({
+    const arqueo = await prisma.arqueoCaja.findUnique({
       where: { id },
-      include: { caja: true, responsable: true, aprobador: true, movimientos: { include: { concepto: true } } },
+      include: { caja: true },
     })
+    if (!arqueo) return null
+    return {
+      ...arqueo,
+      saldoSistema: Number(arqueo.saldoSistema),
+      saldoFisico: Number(arqueo.saldoFisico),
+      diferencia: Number(arqueo.diferencia),
+    }
   },
 
-  async createArqueo(data: any, responsableId: number) {
+  async createArqueo(data: any) {
     const caja = await prisma.caja.findUnique({ where: { id: data.cajaId } })
     if (!caja) throw new Error('Caja no encontrada')
 
+    const fechaArqueo = data.fechaArqueo ? new Date(data.fechaArqueo) : new Date()
+
     const movimientos = await prisma.movimientoCaja.findMany({
-      where: { cajaId: data.cajaId, estado: { not: 'ANULADO' }, arqueoId: null },
+      where: { cajaId: data.cajaId, estado: { not: 'ANULADO' }, fechaMovimiento: { lte: fechaArqueo } },
       include: { concepto: true },
     })
 
@@ -336,22 +392,21 @@ export const cajaService = {
 
     const diferencia = Number(data.saldoFisico) - saldoSistema
     const codigo = generateCodigo('ARQ-')
-    const fechaArqueo = data.fechaArqueo ? new Date(data.fechaArqueo) : new Date()
 
     const arqueo = await prisma.arqueoCaja.create({
       data: {
         codigo, fechaArqueo, saldoSistema, saldoFisico: data.saldoFisico, diferencia,
-        observacion: data.observacion, estado: 'PENDIENTE', cajaId: data.cajaId, responsableId,
+        observacion: data.observacion, estado: 'PENDIENTE', cajaId: data.cajaId,
       },
-      include: { caja: true, responsable: true },
+      include: { caja: true },
     })
 
-    await prisma.movimientoCaja.updateMany({
-      where: { cajaId: data.cajaId, estado: { not: 'ANULADO' }, arqueoId: null, fechaMovimiento: { lte: fechaArqueo } },
-      data: { arqueoId: arqueo.id },
-    })
-
-    return arqueo
+    return {
+      ...arqueo,
+      saldoSistema: Number(arqueo.saldoSistema),
+      saldoFisico: Number(arqueo.saldoFisico),
+      diferencia: Number(arqueo.diferencia),
+    }
   },
 
   async aprobarArqueo(id: number, data: any) {
@@ -362,10 +417,11 @@ export const cajaService = {
     return prisma.arqueoCaja.update({
       where: { id },
       data: {
-        estado: data.estado, aprobadorId: data.aprobadorId, fechaAprobacion: new Date(),
+        estado: data.estado,
+        fechaAprobacion: new Date(),
         observacion: data.observacion || arqueo.observacion,
       },
-      include: { caja: true, responsable: true, aprobador: true },
+      include: { caja: true },
     })
   },
 

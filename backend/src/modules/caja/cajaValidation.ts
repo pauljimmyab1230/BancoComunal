@@ -11,7 +11,7 @@ export const createCajaSchema = z.object({
   tipo: z.enum(['PRINCIPAL', 'SECUNDARIA', 'CAJA_CHICA']).default('PRINCIPAL'),
   moneda: z.string().length(3).default('PEN'),
   saldoInicial: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional().default(0)),
-  responsableId: z.coerce.number().int().positive(),
+  fondoId: z.coerce.number().int().positive(),
 })
 
 export const updateCajaSchema = createCajaSchema.partial()
@@ -50,7 +50,6 @@ export const createArqueoSchema = z.object({
 export const aprobarArqueoSchema = z.object({
   estado: z.enum(['APROBADO', 'RECHAZADO']),
   observacion: z.string().max(500).optional(),
-  aprobadorId: z.coerce.number().int().positive(),
 })
 
 export const createFlujoProyectadoSchema = z.object({
@@ -71,6 +70,7 @@ export const queryCajaSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
   estado: z.string().optional(),
   tipo: z.string().optional(),
+  fondoId: z.coerce.number().int().positive().optional(),
 })
 
 export const queryArqueoSchema = z.object({

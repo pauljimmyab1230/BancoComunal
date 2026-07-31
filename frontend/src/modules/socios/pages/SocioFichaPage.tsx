@@ -66,7 +66,7 @@ export default function SocioFichaPage() {
                 <span>DNI: <strong className="text-white">{socio.dni}</strong></span>
                 <span>
                   Estado:
-                  <Badge variant={socio.estado === 'A' ? 'green' : 'gray'} className="ml-1">
+                  <Badge variant={socio.estado === 'A' ? 'green' : 'red'} className="ml-1">
                     {socio.estado === 'A' ? 'Activo' : 'Inactivo'}
                   </Badge>
                 </span>

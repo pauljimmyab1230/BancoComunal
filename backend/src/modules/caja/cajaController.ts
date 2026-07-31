@@ -140,9 +140,7 @@ export const cajaController = {
   async createMovimiento(req: Request, res: Response, next: NextFunction) {
     try {
       const data = createMovimientoSchema.parse(req.body)
-      // TODO: Replace with auth middleware
-      const registradorId = (req as any).user?.id || 1
-      const movimiento = await cajaService.createMovimiento(data, registradorId)
+      const movimiento = await cajaService.createMovimiento(data)
       res.status(201).json({ success: true, data: movimiento, message: 'Movimiento registrado correctamente' })
     } catch (error) { next(error) }
   },
@@ -151,8 +149,7 @@ export const cajaController = {
     try {
       const id = safeParseInt(req.params.id)
       if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
-      const registradorId = (req as any).user?.id || 1
-      await cajaService.anularMovimiento(id, registradorId)
+      await cajaService.anularMovimiento(id)
       res.json({ success: true, message: 'Movimiento anulado correctamente' })
     } catch (error) { next(error) }
   },
@@ -179,8 +176,7 @@ export const cajaController = {
   async createArqueo(req: Request, res: Response, next: NextFunction) {
     try {
       const data = createArqueoSchema.parse(req.body)
-      const responsableId = (req as any).user?.id || 1
-      const arqueo = await cajaService.createArqueo(data, responsableId)
+      const arqueo = await cajaService.createArqueo(data)
       res.status(201).json({ success: true, data: arqueo, message: 'Arqueo registrado correctamente' })
     } catch (error) { next(error) }
   },
@@ -190,7 +186,6 @@ export const cajaController = {
       const id = safeParseInt(req.params.id)
       if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const data = aprobarArqueoSchema.parse(req.body)
-      // TODO: Replace aprobadorId with auth middleware
       const arqueo = await cajaService.aprobarArqueo(id, data)
       res.json({ success: true, data: arqueo, message: `Arqueo ${data.estado.toLowerCase()} correctamente` })
     } catch (error) { next(error) }

@@ -6,7 +6,7 @@ export const cajaCreateSchema = z.object({
   tipo: z.enum(['PRINCIPAL', 'SECUNDARIA', 'CAJA_CHICA']).default('PRINCIPAL'),
   moneda: z.enum(['PEN', 'USD']).default('PEN'),
   saldoInicial: z.number().min(0).default(0),
-  responsableId: z.number().min(1, 'Responsable es requerido'),
+  fondoId: z.number().min(1, 'Fondo es requerido'),
   estado: z.enum(['ACTIVA', 'INACTIVA', 'CERRADA']).default('ACTIVA'),
 })
 
@@ -34,7 +34,6 @@ export const arqueoCreateSchema = z.object({
 export const aprobarArqueoSchema = z.object({
   estado: z.enum(['APROBADO', 'RECHAZADO']),
   observacion: z.string().max(500).optional(),
-  aprobadorId: z.number().min(1, 'Aprobador es requerido'),
 })
 
 export const flujoProyectadoCreateSchema = z.object({

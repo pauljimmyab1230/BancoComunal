@@ -12,5 +12,4 @@ export const createMovimientoSchema = z.object({
   comprobante: z.string().max(100).optional().or(z.literal('')),
   observacion: z.string().optional().or(z.literal('')),
   cuentaId: z.string().or(z.number()).transform((v) => Number(v)),
-  registradorId: z.string().or(z.number()).transform((v) => Number(v)).optional(),
 })

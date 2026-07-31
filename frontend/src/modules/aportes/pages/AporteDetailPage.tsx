@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Banknote, User, Building2, Calendar, FileText } from 'lucide-react'
+import { ArrowLeft, User, Building2, Calendar, FileText } from 'lucide-react'
 import { useAporte } from '../hooks/useAportes'
 import { Button, SectionHeader, Card, Badge, LoadingSpinner } from '@/components/ui'
 import type { Aporte } from '../types'
@@ -123,20 +123,6 @@ export default function AporteDetailPage() {
                 <p className="text-xs text-gray-500">{aporte.fondo.moneda}</p>
               </div>
             </Link>
-
-            {aporte.registrador && (
-              <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                  <Banknote className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-[#111827]">Registrado por</p>
-                  <p className="text-xs text-gray-500">
-                    {aporte.registrador.nombres} {aporte.registrador.apellidoPaterno}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </Card>
 

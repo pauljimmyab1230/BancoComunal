@@ -7,15 +7,13 @@ export interface Caja {
   moneda: string
   saldoInicial: number
   saldoActual: number
-  responsableId: number
+  fondoId: number
   estado: 'ACTIVA' | 'INACTIVA' | 'CERRADA'
   createdAt: string
   updatedAt: string
-  responsable?: {
+  fondo?: {
     id: number
-    nombres: string
-    apellidoPaterno: string
-    apellidoMaterno?: string
+    nombre: string
   }
   _count?: {
     movimientos: number
@@ -50,24 +48,12 @@ export interface MovimientoCaja {
   updatedAt: string
   cajaId: number
   conceptoId: number
-  registradorId: number
-  arqueoId?: number
   caja?: {
     id: number
     codigo: string
     nombre: string
   }
   concepto?: ConceptoCaja
-  registrador?: {
-    id: number
-    nombres: string
-    apellidoPaterno: string
-    apellidoMaterno?: string
-  }
-  arqueo?: {
-    id: number
-    codigo: string
-  }
 }
 
 export interface ArqueoCaja {
@@ -82,23 +68,11 @@ export interface ArqueoCaja {
   createdAt: string
   updatedAt: string
   cajaId: number
-  responsableId: number
-  aprobadorId?: number
   fechaAprobacion?: string
   caja?: {
     id: number
     codigo: string
     nombre: string
-  }
-  responsable?: {
-    id: number
-    nombres: string
-    apellidoPaterno: string
-  }
-  aprobador?: {
-    id: number
-    nombres: string
-    apellidoPaterno: string
   }
   movimientos?: MovimientoCaja[]
   _count?: {
@@ -175,7 +149,7 @@ export interface CreateCajaInput {
   tipo?: string
   moneda?: string
   saldoInicial?: number
-  responsableId: number
+  fondoId: number
   estado?: string
 }
 
@@ -203,7 +177,6 @@ export interface CreateArqueoInput {
 export interface AprobarArqueoInput {
   estado: 'APROBADO' | 'RECHAZADO'
   observacion?: string
-  aprobadorId: number
 }
 
 export interface CreateFlujoProyectadoInput {

@@ -6,7 +6,7 @@ import { z } from 'zod'
 import {
   ArrowLeft, Pencil, User, Phone, Mail, MapPin, Calendar, Shield,
   FileText, Users, Camera, QrCode, Download, Plus, Trash2, Printer,
-  HandCoins, PiggyBank, Upload, X,
+  HandCoins, PiggyBank, Upload,
 } from 'lucide-react'
 import { useSocio } from '../hooks/useSocios'
 import { useAportes } from '@/modules/aportes/hooks/useAportes'
@@ -172,7 +172,7 @@ export default function SocioDetailPage() {
 
   const estadoBadge = socio.estado === 'A'
     ? <Badge variant="green">Activo</Badge>
-    : <Badge variant="gray">Inactivo</Badge>
+    : <Badge variant="red">Inactivo</Badge>
 
   const InfoRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
     <div className="flex items-start gap-3">

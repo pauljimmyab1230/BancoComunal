@@ -35,7 +35,7 @@ export const tesoreriaService = {
         where: { estado: 'PENDIENTE', cajaId: cajaId || undefined },
         take: 10,
         orderBy: { fechaArqueo: 'desc' },
-        include: { caja: { select: { codigo: true, nombre: true } }, responsable: { select: { nombres: true, apellidoPaterno: true } } },
+        include: { caja: { select: { codigo: true, nombre: true } } },
       }),
       prisma.flujoCajaProyectado.findMany({
         where: {
@@ -102,13 +102,12 @@ export const tesoreriaService = {
     const [movimientos, arqueos, flujoProyectado] = await Promise.all([
       prisma.movimientoCaja.findMany({
         where: { cajaId, estado: { not: 'ANULADO' }, fechaMovimiento: whereFecha },
-        include: { concepto: true, registrador: { select: { nombres: true, apellidoPaterno: true } } },
+        include: { concepto: true },
         orderBy: { fechaMovimiento: 'desc' },
       }),
       prisma.arqueoCaja.findMany({
         where: { cajaId, fechaArqueo: whereFecha },
         orderBy: { fechaArqueo: 'desc' },
-        include: { responsable: { select: { nombres: true, apellidoPaterno: true } }, aprobador: { select: { nombres: true, apellidoPaterno: true } } },
       }),
       prisma.flujoCajaProyectado.findMany({
         where: { cajaId, fecha: { gte: new Date() }, estado: 'PROYECTADO' },
@@ -251,7 +250,7 @@ export const tesoreriaService = {
     }
   },
 
-  async transferenciaEntreCajas(data: { cajaOrigenId: number; cajaDestinoId: number; monto: number; concepto: string; descripcion?: string; comprobante?: string }, registradorId: number) {
+  async transferenciaEntreCajas(data: { cajaOrigenId: number; cajaDestinoId: number; monto: number; concepto: string; descripcion?: string; comprobante?: string }) {
     const [cajaOrigen, cajaDestino] = await Promise.all([
       prisma.caja.findUnique({ where: { id: data.cajaOrigenId } }),
       prisma.caja.findUnique({ where: { id: data.cajaDestinoId } }),
@@ -281,7 +280,6 @@ export const tesoreriaService = {
           estado: 'REGISTRADO',
           cajaId: data.cajaOrigenId,
           conceptoId: conceptoTransferencia.id,
-          registradorId,
         },
       })
 
@@ -303,7 +301,6 @@ export const tesoreriaService = {
           estado: 'REGISTRADO',
           cajaId: data.cajaDestinoId,
           conceptoId: conceptoTransferencia.id,
-          registradorId,
         },
       })
 

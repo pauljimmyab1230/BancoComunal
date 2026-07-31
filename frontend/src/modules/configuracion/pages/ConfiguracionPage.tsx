@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Users, Key, BookOpen, Building2, Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
 import {
   useUsuarios,
-  useUsuario,
   useCreateUsuario,
   useUpdateUsuario,
   useUpdatePassword,
@@ -66,7 +65,7 @@ function UsuariosTab() {
       <Card className="p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[200px]">
-            <SearchInput placeholder="Buscar por nombre, usuario o correo..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
+            <SearchInput placeholder="Buscar por nombre, usuario o correo..." value={search} onChange={(val) => { setSearch(val); setPage(1) }} />
           </div>
           <FormField label="Rol">
             <Select
@@ -144,7 +143,7 @@ function UsuariosTab() {
           </div>
           {data.totalPages > 1 && (
             <div className="border-t border-gray-100 px-5 py-3">
-              <Pagination page={page} totalPages={data.totalPages} onPageChange={setPage} />
+              <Pagination currentPage={page} totalPages={data.totalPages} onPageChange={setPage} />
             </div>
           )}
         </Card>
@@ -377,7 +376,7 @@ function ConceptosTab() {
       <Card className="p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[200px]">
-            <SearchInput placeholder="Buscar por código o nombre..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
+            <SearchInput placeholder="Buscar por código o nombre..." value={search} onChange={(val) => { setSearch(val); setPage(1) }} />
           </div>
           <FormField label="Tipo">
             <Select
@@ -457,7 +456,7 @@ function ConceptosTab() {
           </div>
           {data.totalPages > 1 && (
             <div className="border-t border-gray-100 px-5 py-3">
-              <Pagination page={page} totalPages={data.totalPages} onPageChange={setPage} />
+              <Pagination currentPage={page} totalPages={data.totalPages} onPageChange={setPage} />
             </div>
           )}
         </Card>

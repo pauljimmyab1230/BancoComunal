@@ -2,8 +2,10 @@ import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useCaja, useCreateCaja, useUpdateCaja } from '../hooks/useCajas'
 import { cajaCreateSchema, type CajaCreateInput } from '../validations'
+import { useFondos } from '@/modules/fondos/hooks/useFondos'
 import { Button, Card, FormField, Input, Select, SectionHeader, LoadingSpinner } from '@/components/ui'
 
 const tipoOptions = [
@@ -23,6 +25,9 @@ export default function CajaFormPage() {
   const isEdit = !!id
 
   const { data: caja, isLoading: loadingCaja } = useCaja(Number(id))
+  const { data: fondosData, isLoading: loadingFondos } = useFondos({ limit: 100 })
+
+  const fondoOptions = (fondosData?.data || []).map((f: any) => ({ value: String(f.id), label: f.nombre }))
 
   const createCaja = useCreateCaja()
   const updateCaja = useUpdateCaja(Number(id))
@@ -32,14 +37,14 @@ export default function CajaFormPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<CajaCreateInput>({
+  } = useForm<z.input<typeof cajaCreateSchema>, any, z.output<typeof cajaCreateSchema>>({
     resolver: zodResolver(cajaCreateSchema),
     defaultValues: {
       nombre: '',
       tipo: 'PRINCIPAL',
       saldoInicial: 0,
       moneda: 'PEN',
-      responsableId: 0,
+      fondoId: 0,
     },
   })
 
@@ -49,8 +54,8 @@ export default function CajaFormPage() {
         nombre: caja.nombre,
         tipo: caja.tipo,
         saldoInicial: caja.saldoInicial,
-        moneda: caja.moneda,
-        responsableId: caja.responsableId,
+        moneda: caja.moneda as 'PEN' | 'USD',
+        fondoId: caja.fondoId,
       })
     }
   }, [caja, reset])
@@ -104,12 +109,11 @@ export default function CajaFormPage() {
             <Select options={monedaOptions} {...register('moneda')} />
           </FormField>
 
-          {/* TODO: Replace with user selector component (fetch usuarios list) */}
-          <FormField label="ID Responsable" error={errors.responsableId?.message}>
-            <Input
-              type="number"
-              {...register('responsableId', { valueAsNumber: true })}
-              placeholder="ID del responsable"
+          <FormField label="Fondo" error={errors.fondoId?.message}>
+            <Select
+              options={fondoOptions}
+              placeholder={loadingFondos ? 'Cargando fondos...' : 'Seleccionar fondo'}
+              {...register('fondoId', { valueAsNumber: true })}
             />
           </FormField>
 

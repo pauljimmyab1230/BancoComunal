@@ -85,14 +85,14 @@ export default function SocioFormPage() {
   const onSubmit = async (values: SocioFormValues) => {
     const formData = new FormData()
     Object.entries(values).forEach(([key, value]) => {
-      if (key === 'foto') {
-        if (value instanceof File) {
-          formData.append('foto', value)
-        }
-      } else if (value !== undefined && value !== null && value !== '') {
+      if (value !== undefined && value !== null && value !== '') {
         formData.append(key, String(value))
       }
     })
+
+    if (fotoField.value instanceof File) {
+      formData.append('foto', fotoField.value)
+    }
 
     if (isEditing) {
       updateMutation.mutate(formData)
@@ -210,6 +210,7 @@ export default function SocioFormPage() {
           </div>
 
           <ImageUpload
+            value={socioData?.data?.fotoUrl || ''}
             onChange={(file) => {
               handleFotoChange(file)
             }}

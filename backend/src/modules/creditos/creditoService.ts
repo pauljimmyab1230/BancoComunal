@@ -1,19 +1,34 @@
 import prisma from '../../config/prisma'
 
+const socioSelect = {
+  id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true,
+} as const
+
+const fondoSocioSelect = {
+  id: true,
+  fechaIngreso: true,
+  socio: { select: socioSelect },
+  fondo: { select: { id: true, nombre: true, moneda: true } },
+} as const
+
 export const creditoService = {
   async list(params: { search?: string; page?: number; limit?: number; fondoId?: number; socioId?: number; estado?: string }) {
     const { search, page = 1, limit = 10, fondoId, socioId, estado } = params
     const skip = (page - 1) * limit
 
     const where: any = {}
-    if (fondoId) where.fondoId = fondoId
-    if (socioId) where.socioId = socioId
     if (estado) where.estado = estado
+
+    const fondoSocioWhere: any = {}
+    if (fondoId) fondoSocioWhere.fondoId = fondoId
+    if (socioId) fondoSocioWhere.socioId = socioId
+    if (Object.keys(fondoSocioWhere).length > 0) where.fondoSocio = fondoSocioWhere
+
     if (search) {
       where.OR = [
-        { socio: { nombres: { contains: search } } },
-        { socio: { apellidoPaterno: { contains: search } } },
-        { socio: { codigo: { contains: search } } },
+        { fondoSocio: { socio: { nombres: { contains: search } } } },
+        { fondoSocio: { socio: { apellidoPaterno: { contains: search } } } },
+        { fondoSocio: { socio: { codigo: { contains: search } } } },
       ]
     }
 
@@ -24,10 +39,7 @@ export const creditoService = {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          socio: {
-            select: { id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true },
-          },
-          fondo: { select: { id: true, nombre: true, moneda: true } },
+          fondoSocio: { select: fondoSocioSelect },
           _count: { select: { cuotas: true } },
         },
       }),
@@ -40,15 +52,20 @@ export const creditoService = {
     ])
 
     return {
-      data: data.map((p) => ({
-        ...p,
-        monto: Number(p.monto),
-        tasaInteres: Number(p.tasaInteres),
-        montoCuota: Number(p.montoCuota),
-        totalInteres: Number(p.totalInteres),
-        _count: undefined,
-        totalCuotas: p._count.cuotas,
-      })),
+      data: data.map((p) => {
+        const { fondoSocio, ...rest } = p
+        return {
+          ...rest,
+          monto: Number(p.monto),
+          tasaInteres: Number(p.tasaInteres),
+          montoCuota: Number(p.montoCuota),
+          totalInteres: Number(p.totalInteres),
+          socio: fondoSocio?.socio ?? null,
+          fondo: fondoSocio?.fondo ?? null,
+          _count: undefined,
+          totalCuotas: p._count.cuotas,
+        }
+      }),
       total,
       totalPrestado: Number(aggregates._sum.monto || 0),
       totalActivos,
@@ -62,22 +79,21 @@ export const creditoService = {
     const prestamo = await prisma.prestamo.findUnique({
       where: { id },
       include: {
-        socio: {
-          select: { id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true },
-        },
-        fondo: { select: { id: true, nombre: true, moneda: true } },
-        registrador: { select: { id: true, nombres: true, apellidoPaterno: true } },
+        fondoSocio: { select: fondoSocioSelect },
         cuotas: { orderBy: { numero: 'asc' } },
       },
     })
     if (!prestamo) return null
 
+    const { fondoSocio, ...rest } = prestamo
     return {
-      ...prestamo,
+      ...rest,
       monto: Number(prestamo.monto),
       tasaInteres: Number(prestamo.tasaInteres),
       montoCuota: Number(prestamo.montoCuota),
       totalInteres: Number(prestamo.totalInteres),
+      socio: fondoSocio?.socio ?? null,
+      fondo: fondoSocio?.fondo ?? null,
       cuotas: prestamo.cuotas.map((c) => ({
         ...c,
         monto: Number(c.monto),
@@ -91,8 +107,13 @@ export const creditoService = {
   },
 
   async getByFondoSocio(fondoId: number, socioId: number) {
+    const socioEnFondo = await prisma.fondoSocio.findUnique({
+      where: { fondoId_socioId: { fondoId, socioId } },
+    })
+    if (!socioEnFondo) return []
+
     const prestamos = await prisma.prestamo.findMany({
-      where: { fondoId, socioId },
+      where: { fondoSocioId: socioEnFondo.id },
       orderBy: { createdAt: 'desc' },
       include: {
         cuotas: { orderBy: { numero: 'asc' } },
@@ -123,17 +144,15 @@ export const creditoService = {
     fechaPrimerVencimiento: string
     fondoId: number
     socioId: number
-    registradorId?: number
   }) {
-    const socioEnFondo = await prisma.fondoRotatorioSocio.findUnique({
+    const socioEnFondo = await prisma.fondoSocio.findUnique({
       where: { fondoId_socioId: { fondoId: data.fondoId, socioId: data.socioId } },
+      include: { fondo: true },
     })
     if (!socioEnFondo) throw new Error('El socio no pertenece a este fondo')
-
-    const fondo = await prisma.fondoRotatorio.findUnique({ where: { id: data.fondoId } })
-    if (!fondo) throw new Error('Fondo no encontrado')
-    if (fondo.estado !== 'ACTIVO') throw new Error('El fondo no está activo')
-    if (Number(fondo.capitalDisponible) < data.monto) throw new Error('El fondo no tiene capital disponible suficiente')
+    if (socioEnFondo.fechaSalida) throw new Error('El socio no está activo en este fondo')
+    if (socioEnFondo.fondo.estado !== 'ACTIVO') throw new Error('El fondo no está activo')
+    if (Number(socioEnFondo.fondo.capitalDisponible) < data.monto) throw new Error('El fondo no tiene capital disponible suficiente')
 
     if (data.monto <= 0) throw new Error('El monto debe ser mayor a 0')
     if (data.numeroCuotas < 1) throw new Error('Debe haber al menos 1 cuota')
@@ -150,7 +169,7 @@ export const creditoService = {
     const prestamo = await prisma.$transaction(async (tx) => {
       // Reducir capital disponible del fondo
       await tx.fondoRotatorio.update({
-        where: { id: data.fondoId },
+        where: { id: socioEnFondo.fondoId },
         data: { capitalDisponible: { decrement: data.monto } },
       })
 
@@ -163,10 +182,7 @@ export const creditoService = {
           totalInteres: Math.round(totalInteres * 100) / 100,
           fechaPrimerVencimiento: new Date(data.fechaPrimerVencimiento),
           estado: 'ACTIVO',
-          fondoId: data.fondoId,
-          socioId: data.socioId,
           fondoSocioId: socioEnFondo.id,
-          registradorId: data.registradorId || 1,
         },
       })
 
@@ -219,7 +235,7 @@ export const creditoService = {
 
     const cuota = await prisma.cuotaPrestamo.findUnique({
       where: { id: data.cuotaId },
-      include: { prestamo: true },
+      include: { prestamo: { include: { fondoSocio: { select: { fondoId: true } } } } },
     })
     if (!cuota) throw new Error('Cuota no encontrada')
     if (cuota.estado === 'PAGADO') throw new Error('La cuota ya está pagada')
@@ -243,7 +259,7 @@ export const creditoService = {
 
       // Incrementar capital disponible del fondo
       await tx.fondoRotatorio.update({
-        where: { id: cuota.prestamo.fondoId },
+        where: { id: cuota.prestamo.fondoSocio.fondoId },
         data: { capitalDisponible: { increment: data.monto } },
       })
 
@@ -272,7 +288,7 @@ export const creditoService = {
   async anular(id: number) {
     const prestamo = await prisma.prestamo.findUnique({
       where: { id },
-      include: { cuotas: true },
+      include: { cuotas: true, fondoSocio: { select: { fondoId: true } } },
     })
     if (!prestamo) throw new Error('Préstamo no encontrado')
     if (prestamo.estado === 'ANULADO') throw new Error('El préstamo ya está anulado')
@@ -282,7 +298,7 @@ export const creditoService = {
 
     await prisma.$transaction(async (tx) => {
       await tx.fondoRotatorio.update({
-        where: { id: prestamo.fondoId },
+        where: { id: prestamo.fondoSocio.fondoId },
         data: { capitalDisponible: { increment: Number(prestamo.monto) } },
       })
 

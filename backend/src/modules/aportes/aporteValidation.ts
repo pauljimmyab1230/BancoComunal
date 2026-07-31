@@ -13,7 +13,6 @@ export const createAporteSchema = z.object({
   observacion: z.string().optional().or(z.literal('')),
   fondoId: z.string().or(z.number()).transform((v) => Number(v)),
   socioId: z.string().or(z.number()).transform((v) => Number(v)),
-  registradorId: z.string().or(z.number()).transform((v) => Number(v)).optional(),
 })
 
 export const updateAporteSchema = createAporteSchema

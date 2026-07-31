@@ -1,5 +1,15 @@
 import prisma from '../../config/prisma'
-import { Prisma } from '@prisma/client'
+
+const socioSelect = {
+  id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true,
+} as const
+
+const fondoSocioSelect = {
+  id: true,
+  fechaIngreso: true,
+  socio: { select: socioSelect },
+  fondo: { select: { id: true, nombre: true, moneda: true } },
+} as const
 
 export const ahorroService = {
   // === CUENTAS ===
@@ -8,13 +18,16 @@ export const ahorroService = {
     const skip = (page - 1) * limit
 
     const where: any = {}
-    if (fondoId) where.fondoId = fondoId
-    if (socioId) where.socioId = socioId
+    const fondoSocioWhere: any = {}
+    if (fondoId) fondoSocioWhere.fondoId = fondoId
+    if (socioId) fondoSocioWhere.socioId = socioId
+    if (Object.keys(fondoSocioWhere).length > 0) where.fondoSocio = fondoSocioWhere
+
     if (search) {
       where.OR = [
-        { socio: { nombres: { contains: search } } },
-        { socio: { apellidoPaterno: { contains: search } } },
-        { socio: { codigo: { contains: search } } },
+        { fondoSocio: { socio: { nombres: { contains: search } } } },
+        { fondoSocio: { socio: { apellidoPaterno: { contains: search } } } },
+        { fondoSocio: { socio: { codigo: { contains: search } } } },
       ]
     }
 
@@ -25,12 +38,7 @@ export const ahorroService = {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          socio: {
-            select: { id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true },
-          },
-          fondo: {
-            select: { id: true, nombre: true, moneda: true },
-          },
+          fondoSocio: { select: fondoSocioSelect },
           _count: { select: { movimientos: true } },
         },
       }),
@@ -38,12 +46,17 @@ export const ahorroService = {
     ])
 
     return {
-      data: data.map((c) => ({
-        ...c,
-        saldo: Number(c.saldo),
-        totalMovimientos: c._count.movimientos,
-        _count: undefined,
-      })),
+      data: data.map((c) => {
+        const { fondoSocio, ...rest } = c
+        return {
+          ...rest,
+          saldo: Number(c.saldo),
+          totalMovimientos: c._count.movimientos,
+          socio: fondoSocio?.socio ?? null,
+          fondo: fondoSocio?.fondo ?? null,
+          _count: undefined,
+        }
+      }),
       total,
       page,
       limit,
@@ -57,12 +70,7 @@ export const ahorroService = {
     const cuenta = await prisma.cuentaAhorro.findUnique({
       where: { id },
       include: {
-        socio: {
-          select: { id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true },
-        },
-        fondo: {
-          select: { id: true, nombre: true, moneda: true },
-        },
+        fondoSocio: { select: fondoSocioSelect },
       },
     })
     if (!cuenta) return null
@@ -73,16 +81,16 @@ export const ahorroService = {
         orderBy: { createdAt: 'desc' },
         skip,
         take: movLimit,
-        include: {
-          registrador: { select: { id: true, nombres: true, apellidoPaterno: true } },
-        },
       }),
       prisma.ahorroMovimiento.count({ where: { cuentaId: id } }),
     ])
 
+    const { fondoSocio, ...rest } = cuenta
     return {
-      ...cuenta,
+      ...rest,
       saldo: Number(cuenta.saldo),
+      socio: fondoSocio?.socio ?? null,
+      fondo: fondoSocio?.fondo ?? null,
       movimientos: movimientos.map((m) => ({
         ...m,
         monto: Number(m.monto),
@@ -96,15 +104,15 @@ export const ahorroService = {
   },
 
   async getCuentaByFondoYSocio(fondoId: number, socioId: number) {
-    const cuenta = await prisma.cuentaAhorro.findUnique({
+    const socioEnFondo = await prisma.fondoSocio.findUnique({
       where: { fondoId_socioId: { fondoId, socioId } },
+    })
+    if (!socioEnFondo) return null
+
+    const cuenta = await prisma.cuentaAhorro.findFirst({
+      where: { fondoSocioId: socioEnFondo.id },
       include: {
-        socio: {
-          select: { id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true },
-        },
-        fondo: {
-          select: { id: true, nombre: true, moneda: true },
-        },
+        fondoSocio: { select: fondoSocioSelect },
         movimientos: {
           orderBy: { createdAt: 'desc' },
           take: 10,
@@ -112,9 +120,13 @@ export const ahorroService = {
       },
     })
     if (!cuenta) return null
+
+    const { fondoSocio, ...rest } = cuenta
     return {
-      ...cuenta,
+      ...rest,
       saldo: Number(cuenta.saldo),
+      socio: fondoSocio?.socio ?? null,
+      fondo: fondoSocio?.fondo ?? null,
       movimientos: cuenta.movimientos.map((m) => ({
         ...m,
         monto: Number(m.monto),
@@ -125,21 +137,20 @@ export const ahorroService = {
   },
 
   async crearCuenta(data: { fondoId: number; socioId: number }) {
-    const socioEnFondo = await prisma.fondoRotatorioSocio.findUnique({
+    const socioEnFondo = await prisma.fondoSocio.findUnique({
       where: { fondoId_socioId: { fondoId: data.fondoId, socioId: data.socioId } },
     })
     if (!socioEnFondo) throw new Error('El socio no pertenece a este fondo')
+    if (socioEnFondo.fechaSalida) throw new Error('El socio no está activo en este fondo')
 
-    const existente = await prisma.cuentaAhorro.findUnique({
-      where: { fondoId_socioId: { fondoId: data.fondoId, socioId: data.socioId } },
+    const existente = await prisma.cuentaAhorro.findFirst({
+      where: { fondoSocioId: socioEnFondo.id },
     })
     if (existente) throw new Error('El socio ya tiene una cuenta de ahorro en este fondo')
 
     return prisma.cuentaAhorro.create({
       data: {
         saldo: 0,
-        fondoId: data.fondoId,
-        socioId: data.socioId,
         fondoSocioId: socioEnFondo.id,
       },
     })
@@ -175,11 +186,13 @@ export const ahorroService = {
     comprobante?: string | null
     observacion?: string | null
     cuentaId: number
-    registradorId?: number
   }) {
     if (data.monto <= 0) throw new Error('El monto debe ser mayor a 0')
 
-    const cuenta = await prisma.cuentaAhorro.findUnique({ where: { id: data.cuentaId } })
+    const cuenta = await prisma.cuentaAhorro.findUnique({
+      where: { id: data.cuentaId },
+      include: { fondoSocio: { select: { fondoId: true } } },
+    })
     if (!cuenta) throw new Error('Cuenta de ahorro no encontrada')
     if (cuenta.estado !== 'ACTIVA') throw new Error('La cuenta no está activa')
 
@@ -189,9 +202,6 @@ export const ahorroService = {
     }
 
     const montoCambio = data.tipo === 'DEPOSITO' ? data.monto : -data.monto
-
-    // TODO: Replace hardcoded registradorId with auth middleware
-    const resolvedRegistradorId = data.registradorId || 1
 
     const movimiento = await prisma.$transaction(async (tx) => {
       const updated = await tx.cuentaAhorro.update({
@@ -209,21 +219,13 @@ export const ahorroService = {
           comprobante: data.comprobante || null,
           observacion: data.observacion || null,
           cuentaId: data.cuentaId,
-          registradorId: resolvedRegistradorId,
         },
       })
 
-      if (data.tipo === 'DEPOSITO') {
-        await tx.fondoRotatorio.update({
-          where: { id: cuenta.fondoId },
-          data: { capitalDisponible: { increment: data.monto } },
-        })
-      } else {
-        await tx.fondoRotatorio.update({
-          where: { id: cuenta.fondoId },
-          data: { capitalDisponible: { decrement: data.monto } },
-        })
-      }
+      await tx.fondoRotatorio.update({
+        where: { id: cuenta.fondoSocio.fondoId },
+        data: { capitalDisponible: { increment: montoCambio } },
+      })
 
       return mov
     })
@@ -247,23 +249,30 @@ export const ahorroService = {
         include: {
           cuenta: {
             include: {
-              socio: { select: { id: true, codigo: true, nombres: true, apellidoPaterno: true } },
-              fondo: { select: { id: true, nombre: true, moneda: true } },
+              fondoSocio: { select: fondoSocioSelect },
             },
           },
-          registrador: { select: { id: true, nombres: true, apellidoPaterno: true } },
         },
       }),
       prisma.ahorroMovimiento.count({ where }),
     ])
 
     return {
-      data: data.map((m) => ({
-        ...m,
-        monto: Number(m.monto),
-        saldoAntes: Number(m.saldoAntes),
-        saldoDespues: Number(m.saldoDespues),
-      })),
+      data: data.map((m) => {
+        const { cuenta, ...rest } = m
+        return {
+          ...rest,
+          monto: Number(m.monto),
+          saldoAntes: Number(m.saldoAntes),
+          saldoDespues: Number(m.saldoDespues),
+          cuenta: {
+            ...cuenta,
+            socio: cuenta?.fondoSocio?.socio ?? null,
+            fondo: cuenta?.fondoSocio?.fondo ?? null,
+            fondoSocio: undefined,
+          },
+        }
+      }),
       total,
       page,
       limit,

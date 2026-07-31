@@ -26,14 +26,11 @@ model Socio {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  beneficiarios  Beneficiario[]
-  documentos     DocumentoSocio[]
-  fondosSocios   FondoRotatorioSocio[]
-  aportes        Aporte[]
-  cuentasAhorro  CuentaAhorro[]
-  prestamos      Prestamo[]
+  beneficiarios Beneficiario[]
+  documentos    DocumentoSocio[]
+  fondosSocios  FondoSocio[]
 
-  @@map("Socio")
+  @@map("socio")
 }
 
 model Beneficiario {
@@ -45,11 +42,11 @@ model Beneficiario {
   fechaNacimiento DateTime?
   parentesco      String    @db.VarChar(50)
   telefono        String?   @db.VarChar(9)
-  socioId         Int
-  socio           Socio     @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  socioId         Int       @map("socio_id")
+  socio           Socio     @relation(fields: [socioId], references: [id], onDelete: NoAction)
   createdAt       DateTime  @default(now())
 
-  @@map("Beneficiario")
+  @@map("beneficiario")
 }
 
 model DocumentoSocio {
@@ -59,80 +56,74 @@ model DocumentoSocio {
   rutaArchivo   String   @db.VarChar(500)
   mimeType      String   @db.VarChar(100)
   tamaño        Int
-  socioId       Int
-  socio         Socio    @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  socioId       Int      @map("socio_id")
+  socio         Socio    @relation(fields: [socioId], references: [id], onDelete: NoAction)
   createdAt     DateTime @default(now())
 
-  @@map("DocumentoSocio")
+  @@map("documentosocio")
 }
 
 model Usuario {
-  id            Int      @id @default(autoincrement())
-  nombres       String   @db.VarChar(100)
-  apellidoPaterno String @db.VarChar(50)
-  apellidoMaterno String @db.VarChar(50)
-  username      String   @unique @db.VarChar(50)
-  password      String   @db.VarChar(255)
-  correo        String?  @unique @db.VarChar(150)
-  telefono      String?  @db.VarChar(20)
-  rol           String   @db.VarChar(45)
-  estado        String   @default("ACTIVO") @db.VarChar(45)
-  ultimoAcceso  DateTime?
-  createdAt     DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  nombres         String   @db.VarChar(100)
+  apellidoPaterno String   @db.VarChar(50)
+  apellidoMaterno String   @db.VarChar(50)
+  username        String   @unique @db.VarChar(50)
+  password        String   @db.VarChar(255)
+  correo          String?  @unique @db.VarChar(150)
+  telefono        String?  @db.VarChar(20)
+  rol             String   @db.VarChar(45)
+  estado          String   @default("ACTIVO") @db.VarChar(45)
+  ultimoAcceso    DateTime?
+  createdAt       DateTime @default(now())
 
-  fondosCreados     FondoRotatorio[]  @relation("FondoResponsable")
-  aportes           Aporte[]          @relation("AporteRegistrador")
-  ahorroMovimientos AhorroMovimiento[] @relation("AhorroRegistrador")
-  prestamos         Prestamo[]
-  cajas             Caja[]            @relation("CajaResponsable")
-  movimientoCajas   MovimientoCaja[]  @relation("MovimientoRegistrador")
-  arqueoResponsables ArqueoCaja[]     @relation("ArqueoResponsable")
-  arqueoAprobadores  ArqueoCaja[]     @relation("ArqueoAprobador")
-  auditLogs          AuditLog[]
-
-  @@map("Usuario")
+  @@map("usuario")
 }
 
 model FondoRotatorio {
-  id               Int      @id @default(autoincrement())
-  nombre           String   @db.VarChar(200)
-  organizacion     String   @default("") @db.VarChar(200)
-  capitalInicial   Decimal  @db.Decimal(12, 2)
-  capitalDisponible Decimal @db.Decimal(12, 2)
-  moneda           String   @default("PEN") @db.Char(3)
-  estado           String   @default("ACTIVO") @db.VarChar(20)
-  descripcion      String?  @db.Text
-  reglamento       String?  @db.Text
-  condiciones      String?  @db.Text
-  fechaCierre      DateTime?
-  responsableId    Int
-  responsable      Usuario  @relation("FondoResponsable", fields: [responsableId], references: [id])
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                Int      @id @default(autoincrement())
+  nombre            String   @db.VarChar(200)
+  organizacion      String   @default("") @db.VarChar(200)
+  capitalInicial    Decimal  @db.Decimal(12, 2)
+  capitalDisponible Decimal  @db.Decimal(12, 2)
+  moneda            String   @default("PEN") @db.Char(3)
+  estado            String   @default("ACTIVO") @db.VarChar(20)
+  descripcion       String?  @db.Text
+  reglamento        String?  @db.Text
+  condiciones       String?  @db.Text
+  fechaCierre       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  socios         FondoRotatorioSocio[]
-  aportes        Aporte[]
-  cuentasAhorro  CuentaAhorro[]
-  prestamos      Prestamo[]
+  fondosSocios FondoSocio[]
+  cajas        Caja[]
 
-  @@map("FondoRotatorio")
+  @@map("fondorotatorio")
 }
 
-model FondoRotatorioSocio {
-  id          Int      @id @default(autoincrement())
-  fechaIngreso DateTime @default(now())
-  estado      String   @default("ACTIVO") @db.VarChar(20)
-  fondoId     Int
-  fondo       FondoRotatorio @relation(fields: [fondoId], references: [id], onDelete: Cascade)
-  socioId     Int
-  socio       Socio    @relation(fields: [socioId], references: [id], onDelete: Cascade)
+model FondoSocio {
+  id              Int       @id @default(autoincrement())
+  fechaIngreso    DateTime?
+  fechaSalida     DateTime?
+  numeroSocio     Int?
+  cargo           String?   @db.VarChar(45)
+  nivel           String?   @db.VarChar(45)
+  observacion     String?   @db.VarChar(45)
+  fechaAprobacion DateTime?
+  usuarioId       Int?      @map("usuario_id")
 
-  aportes        Aporte[]
-  cuentasAhorro  CuentaAhorro[]
-  prestamos      Prestamo[]
+  fondoId Int            @map("fondorotatorio_id")
+  fondo   FondoRotatorio @relation(fields: [fondoId], references: [id], onDelete: NoAction)
+  socioId Int            @map("socio_id")
+  socio   Socio          @relation(fields: [socioId], references: [id], onDelete: NoAction)
+
+  cuentasAhorro CuentaAhorro[]
+  aportes       Aporte[]
+  prestamos     Prestamo[]
 
   @@unique([fondoId, socioId])
-  @@map("FondoRotatorioSocio")
+  @@index([socioId])
+  @@map("FondoSocio")
 }
 
 model CuentaAhorro {
@@ -142,150 +133,132 @@ model CuentaAhorro {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  socioId        Int
-  socio          Socio              @relation(fields: [socioId], references: [id])
-  fondoId        Int
-  fondo          FondoRotatorio     @relation(fields: [fondoId], references: [id])
-  fondoSocioId   Int
-  fondoSocio     FondoRotatorioSocio @relation(fields: [fondoSocioId], references: [id])
+  fondoSocioId Int        @map("FondoSocio_Id")
+  fondoSocio   FondoSocio @relation(fields: [fondoSocioId], references: [id], onDelete: NoAction)
 
   movimientos AhorroMovimiento[]
 
-  @@unique([fondoId, socioId])
-  @@map("CuentaAhorro")
-}
-
-model Prestamo {
-  id                   Int      @id @default(autoincrement())
-  monto                Decimal  @db.Decimal(12, 2)
-  tasaInteres          Decimal  @db.Decimal(5, 2)
-  numeroCuotas         Int
-  montoCuota           Decimal  @db.Decimal(12, 2)
-  totalInteres         Decimal  @db.Decimal(12, 2)
-  fechaDesembolso      DateTime @default(now())
-  fechaPrimerVencimiento DateTime
-  estado               String   @default("ACTIVO") @db.VarChar(20)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  fondoId          Int
-  fondo            FondoRotatorio     @relation(fields: [fondoId], references: [id])
-  socioId          Int
-  socio            Socio              @relation(fields: [socioId], references: [id])
-  fondoSocioId     Int
-  fondoSocio       FondoRotatorioSocio @relation(fields: [fondoSocioId], references: [id])
-  registradorId    Int
-  registrador      Usuario            @relation(fields: [registradorId], references: [id])
-
-  cuotas CuotaPrestamo[]
-
-  @@map("Prestamo")
-}
-
-model CuotaPrestamo {
-  id             Int      @id @default(autoincrement())
-  numero         Int
-  fechaVencimiento DateTime
-  monto          Decimal  @db.Decimal(12, 2)
-  interes        Decimal  @db.Decimal(12, 2)
-  amortizacion   Decimal  @db.Decimal(12, 2)
-  saldo          Decimal  @db.Decimal(12, 2)
-  montoPagado    Decimal  @db.Decimal(12, 2)
-  saldoPendiente Decimal  @db.Decimal(12, 2)
-  fechaPago      DateTime?
-  estado         String   @default("PENDIENTE") @db.VarChar(20)
-  metodoPago     String?  @db.VarChar(20)
-  comprobante    String?  @db.VarChar(100)
-
-  prestamoId     Int
-  prestamo       Prestamo @relation(fields: [prestamoId], references: [id], onDelete: Cascade)
-
-  @@unique([prestamoId, numero])
-  @@map("CuotaPrestamo")
+  @@map("cuentaahorro")
 }
 
 model AhorroMovimiento {
-  id          Int      @id @default(autoincrement())
-  tipo        String   @db.VarChar(20)
-  monto       Decimal  @db.Decimal(12, 2)
-  saldoAntes  Decimal  @db.Decimal(12, 2)
-  saldoDespues Decimal @db.Decimal(12, 2)
-  metodoPago  String   @default("EFECTIVO") @db.VarChar(20)
-  comprobante String?  @db.VarChar(100)
-  observacion String?  @db.Text
-  createdAt   DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  tipo         String   @db.VarChar(20)
+  monto        Decimal  @db.Decimal(12, 2)
+  saldoAntes   Decimal  @db.Decimal(12, 2)
+  saldoDespues Decimal  @db.Decimal(12, 2)
+  metodoPago   String   @default("EFECTIVO") @db.VarChar(20)
+  comprobante  String?  @db.VarChar(100)
+  observacion  String?  @db.Text
+  createdAt    DateTime @default(now())
 
-  cuentaId     Int
-  cuenta       CuentaAhorro @relation(fields: [cuentaId], references: [id])
-  registradorId Int
-  registrador  Usuario      @relation("AhorroRegistrador", fields: [registradorId], references: [id])
+  cuentaId Int          @map("cuentaahorro_id")
+  cuenta   CuentaAhorro @relation(fields: [cuentaId], references: [id], onDelete: NoAction)
 
-  @@map("AhorroMovimiento")
+  @@map("ahorromovimiento")
 }
 
 model Aporte {
-  id            Int      @id @default(autoincrement())
-  tipo          String   @db.VarChar(20)
-  monto         Decimal  @db.Decimal(12, 2)
-  periodo       String   @db.Char(7)
-  fechaAporte   DateTime @default(now())
-  metodoPago    String   @default("EFECTIVO") @db.VarChar(20)
-  comprobante   String?  @db.VarChar(100)
-  observacion   String?  @db.Text
-  estado        String   @default("ACTIVO") @db.VarChar(20)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  fondoId          Int
-  fondo            FondoRotatorio @relation(fields: [fondoId], references: [id])
-  socioId          Int
-  socio            Socio          @relation(fields: [socioId], references: [id])
-  fondoSocioId     Int
-  fondoSocio       FondoRotatorioSocio @relation(fields: [fondoSocioId], references: [id])
-  registradorId    Int
-  registrador      Usuario        @relation("AporteRegistrador", fields: [registradorId], references: [id])
-
-  @@map("Aporte")
-}
-
-model Caja {
-  id              Int      @id @default(autoincrement())
-  codigo          String   @unique @db.VarChar(20)
-  nombre          String   @db.VarChar(100)
-  descripcion     String?  @db.Text
-  tipo            String   @default("PRINCIPAL") @db.VarChar(20)
-  moneda          String   @default("PEN") @db.Char(3)
-  saldoInicial    Decimal  @default(0) @db.Decimal(12, 2)
-  saldoActual     Decimal  @default(0) @db.Decimal(12, 2)
-  responsableId   Int
-  responsable     Usuario  @relation("CajaResponsable", fields: [responsableId], references: [id])
-  estado          String   @default("ACTIVA") @db.VarChar(20)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  movimientos     MovimientoCaja[]
-  arqueos         ArqueoCaja[]
-  flujoProyectados FlujoCajaProyectado[]
-
-  @@map("Caja")
-}
-
-model ConceptoCaja {
   id          Int      @id @default(autoincrement())
-  codigo      String   @unique @db.VarChar(20)
-  nombre      String   @db.VarChar(100)
   tipo        String   @db.VarChar(20)
-  afectaSaldo String   @db.VarChar(10)
-  descripcion String?  @db.Text
-  requiereComprobante Boolean @default(true)
-  orden       Int      @default(0)
+  monto       Decimal  @db.Decimal(12, 2)
+  periodo     String   @db.Char(7)
+  fechaAporte DateTime @default(now())
+  metodoPago  String   @default("EFECTIVO") @db.VarChar(20)
+  comprobante String?  @db.VarChar(100)
+  observacion String?  @db.Text
   estado      String   @default("ACTIVO") @db.VarChar(20)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  fondoSocioId Int        @map("FondoSocio_Id")
+  fondoSocio   FondoSocio @relation(fields: [fondoSocioId], references: [id], onDelete: NoAction)
+
+  @@map("aporte")
+}
+
+model Prestamo {
+  id                     Int      @id @default(autoincrement())
+  monto                  Decimal  @db.Decimal(12, 2)
+  tasaInteres            Decimal  @db.Decimal(5, 2)
+  numeroCuotas           Int
+  montoCuota             Decimal  @db.Decimal(12, 2)
+  totalInteres           Decimal  @db.Decimal(12, 2)
+  fechaDesembolso        DateTime @default(now())
+  fechaPrimerVencimiento DateTime
+  estado                 String   @default("ACTIVO") @db.VarChar(20)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  fondoSocioId Int        @map("FondoSocio_Id")
+  fondoSocio   FondoSocio @relation(fields: [fondoSocioId], references: [id], onDelete: NoAction)
+
+  cuotas CuotaPrestamo[]
+
+  @@map("prestamo")
+}
+
+model CuotaPrestamo {
+  id               Int      @id @default(autoincrement())
+  numero           Int
+  fechaVencimiento DateTime
+  monto            Decimal  @db.Decimal(12, 2)
+  interes          Decimal  @db.Decimal(12, 2)
+  amortizacion     Decimal  @db.Decimal(12, 2)
+  saldo            Decimal  @db.Decimal(12, 2)
+  montoPagado      Decimal  @db.Decimal(12, 2)
+  saldoPendiente   Decimal  @db.Decimal(12, 2)
+  fechaPago        DateTime?
+  estado           String   @default("PENDIENTE") @db.VarChar(20)
+  metodoPago       String?  @db.VarChar(20)
+  comprobante      String?  @db.VarChar(100)
+
+  prestamoId Int      @map("prestamo_id")
+  prestamo   Prestamo @relation(fields: [prestamoId], references: [id], onDelete: NoAction)
+
+  @@unique([prestamoId, numero])
+  @@map("cuotaprestamo")
+}
+
+model Caja {
+  id           Int      @id @default(autoincrement())
+  codigo       String   @unique @db.VarChar(20)
+  nombre       String   @db.VarChar(100)
+  descripcion  String?  @db.Text
+  tipo         String   @default("PRINCIPAL") @db.VarChar(20)
+  moneda       String   @default("PEN") @db.Char(3)
+  saldoInicial Decimal  @default(0) @db.Decimal(12, 2)
+  saldoActual  Decimal  @default(0) @db.Decimal(12, 2)
+  estado       String   @default("ACTIVA") @db.VarChar(20)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  fondoId Int            @map("fondorotatorio_id")
+  fondo   FondoRotatorio @relation(fields: [fondoId], references: [id], onDelete: NoAction)
+
+  movimientos      MovimientoCaja[]
+  arqueos          ArqueoCaja[]
+  flujoProyectados FlujoCajaProyectado[]
+
+  @@map("caja")
+}
+
+model ConceptoCaja {
+  id                  Int      @id @default(autoincrement())
+  codigo              String   @unique @db.VarChar(20)
+  nombre              String   @db.VarChar(100)
+  tipo                String   @db.VarChar(20)
+  afectaSaldo         String   @db.VarChar(10)
+  descripcion         String?  @db.Text
+  requiereComprobante Boolean  @default(true)
+  orden               Int      @default(0)
+  estado              String   @default("ACTIVO") @db.VarChar(20)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
   movimientos MovimientoCaja[]
 
-  @@map("ConceptoCaja")
+  @@map("conceptocaja")
 }
 
 model MovimientoCaja {
@@ -302,19 +275,15 @@ model MovimientoCaja {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  cajaId          Int
-  caja            Caja     @relation(fields: [cajaId], references: [id])
-  conceptoId      Int
-  concepto        ConceptoCaja @relation(fields: [conceptoId], references: [id])
-  registradorId   Int
-  registrador     Usuario  @relation("MovimientoRegistrador", fields: [registradorId], references: [id])
-  arqueoId        Int?
-  arqueo          ArqueoCaja? @relation(fields: [arqueoId], references: [id])
+  cajaId     Int          @map("caja_id")
+  caja       Caja         @relation(fields: [cajaId], references: [id], onDelete: NoAction)
+  conceptoId Int          @map("conceptocaja_id")
+  concepto   ConceptoCaja @relation(fields: [conceptoId], references: [id], onDelete: NoAction)
 
   @@index([cajaId, fechaMovimiento])
   @@index([fechaMovimiento])
   @@index([estado])
-  @@map("MovimientoCaja")
+  @@map("movimientocaja")
 }
 
 model ArqueoCaja {
@@ -328,19 +297,13 @@ model ArqueoCaja {
   estado          String   @default("PENDIENTE") @db.VarChar(20)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-
-  cajaId          Int
-  caja            Caja     @relation(fields: [cajaId], references: [id])
-  responsableId   Int
-  responsable     Usuario  @relation("ArqueoResponsable", fields: [responsableId], references: [id])
-  aprobadorId     Int?
-  aprobador       Usuario? @relation("ArqueoAprobador", fields: [aprobadorId], references: [id])
   fechaAprobacion DateTime?
 
-  movimientos     MovimientoCaja[]
+  cajaId Int  @map("caja_id")
+  caja   Caja @relation(fields: [cajaId], references: [id], onDelete: NoAction)
 
   @@index([cajaId, fechaArqueo])
-  @@map("ArqueoCaja")
+  @@map("arqueocaja")
 }
 
 model FlujoCajaProyectado {
@@ -355,11 +318,11 @@ model FlujoCajaProyectado {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  cajaId          Int
-  caja            Caja     @relation(fields: [cajaId], references: [id])
+  cajaId Int  @map("caja_id")
+  caja   Caja @relation(fields: [cajaId], references: [id], onDelete: NoAction)
 
   @@index([cajaId, fecha])
-  @@map("FlujoCajaProyectado")
+  @@map("flujocajaproyectado")
 }
 
 model AuditLog {
@@ -369,13 +332,10 @@ model AuditLog {
   operacion       String   @db.VarChar(20)
   datosAnteriores Json?
   datosNuevos     Json?
-  usuarioId       Int
-  usuario         Usuario  @relation(fields: [usuarioId], references: [id])
   ip              String?  @db.VarChar(45)
   createdAt       DateTime @default(now())
 
   @@index([tabla, registroId])
-  @@index([usuarioId])
   @@index([createdAt])
-  @@map("AuditLog")
+  @@map("auditlog")
 }

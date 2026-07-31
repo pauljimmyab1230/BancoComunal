@@ -1,6 +1,6 @@
 import prisma from '../../config/prisma'
 
-async function createAuditLog(data: { tabla: string; registroId: number; operacion: string; datosAnteriores?: any; datosNuevos?: any; usuarioId: number }) {
+async function createAuditLog(data: { tabla: string; registroId: number; operacion: string; datosAnteriores?: any; datosNuevos?: any }) {
   try {
     await prisma.auditLog.create({ data })
   } catch { /* tabla puede no existir */ }
@@ -20,17 +20,21 @@ export const aporteService = {
 
     const where: any = {}
     if (estado) where.estado = estado
-    if (fondoId) where.fondoId = fondoId
-    if (socioId) where.socioId = socioId
+
+    const fondoSocioWhere: any = {}
+    if (fondoId) fondoSocioWhere.fondoId = fondoId
+    if (socioId) fondoSocioWhere.socioId = socioId
+    if (Object.keys(fondoSocioWhere).length > 0) where.fondoSocio = fondoSocioWhere
+
     if (search) {
       const terms = search.split(/\s+/).filter(Boolean)
       where.AND = terms.map((term) => ({
         OR: [
           { comprobante: { contains: term } },
           { periodo: { contains: term } },
-          { socio: { nombres: { contains: term } } },
-          { socio: { apellidoPaterno: { contains: term } } },
-          { socio: { apellidoMaterno: { contains: term } } },
+          { fondoSocio: { socio: { nombres: { contains: term } } } },
+          { fondoSocio: { socio: { apellidoPaterno: { contains: term } } } },
+          { fondoSocio: { socio: { apellidoMaterno: { contains: term } } } },
         ],
       }))
     }
@@ -42,14 +46,16 @@ export const aporteService = {
         take: limit,
         orderBy: { fechaAporte: 'desc' },
         include: {
-          socio: {
-            select: { id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true },
-          },
-          fondo: {
-            select: { id: true, nombre: true, moneda: true },
-          },
-          registrador: {
-            select: { id: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true },
+          fondoSocio: {
+            select: {
+              fechaIngreso: true,
+              socio: {
+                select: { id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true },
+              },
+              fondo: {
+                select: { id: true, nombre: true, moneda: true },
+              },
+            },
           },
         },
       }),
@@ -62,10 +68,15 @@ export const aporteService = {
     ])
 
     return {
-      data: data.map((a) => ({
-        ...a,
-        monto: Number(a.monto),
-      })),
+      data: data.map((a) => {
+        const { fondoSocio, ...rest } = a
+        return {
+          ...rest,
+          monto: Number(a.monto),
+          socio: fondoSocio?.socio ?? null,
+          fondo: fondoSocio?.fondo ?? null,
+        }
+      }),
       total,
       totalAportado: Number(aggregates._sum.monto || 0),
       totalActivos: aggregates._count,
@@ -79,31 +90,38 @@ export const aporteService = {
     const aporte = await prisma.aporte.findUnique({
       where: { id },
       include: {
-        socio: {
-          select: { id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true },
-        },
-        fondo: {
-          select: { id: true, nombre: true, moneda: true, capitalDisponible: true },
-        },
-        registrador: {
-          select: { id: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true },
+        fondoSocio: {
+          select: {
+            fechaIngreso: true,
+            socio: {
+              select: { id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true },
+            },
+            fondo: {
+              select: { id: true, nombre: true, moneda: true, capitalDisponible: true },
+            },
+          },
         },
       },
     })
     if (!aporte) return null
-    return { ...aporte, monto: Number(aporte.monto) }
+
+    const { fondoSocio, ...rest } = aporte
+    return {
+      ...rest,
+      monto: Number(aporte.monto),
+      socio: fondoSocio?.socio ?? null,
+      fondo: fondoSocio?.fondo ?? null,
+    }
   },
 
   async create(data: any) {
-    const fondo = await prisma.fondoRotatorio.findUnique({ where: { id: data.fondoId } })
-    if (!fondo) throw new Error('Fondo no encontrado')
-    if (fondo.estado !== 'ACTIVO') throw new Error('El fondo no está activo')
-
-    const socioEnFondo = await prisma.fondoRotatorioSocio.findUnique({
+    const socioEnFondo = await prisma.fondoSocio.findUnique({
       where: { fondoId_socioId: { fondoId: data.fondoId, socioId: data.socioId } },
+      include: { fondo: true },
     })
     if (!socioEnFondo) throw new Error('El socio no pertenece a este fondo')
-    if (socioEnFondo.estado !== 'ACTIVO') throw new Error('El socio no está activo en este fondo')
+    if (socioEnFondo.fechaSalida) throw new Error('El socio no está activo en este fondo')
+    if (socioEnFondo.fondo.estado !== 'ACTIVO') throw new Error('El fondo no está activo')
 
     const aporte = await prisma.$transaction(async (tx) => {
       const nuevoAporte = await tx.aporte.create({
@@ -115,15 +133,12 @@ export const aporteService = {
           metodoPago: data.metodoPago || 'EFECTIVO',
           comprobante: data.comprobante || null,
           observacion: data.observacion || null,
-          fondoId: data.fondoId,
-          socioId: data.socioId,
           fondoSocioId: socioEnFondo.id,
-          registradorId: data.registradorId || 1,
         },
       })
 
       await tx.fondoRotatorio.update({
-        where: { id: data.fondoId },
+        where: { id: socioEnFondo.fondoId },
         data: { capitalDisponible: { increment: data.monto } },
       })
 
@@ -134,8 +149,7 @@ export const aporteService = {
       tabla: 'Aporte',
       registroId: aporte.id,
       operacion: 'CREATE',
-      datosNuevos: { tipo: aporte.tipo, monto: Number(aporte.monto), periodo: aporte.periodo, fondoId: aporte.fondoId, socioId: aporte.socioId },
-      usuarioId: data.registradorId || 1,
+      datosNuevos: { tipo: aporte.tipo, monto: Number(aporte.monto), periodo: aporte.periodo, fondoId: socioEnFondo.fondoId, socioId: socioEnFondo.socioId },
     })
 
     return { ...aporte, monto: Number(aporte.monto) }
@@ -143,7 +157,10 @@ export const aporteService = {
 
   async update(id: number, data: any) {
     const aporte = await prisma.$transaction(async (tx) => {
-      const existing = await tx.aporte.findUnique({ where: { id } })
+      const existing = await tx.aporte.findUnique({
+        where: { id },
+        include: { fondoSocio: { select: { fondoId: true } } },
+      })
       if (!existing) return null
       if (existing.estado === 'ANULADO') throw new Error('No se puede modificar un aporte anulado')
 
@@ -161,12 +178,12 @@ export const aporteService = {
       const updated = await tx.aporte.update({ where: { id }, data: updateData })
 
       if (montoDiff !== 0) {
-        const fondo = await tx.fondoRotatorio.findUnique({ where: { id: existing.fondoId } })
+        const fondo = await tx.fondoRotatorio.findUnique({ where: { id: existing.fondoSocio.fondoId } })
         if (fondo && Number(fondo.capitalDisponible) + montoDiff < 0) {
           throw new Error('No se puede reducir: el capital disponible del fondo sería negativo')
         }
         await tx.fondoRotatorio.update({
-          where: { id: existing.fondoId },
+          where: { id: existing.fondoSocio.fondoId },
           data: { capitalDisponible: { increment: montoDiff } },
         })
       }
@@ -182,7 +199,6 @@ export const aporteService = {
       operacion: 'UPDATE',
       datosAnteriores: { monto: Number(aporte.monto) },
       datosNuevos: data,
-      usuarioId: 1,
     })
 
     const result = await prisma.aporte.findUniqueOrThrow({ where: { id } })
@@ -191,11 +207,14 @@ export const aporteService = {
 
   async delete(id: number) {
     const result = await prisma.$transaction(async (tx) => {
-      const aporte = await tx.aporte.findUnique({ where: { id } })
+      const aporte = await tx.aporte.findUnique({
+        where: { id },
+        include: { fondoSocio: { select: { fondoId: true } } },
+      })
       if (!aporte) return { success: false as const, message: 'Aporte no encontrado' }
       if (aporte.estado === 'ANULADO') return { success: false as const, message: 'El aporte ya está anulado' }
 
-      const fondo = await tx.fondoRotatorio.findUnique({ where: { id: aporte.fondoId } })
+      const fondo = await tx.fondoRotatorio.findUnique({ where: { id: aporte.fondoSocio.fondoId } })
       if (fondo && Number(fondo.capitalDisponible) < Number(aporte.monto)) {
         return { success: false as const, message: 'No se puede anular: el capital disponible del fondo es insuficiente (préstamos activos)' }
       }
@@ -205,7 +224,7 @@ export const aporteService = {
         data: { estado: 'ANULADO' },
       })
       await tx.fondoRotatorio.update({
-        where: { id: aporte.fondoId },
+        where: { id: aporte.fondoSocio.fondoId },
         data: { capitalDisponible: { decrement: Number(aporte.monto) } },
       })
 
@@ -218,7 +237,6 @@ export const aporteService = {
         registroId: id,
         operacion: 'DELETE',
         datosAnteriores: { estado: 'ACTIVO' },
-        usuarioId: 1,
       })
     }
 

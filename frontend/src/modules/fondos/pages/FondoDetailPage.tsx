@@ -73,6 +73,8 @@ export default function FondoDetailPage() {
     try {
       await fondosApi.addSocio(fondo.id, socioId)
       queryClient.invalidateQueries({ queryKey: ['fondo', fondo.id] })
+      queryClient.invalidateQueries({ queryKey: ['fondos'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Socio agregado al fondo')
       setShowSocioModal(false)
     } catch {
@@ -86,6 +88,8 @@ export default function FondoDetailPage() {
     try {
       await fondosApi.removeSocio(fondo.id, socioId)
       queryClient.invalidateQueries({ queryKey: ['fondo', fondo.id] })
+      queryClient.invalidateQueries({ queryKey: ['fondos'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Socio retirado del fondo')
     } catch {
       toast.error('Error al retirar socio')

@@ -1,5 +1,9 @@
 import prisma from '../../config/prisma'
 
+const socioSelect = {
+  id: true, codigo: true, dni: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, telefono: true,
+} as const
+
 export const reportesService = {
   async estadoCuentasSocio(socioId: number, fondoId?: number) {
     const socio = await prisma.socio.findUnique({
@@ -8,26 +12,28 @@ export const reportesService = {
     })
     if (!socio) return null
 
-    const fondosWhere: any = { socioId }
-    if (fondoId) fondosWhere.fondoId = fondoId
+    const fondosWhere: any = { fondoSocio: { socioId } }
+    if (fondoId) fondosWhere.fondoSocio.fondoId = fondoId
 
     const [cuentasAhorro, aportes, prestamos] = await Promise.all([
       prisma.cuentaAhorro.findMany({
         where: fondosWhere,
         include: {
-          fondo: { select: { id: true, nombre: true } },
+          fondoSocio: { select: { id: true, fechaIngreso: true, fondo: { select: { id: true, nombre: true } } } },
           movimientos: { orderBy: { createdAt: 'desc' }, take: 20 },
         },
       }),
       prisma.aporte.findMany({
         where: fondosWhere,
-        include: { fondo: { select: { id: true, nombre: true } } },
+        include: {
+          fondoSocio: { select: { id: true, fechaIngreso: true, fondo: { select: { id: true, nombre: true } } } },
+        },
         orderBy: { fechaAporte: 'desc' },
       }),
       prisma.prestamo.findMany({
         where: fondosWhere,
         include: {
-          fondo: { select: { id: true, nombre: true } },
+          fondoSocio: { select: { id: true, fechaIngreso: true, fondo: { select: { id: true, nombre: true } } } },
           cuotas: { orderBy: { numero: 'asc' } },
         },
         orderBy: { fechaDesembolso: 'desc' },
@@ -49,9 +55,26 @@ export const reportesService = {
       socio: { id: socio.id, codigo: socio.codigo, dni: socio.dni, nombres: socio.nombres, apellidoPaterno: socio.apellidoPaterno, apellidoMaterno: socio.apellidoMaterno, telefono: socio.telefono, email: socio.email, fechaIngreso: socio.fechaIngreso, estado: socio.estado },
       beneficiarios: socio.beneficiarios,
       resumen: { totalAhorros, totalAportes, totalPrestamos, totalCuotasPendientes, totalDeuda, prestamosActivos: prestamosActivos.length },
-      cuentasAhorro,
-      aportes,
-      prestamos,
+      cuentasAhorro: cuentasAhorro.map((c) => ({ ...c, saldo: Number(c.saldo), fondo: c.fondoSocio?.fondo ?? null, fondoSocio: undefined })),
+      aportes: aportes.map((a) => ({ ...a, monto: Number(a.monto), fondo: a.fondoSocio?.fondo ?? null, fondoSocio: undefined })),
+      prestamos: prestamos.map((p) => ({
+        ...p,
+        monto: Number(p.monto),
+        tasaInteres: Number(p.tasaInteres),
+        montoCuota: Number(p.montoCuota),
+        totalInteres: Number(p.totalInteres),
+        fondo: p.fondoSocio?.fondo ?? null,
+        fondoSocio: undefined,
+        cuotas: p.cuotas.map((c) => ({
+          ...c,
+          monto: Number(c.monto),
+          interes: Number(c.interes),
+          amortizacion: Number(c.amortizacion),
+          saldo: Number(c.saldo),
+          montoPagado: Number(c.montoPagado),
+          saldoPendiente: Number(c.saldoPendiente),
+        })),
+      })),
     }
   },
 
@@ -59,7 +82,7 @@ export const reportesService = {
     const { fondoId, estado, fechaInicio, fechaFin } = params
 
     const where: any = {}
-    if (fondoId) where.fondoId = fondoId
+    if (fondoId) where.fondoSocio = { fondoId: Number(fondoId) }
     if (estado && estado !== 'TODOS') where.estado = estado
     if (fechaInicio || fechaFin) {
       where.fechaDesembolso = {}
@@ -70,8 +93,12 @@ export const reportesService = {
     const prestamos = await prisma.prestamo.findMany({
       where,
       include: {
-        socio: { select: { id: true, codigo: true, dni: true, nombres: true, apellidoPaterno: true, telefono: true } },
-        fondo: { select: { id: true, nombre: true } },
+        fondoSocio: {
+          select: {
+            socio: { select: socioSelect },
+            fondo: { select: { id: true, nombre: true } },
+          },
+        },
         cuotas: { orderBy: { numero: 'asc' } },
       },
       orderBy: { fechaDesembolso: 'desc' },
@@ -94,8 +121,8 @@ export const reportesService = {
 
       return {
         id: p.id,
-        socio: p.socio,
-        fondo: p.fondo,
+        socio: p.fondoSocio?.socio ?? null,
+        fondo: p.fondoSocio?.fondo ?? null,
         monto: Number(p.monto),
         tasaInteres: Number(p.tasaInteres),
         numeroCuotas: p.numeroCuotas,
@@ -142,18 +169,18 @@ export const reportesService = {
       const [cuotasPagadas, aportes, ahorrosRetiros] = await Promise.all([
         prisma.cuotaPrestamo.findMany({
           where: {
-            prestamo: { fondoId: fondo.id },
+            prestamo: { fondoSocio: { fondoId: fondo.id } },
             estado: 'PAGADO',
             fechaPago: whereFecha,
           },
           include: { prestamo: { select: { monto: true, tasaInteres: true } } },
         }),
         prisma.aporte.findMany({
-          where: { fondoId: fondo.id, fechaAporte: whereFecha },
+          where: { fondoSocio: { fondoId: fondo.id }, fechaAporte: whereFecha },
         }),
         prisma.ahorroMovimiento.findMany({
           where: {
-            cuenta: { fondoId: fondo.id },
+            cuenta: { fondoSocio: { fondoId: fondo.id } },
             tipo: 'RETIRO',
             createdAt: whereFecha,
           },
@@ -188,16 +215,20 @@ export const reportesService = {
     const { fondoId, periodo, tipo } = params
 
     const where: any = {}
-    if (fondoId) where.fondoId = fondoId
+    if (fondoId) where.fondoSocio = { fondoId: Number(fondoId) }
     if (periodo) where.periodo = periodo
     if (tipo && tipo !== 'TODOS') where.tipo = tipo
 
     const aportes = await prisma.aporte.findMany({
       where,
       include: {
-        socio: { select: { id: true, codigo: true, dni: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true } },
-        fondo: { select: { id: true, nombre: true } },
-        fondoSocio: { select: { fechaIngreso: true } },
+        fondoSocio: {
+          select: {
+            fechaIngreso: true,
+            socio: { select: { id: true, codigo: true, dni: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true } },
+            fondo: { select: { id: true, nombre: true } },
+          },
+        },
       },
       orderBy: { fechaAporte: 'desc' },
     })
@@ -216,7 +247,16 @@ export const reportesService = {
       }, {} as Record<string, number>),
     }
 
-    return { aportes, resumen }
+    return {
+      aportes: aportes.map((a) => ({
+        ...a,
+        monto: Number(a.monto),
+        socio: a.fondoSocio?.socio ?? null,
+        fondo: a.fondoSocio?.fondo ?? null,
+        fondoSocio: undefined,
+      })),
+      resumen,
+    }
   },
 
   async morosos(params: { fondoId?: number; diasMinimos?: number }) {
@@ -224,13 +264,17 @@ export const reportesService = {
     const hoy = new Date()
 
     const wherePrestamo: any = { estado: 'ACTIVO' }
-    if (fondoId) wherePrestamo.fondoId = fondoId
+    if (fondoId) wherePrestamo.fondoSocio = { fondoId: Number(fondoId) }
 
     const prestamos = await prisma.prestamo.findMany({
       where: wherePrestamo,
       include: {
-        socio: { select: { id: true, codigo: true, dni: true, nombres: true, apellidoPaterno: true, telefono: true, email: true } },
-        fondo: { select: { id: true, nombre: true } },
+        fondoSocio: {
+          select: {
+            socio: { select: { id: true, codigo: true, dni: true, nombres: true, apellidoPaterno: true, telefono: true, email: true } },
+            fondo: { select: { id: true, nombre: true } },
+          },
+        },
         cuotas: { where: { estado: { in: ['VENCIDO', 'PARCIAL', 'PENDIENTE'] } }, orderBy: { numero: 'asc' } },
       },
     })
@@ -251,9 +295,9 @@ export const reportesService = {
         ))
 
         return {
-          socio: p.socio,
+          socio: p.fondoSocio?.socio ?? null,
           prestamo: { id: p.id, monto: Number(p.monto), montoCuota: Number(p.montoCuota), numeroCuotas: p.numeroCuotas, fechaDesembolso: p.fechaDesembolso },
-          fondo: p.fondo,
+          fondo: p.fondoSocio?.fondo ?? null,
           cuotasAtrasadas: cuotasAtrasadas.length,
           montoAdeudado,
           diasMaxAtraso,
@@ -294,7 +338,7 @@ export const reportesService = {
       }),
       prisma.cuotaPrestamo.findMany({
         where: { fechaVencimiento: { gte: hoy, lt: new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000) } },
-        include: { prestamo: { select: { socio: { select: { nombres: true, apellidoPaterno: true, telefono: true } } } } },
+        include: { prestamo: { select: { fondoSocio: { select: { socio: { select: { nombres: true, apellidoPaterno: true, telefono: true } } } } } } },
       }),
       prisma.aporte.findMany({
         where: { fechaAporte: { gte: inicioMes } },
@@ -335,8 +379,8 @@ export const reportesService = {
       totalSaldoCajas,
       cuotasPorVencer: cuotasHoy.length,
       cuotasPorVencerDetalle: cuotasHoy.slice(0, 10).map(c => ({
-        socio: `${c.prestamo?.socio?.nombres} ${c.prestamo?.socio?.apellidoPaterno}`,
-        telefono: c.prestamo?.socio?.telefono,
+        socio: `${c.prestamo?.fondoSocio?.socio?.nombres} ${c.prestamo?.fondoSocio?.socio?.apellidoPaterno}`,
+        telefono: c.prestamo?.fondoSocio?.socio?.telefono,
         monto: Number(c.monto),
         fechaVencimiento: c.fechaVencimiento,
       })),

@@ -58,11 +58,11 @@ export default function CajaListPage() {
       render: (caja: Caja) => estadoBadge(caja.estado),
     },
     {
-      key: 'responsable',
-      label: 'Responsable',
+      key: 'fondo',
+      label: 'Fondo',
       render: (caja: Caja) => (
         <span className="text-sm text-gray-600">
-          {caja.responsable?.nombres} {caja.responsable?.apellidoPaterno}
+          {caja.fondo?.nombre || '—'}
         </span>
       ),
     },

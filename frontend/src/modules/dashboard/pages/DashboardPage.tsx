@@ -14,11 +14,11 @@ const tablaLabel: Record<string, string> = {
   ArqueoCaja: 'un arqueo', AhorroMovimiento: 'un movimiento de ahorro', CuotaPrestamo: 'una cuota',
 }
 
-function SummaryCards({ resumen }: { resumen: DashboardData['resumen'] }) {
+function SummaryCards({ resumen, cajasCount }: { resumen: DashboardData['resumen']; cajasCount: number }) {
   const cards = [
     { label: 'Socios Activos', value: resumen.sociosActivos, sub: `${resumen.totalSocios} total`, icon: Users, color: 'bg-blue-50 text-blue-600', border: 'border-blue-100' },
     { label: 'Fondos Activos', value: resumen.totalFondos, sub: `${resumen.fondosActivos} activos`, icon: Building2, color: 'bg-purple-50 text-purple-600', border: 'border-purple-100' },
-    { label: 'Saldo Total Cajas', value: formatCurrency(resumen.totalSaldoCajas), sub: `${resumen.cajas?.length || 0} cajas`, icon: Wallet, color: 'bg-green-50 text-green-600', border: 'border-green-100' },
+    { label: 'Saldo Total Cajas', value: formatCurrency(resumen.totalSaldoCajas), sub: `${cajasCount} cajas`, icon: Wallet, color: 'bg-green-50 text-green-600', border: 'border-green-100' },
     { label: 'Cartera Activa', value: formatCurrency(resumen.saldoPendienteCartera), sub: `${resumen.creditosActivos} préstamos`, icon: DollarSign, color: 'bg-indigo-50 text-indigo-600', border: 'border-indigo-100' },
     { label: 'Ahorros Totales', value: formatCurrency(resumen.totalAhorros), sub: 'en cuentas', icon: PiggyBank, color: 'bg-teal-50 text-teal-600', border: 'border-teal-100' },
     { label: 'Aportes del Mes', value: formatCurrency(resumen.aportesMes), sub: `${resumen.cantidadAportesMes} aportes`, icon: TrendingUp, color: 'bg-amber-50 text-amber-600', border: 'border-amber-100' },
@@ -198,10 +198,9 @@ function ActividadReciente({ actividad }: { actividad: DashboardData['actividadR
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-gray-700">
-                  <span className="font-medium">{a.usuario.nombres} {a.usuario.apellidoPaterno}</span>
-                  {' '}{label} {modulo}
+                  <span className="font-medium">{label} {modulo}</span>
                 </p>
-                <p className="text-xs text-gray-400">@{a.usuario.username} · {timeAgo}</p>
+                <p className="text-xs text-gray-400">{timeAgo}</p>
               </div>
             </div>
           )
@@ -225,7 +224,6 @@ function ArqueosAlerta({ arqueos }: { arqueos: DashboardData['arqueosPendientes'
           <div key={a.id} className="px-5 py-3 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-700">{a.caja.nombre} — {a.codigo}</p>
-              <p className="text-xs text-gray-400">Responsable: {a.responsable.nombres} {a.responsable.apellidoPaterno}</p>
             </div>
             <div className="text-right">
               <p className={`text-sm font-semibold ${a.diferencia === 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -260,7 +258,6 @@ function MovimientosHoy({ movimientos }: { movimientos: DashboardData['movimient
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Concepto</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500">Tipo</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Monto</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Registrado por</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -275,7 +272,6 @@ function MovimientosHoy({ movimientos }: { movimientos: DashboardData['movimient
                 <td className={`px-5 py-3 text-right font-medium ${m.tipo === 'INGRESO' ? 'text-green-600' : 'text-red-600'}`}>
                   {m.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(m.monto)}
                 </td>
-                <td className="px-5 py-3 text-xs text-gray-500">{m.registrador.nombres} {m.registrador.apellidoPaterno}</td>
               </tr>
             ))}
           </tbody>
@@ -312,7 +308,7 @@ export default function DashboardPage() {
         <p className="text-sm text-gray-500">Resumen general del sistema financiero</p>
       </div>
 
-      <SummaryCards resumen={d.resumen} />
+      <SummaryCards resumen={d.resumen} cajasCount={d.cajas?.length || 0} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <CajasBar cajas={d.cajas} />

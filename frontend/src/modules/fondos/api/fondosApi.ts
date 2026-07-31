@@ -9,8 +9,14 @@ export interface FondosQuery {
   estado?: string
 }
 
+export interface FondosListResponse extends PaginatedResponse<FondoRotatorio> {
+  totalCapitalInicial: number
+  totalCapitalDisponible: number
+  totalSocios: number
+}
+
 export const fondosApi = {
-  list: async (params?: FondosQuery): Promise<PaginatedResponse<FondoRotatorio>> => {
+  list: async (params?: FondosQuery): Promise<FondosListResponse> => {
     const { data } = await api.get('/fondos', { params })
     return data
   },

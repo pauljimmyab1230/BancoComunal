@@ -14,8 +14,8 @@ export const socioController = {
       const { search, page, limit, estado } = req.query
       const result = await socioService.list({
         search: search as string,
-        page: page ? parseInt(page as string) : undefined,
-        limit: limit ? parseInt(limit as string) : undefined,
+        page: safeParseInt(page) ?? undefined,
+        limit: safeParseInt(limit) ?? undefined,
         estado: estado as string,
       })
       res.json({

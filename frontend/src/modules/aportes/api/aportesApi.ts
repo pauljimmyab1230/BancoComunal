@@ -11,8 +11,13 @@ export interface AportesQuery {
   socioId?: number
 }
 
+export interface AportesListResponse extends PaginatedResponse<Aporte> {
+  totalAportado: number
+  totalActivos: number
+}
+
 export const aportesApi = {
-  list: async (params?: AportesQuery): Promise<PaginatedResponse<Aporte>> => {
+  list: async (params?: AportesQuery): Promise<AportesListResponse> => {
     const { data } = await api.get('/aportes', { params })
     return data
   },

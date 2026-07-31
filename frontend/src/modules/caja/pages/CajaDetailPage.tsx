@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { ArrowLeft, Plus, Filter, DollarSign, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
 import {
   useCaja,
@@ -63,7 +64,7 @@ export default function CajaDetailPage() {
   const [selectedArqueoId, setSelectedArqueoId] = useState<number | null>(null)
   const [filtroTipo, setFiltroTipo] = useState('TODOS')
 
-  const movimientoForm = useForm<MovimientoCreateInput>({
+  const movimientoForm = useForm<z.input<typeof movimientoCreateSchema>, any, z.output<typeof movimientoCreateSchema>>({
     resolver: zodResolver(movimientoCreateSchema),
     defaultValues: {
       cajaId,
@@ -75,7 +76,7 @@ export default function CajaDetailPage() {
     },
   })
 
-  const arqueoForm = useForm<ArqueoCreateInput>({
+  const arqueoForm = useForm<z.input<typeof arqueoCreateSchema>, any, z.output<typeof arqueoCreateSchema>>({
     resolver: zodResolver(arqueoCreateSchema),
     defaultValues: {
       cajaId,
@@ -105,19 +106,6 @@ export default function CajaDetailPage() {
         actionTo="/caja"
       />
     )
-  }
-
-  const estadoBadge = (estado: string) => {
-    switch (estado) {
-      case 'ACTIVA':
-        return <Badge variant="green">Activa</Badge>
-      case 'INACTIVA':
-        return <Badge variant="gray">Inactiva</Badge>
-      case 'CERRADA':
-        return <Badge variant="red">Cerrada</Badge>
-      default:
-        return <Badge>{estado}</Badge>
-    }
   }
 
   const estadoArqueoBadge = (estado: string) => {
@@ -168,7 +156,7 @@ export default function CajaDetailPage() {
   const onAprobarArqueo = (data: { observacion?: string }) => {
     if (!selectedArqueoId) return
     aprobarArqueo.mutate(
-      { id: selectedArqueoId, data: { estado: 'APROBADO', observacion: data.observacion, aprobadorId: 1 } }, // TODO: Replace aprobadorId with auth user
+      { id: selectedArqueoId, data: { estado: 'APROBADO', observacion: data.observacion } },
       {
         onSuccess: () => {
           setShowAprobarModal(false)
@@ -362,7 +350,7 @@ export default function CajaDetailPage() {
                       <td className="px-4 py-3">
                         {arqueo.estado === 'PENDIENTE' && (
                           <Button
-        maxWidth="sm"
+                            size="sm"
                             onClick={() => {
                               setSelectedArqueoId(arqueo.id)
                               setShowAprobarModal(true)
@@ -476,7 +464,7 @@ export default function CajaDetailPage() {
           setSelectedArqueoId(null)
         }}
         title="Procesar Arqueo"
-        size="sm"
+        maxWidth="sm"
       >
         <form onSubmit={aprobarForm.handleSubmit(onAprobarArqueo)} className="p-6 space-y-4">
           <p className="text-sm text-gray-600">

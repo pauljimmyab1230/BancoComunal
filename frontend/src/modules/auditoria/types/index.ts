@@ -7,12 +7,6 @@ export interface AuditLogEntry {
   datosNuevos?: Record<string, any>
   ip?: string
   createdAt: string
-  usuario: {
-    id: number
-    nombres: string
-    apellidoPaterno: string
-    username: string
-  }
 }
 
 export interface AuditLogStats {
@@ -27,7 +21,6 @@ export interface AuditLogParams {
   limit?: number
   tabla?: string
   operacion?: string
-  usuarioId?: number
   fechaInicio?: string
   fechaFin?: string
 }

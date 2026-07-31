@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Search, TrendingUp, TrendingDown, Users, DollarSign, AlertTriangle, Wallet, PiggyBank, HandCoins, BarChart3 } from 'lucide-react'
+import { Search, TrendingUp, Users, DollarSign, AlertTriangle, Wallet, HandCoins, BarChart3 } from 'lucide-react'
 import { useResumenEjecutivo, useCarteraCreditos, useEstadoResultados, useReporteAportes, useMorosos, useEstadoCuentasSocio } from '../hooks/useReportes'
-import { useCajas } from '@/modules/caja/hooks/useCajas'
 import { Button, Card, FormField, Input, Select, SectionHeader, Badge, LoadingSpinner, EmptyState } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
 import type { ResumenEjecutivo, CarteraCreditoPrestamo, EstadoResultadosFondo, ReporteAporte, Moroso } from '../types'
@@ -200,10 +199,10 @@ function CarteraTab() {
 }
 
 function ResultadosTab() {
-  const getDefaultDate = () => {
+  const getDefaultDate = (): { inicio: string; fin: string } => {
     const now = new Date()
     const first = new Date(now.getFullYear(), now.getMonth(), 1)
-    return { inicio: first.toISOString().split('T')[0], fin: now.toISOString().split('T')[0] }
+    return { inicio: first.toISOString().split('T')[0] ?? '', fin: now.toISOString().split('T')[0] ?? '' }
   }
   const dates = getDefaultDate()
   const [fechaInicio, setFechaInicio] = useState(dates.inicio)

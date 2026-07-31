@@ -10,25 +10,21 @@ export interface FondoRotatorio {
   reglamento: string | null
   condiciones: string | null
   fechaCierre: string | null
-  responsableId: number
-  responsableNombre: string
   totalSocios: number
   createdAt: string
   updatedAt: string
   socios?: FondoSocio[]
-  responsable?: {
-    id: number
-    nombres: string
-    apellidoPaterno: string
-    apellidoMaterno: string
-    correo?: string
-  }
 }
 
 export interface FondoSocio {
   id: number
-  fechaIngreso: string
-  estado: string
+  fechaIngreso: string | null
+  fechaSalida: string | null
+  numeroSocio: number | null
+  cargo: string | null
+  nivel: string | null
+  observacion: string | null
+  fechaAprobacion: string | null
   fondoId: number
   socioId: number
   socio: {
@@ -52,5 +48,4 @@ export interface FondoFormData {
   descripcion: string
   reglamento: string
   condiciones: string
-  responsableId: number
 }

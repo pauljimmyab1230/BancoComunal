@@ -16,7 +16,6 @@ export interface Aporte {
   updatedAt: string
   fondoId: number
   socioId: number
-  registradorId: number
   socio: {
     id: number
     codigo: string
@@ -29,12 +28,6 @@ export interface Aporte {
     id: number
     nombre: string
     moneda: string
-  }
-  registrador?: {
-    id: number
-    nombres: string
-    apellidoPaterno: string
-    apellidoMaterno?: string
   }
 }
 

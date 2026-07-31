@@ -33,7 +33,6 @@ export interface DashboardMovimiento {
   fechaMovimiento: string
   caja: { nombre: string }
   concepto: { nombre: string }
-  registrador: { nombres: string; apellidoPaterno: string }
 }
 
 export interface DashboardCuotaProxima {
@@ -53,7 +52,6 @@ export interface DashboardArqueoPendiente {
   saldoFisico: number
   diferencia: number
   caja: { nombre: string }
-  responsable: { nombres: string; apellidoPaterno: string }
 }
 
 export interface DashboardPrestamoTop {
@@ -73,7 +71,6 @@ export interface DashboardAuditEntry {
   registroId: number
   operacion: string
   createdAt: string
-  usuario: { id: number; nombres: string; apellidoPaterno: string; username: string }
 }
 
 export interface DashboardData {

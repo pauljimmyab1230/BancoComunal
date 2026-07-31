@@ -16,7 +16,6 @@ const fondoSchema = z.object({
   descripcion: z.string().optional().or(z.literal('')),
   reglamento: z.string().optional().or(z.literal('')),
   condiciones: z.string().optional().or(z.literal('')),
-  responsableId: z.string().min(1, 'Seleccione un responsable'),
 })
 
 type FondoFormValues = z.infer<typeof fondoSchema>
@@ -46,7 +45,6 @@ export default function FondoFormPage() {
       descripcion: '',
       reglamento: '',
       condiciones: '',
-      responsableId: '1',
     },
   })
 
@@ -62,7 +60,6 @@ export default function FondoFormPage() {
         descripcion: f.descripcion || '',
         reglamento: f.reglamento || '',
         condiciones: f.condiciones || '',
-        responsableId: String(f.responsableId),
       })
     }
   }, [fondoData, isEditing, reset])
@@ -71,7 +68,6 @@ export default function FondoFormPage() {
     const payload = {
       ...values,
       capitalInicial: parseFloat(values.capitalInicial),
-      responsableId: parseInt(values.responsableId),
     }
 
     if (isEditing) {
@@ -145,12 +141,6 @@ export default function FondoFormPage() {
                 placeholder="0.00"
                 error={errors.capitalInicial?.message}
               />
-            </FormField>
-
-            <FormField label="Responsable" required error={errors.responsableId?.message}>
-              <Select {...register('responsableId')} options={[
-                { value: '1', label: 'Administrador' },
-              ]} error={errors.responsableId?.message} />
             </FormField>
 
             <FormField label="Descripción" error={errors.descripcion?.message} className="sm:col-span-2">

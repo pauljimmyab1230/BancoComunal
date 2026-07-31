@@ -1,16 +1,13 @@
-import { PrismaClient } from '@prisma/client'
+import prisma from '../../config/prisma'
 import type { AuditLogQueryInput } from './auditoriaValidation'
-
-const prisma = new PrismaClient()
 
 export const auditoriaService = {
   async list(params: AuditLogQueryInput) {
-    const { page, limit, tabla, operacion, usuarioId, fechaInicio, fechaFin } = params
+    const { page, limit, tabla, operacion, fechaInicio, fechaFin } = params
     const where: any = {}
 
     if (tabla) where.tabla = tabla
     if (operacion) where.operacion = operacion
-    if (usuarioId) where.usuarioId = usuarioId
     if (fechaInicio || fechaFin) {
       where.createdAt = {}
       if (fechaInicio) where.createdAt.gte = new Date(fechaInicio)
@@ -24,7 +21,6 @@ export const auditoriaService = {
     const [data, total] = await Promise.all([
       prisma.auditLog.findMany({
         where,
-        include: { usuario: { select: { id: true, nombres: true, apellidoPaterno: true, username: true } } },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -38,7 +34,6 @@ export const auditoriaService = {
   async getById(id: number) {
     return prisma.auditLog.findUnique({
       where: { id },
-      include: { usuario: { select: { id: true, nombres: true, apellidoPaterno: true, username: true } } },
     })
   },
 
@@ -59,7 +54,6 @@ export const auditoriaService = {
       prisma.auditLog.findMany({
         take: 5,
         orderBy: { createdAt: 'desc' },
-        include: { usuario: { select: { id: true, nombres: true, apellidoPaterno: true, username: true } } },
       }),
     ])
 
@@ -71,7 +65,7 @@ export const auditoriaService = {
     }
   },
 
-  async create(data: { tabla: string; registroId: number; operacion: string; datosAnteriores?: any; datosNuevos?: any; usuarioId: number; ip?: string }) {
+  async create(data: { tabla: string; registroId: number; operacion: string; datosAnteriores?: any; datosNuevos?: any; ip?: string }) {
     return prisma.auditLog.create({ data })
   },
 }

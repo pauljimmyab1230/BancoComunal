@@ -51,7 +51,7 @@ function isAtleast18(fechaNacimiento: string): boolean {
   return age >= 18
 }
 
-async function createAuditLog(data: { tabla: string; registroId: number; operacion: string; datosAnteriores?: any; datosNuevos?: any; usuarioId: number }) {
+async function createAuditLog(data: { tabla: string; registroId: number; operacion: string; datosAnteriores?: any; datosNuevos?: any }) {
   try {
     await prisma.auditLog.create({ data })
   } catch { /* tabla puede no existir */ }
@@ -172,7 +172,6 @@ export const socioService = {
       registroId: socio.id,
       operacion: 'CREATE',
       datosNuevos: { codigo: socio.codigo, dni: socio.dni, nombres: socio.nombres, apellidoPaterno: socio.apellidoPaterno, estado: socio.estado },
-      usuarioId: 1,
     })
 
     return {
@@ -235,7 +234,6 @@ export const socioService = {
       operacion: 'UPDATE',
       datosAnteriores: { dni: existing.dni, nombres: existing.nombres, estado: existing.estado },
       datosNuevos: updateData,
-      usuarioId: 1,
     })
 
     return {
@@ -248,31 +246,39 @@ export const socioService = {
     const socio = await prisma.socio.findUnique({
       where: { id },
       include: {
-        prestamos: { where: { estado: 'ACTIVO' }, select: { id: true } },
-        cuentasAhorro: { select: { id: true } },
-        aportes: { select: { id: true } },
+        documentos: { select: { rutaArchivo: true } },
       },
     })
     if (!socio) return { success: false, message: 'Socio no encontrado' }
 
-    if (socio.prestamos.length > 0) {
+    const [prestamosActivos, cuentasCount, aportesCount, membresias] = await Promise.all([
+      prisma.prestamo.count({ where: { fondoSocio: { socioId: id }, estado: 'ACTIVO' } }),
+      prisma.cuentaAhorro.count({ where: { fondoSocio: { socioId: id } } }),
+      prisma.aporte.count({ where: { fondoSocio: { socioId: id } } }),
+      prisma.fondoSocio.count({ where: { socioId: id } }),
+    ])
+
+    if (prestamosActivos > 0) {
       return { success: false, message: 'No se puede eliminar: el socio tiene préstamos activos' }
     }
-    if (socio.cuentasAhorro.length > 0) {
+    if (cuentasCount > 0) {
       return { success: false, message: 'No se puede eliminar: el socio tiene cuentas de ahorro' }
     }
-    if (socio.aportes.length > 0) {
+    if (aportesCount > 0) {
       return { success: false, message: 'No se puede eliminar: el socio tiene aportes registrados' }
+    }
+    if (membresias > 0) {
+      return { success: false, message: 'No se puede eliminar: el socio pertenece a uno o más fondos' }
     }
 
     deleteFileIfExists(socio.fotoUrl)
+    socio.documentos.forEach((d) => deleteFileIfExists(d.rutaArchivo))
 
     await createAuditLog({
       tabla: 'Socio',
       registroId: socio.id,
       operacion: 'DELETE',
       datosAnteriores: { codigo: socio.codigo, dni: socio.dni, nombres: socio.nombres, apellidoPaterno: socio.apellidoPaterno },
-      usuarioId: 1,
     })
 
     await prisma.socio.delete({ where: { id } })

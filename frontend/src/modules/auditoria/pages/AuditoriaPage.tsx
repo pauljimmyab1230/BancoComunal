@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { ShieldCheck, Plus, Pencil, Trash2, Activity, Database, Users, Eye } from 'lucide-react'
-import { useAuditLogs, useAuditLog, useAuditModules, useAuditStats } from '../hooks/useAuditoria'
-import { Button, Card, FormField, Input, Select, SectionHeader, Badge, Modal, Pagination, SearchInput, LoadingSpinner, EmptyState } from '@/components/ui'
+import { Plus, Pencil, Trash2, Activity, Eye } from 'lucide-react'
+import { useAuditLogs, useAuditModules, useAuditStats } from '../hooks/useAuditoria'
+import { Button, Card, FormField, Input, Select, SectionHeader, Badge, Modal, Pagination, LoadingSpinner, EmptyState } from '@/components/ui'
 import type { AuditLogEntry } from '../types'
 
-const operacionLabels: Record<string, { label: string; variant: 'green' | 'blue' | 'red'; icon: typeof Plus }> = {
+const operacionLabels: Record<AuditLogEntry['operacion'], { label: string; variant: 'green' | 'blue' | 'red'; icon: typeof Plus }> = {
   CREATE: { label: 'Creación', variant: 'green', icon: Plus },
   UPDATE: { label: 'Actualización', variant: 'blue', icon: Pencil },
   DELETE: { label: 'Eliminación', variant: 'red', icon: Trash2 },
@@ -108,11 +108,6 @@ function DetailModal({ entry, open, onClose }: { entry: AuditLogEntry | null; op
           <div>
             <p className="text-xs text-gray-500 mb-1">Fecha</p>
             <p className="text-gray-900">{new Date(entry.createdAt).toLocaleString('es-PE')}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 mb-1">Usuario</p>
-            <p className="text-gray-900">{entry.usuario.nombres} {entry.usuario.apellidoPaterno}</p>
-            <p className="text-xs text-gray-400">@{entry.usuario.username}</p>
           </div>
         </div>
 
@@ -229,7 +224,6 @@ export default function AuditoriaPage() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
                   <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Fecha</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Usuario</th>
                   <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500">Operación</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Módulo</th>
                   <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500">Registro #</th>
@@ -244,10 +238,6 @@ export default function AuditoriaPage() {
                     <tr key={entry.id} className="hover:bg-gray-50">
                       <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">
                         {new Date(entry.createdAt).toLocaleString('es-PE')}
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="font-medium text-sm">{entry.usuario.nombres} {entry.usuario.apellidoPaterno}</div>
-                        <div className="text-xs text-gray-400">@{entry.usuario.username}</div>
                       </td>
                       <td className="px-5 py-3 text-center">
                         <Badge variant={op.variant}>{op.label}</Badge>
@@ -267,7 +257,7 @@ export default function AuditoriaPage() {
           </div>
           {data.totalPages > 1 && (
             <div className="border-t border-gray-100 px-5 py-3">
-              <Pagination page={page} totalPages={data.totalPages} onPageChange={setPage} />
+              <Pagination currentPage={page} totalPages={data.totalPages} onPageChange={setPage} />
             </div>
           )}
         </Card>

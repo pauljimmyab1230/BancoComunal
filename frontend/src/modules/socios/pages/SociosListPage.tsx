@@ -12,7 +12,7 @@ const estadoBadge = (estado: string) => {
     case 'A':
       return <Badge variant="green">Activo</Badge>
     case 'I':
-      return <Badge variant="gray">Inactivo</Badge>
+      return <Badge variant="red">Inactivo</Badge>
     default:
       return <Badge>{estado}</Badge>
   }

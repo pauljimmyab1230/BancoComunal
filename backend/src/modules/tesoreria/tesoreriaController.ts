@@ -36,8 +36,7 @@ export const tesoreriaController = {
   async transferenciaEntreCajas(req: Request, res: Response, next: NextFunction) {
     try {
       const data = transferenciaEntreCajasSchema.parse(req.body)
-      const registradorId = (req as any).user?.id || 1
-      const resultado = await tesoreriaService.transferenciaEntreCajas(data, registradorId)
+      const resultado = await tesoreriaService.transferenciaEntreCajas(data)
       res.json({ success: true, data: resultado, message: 'Transferencia realizada correctamente' })
     } catch (error) { next(error) }
   },

@@ -7,7 +7,6 @@ export const createPrestamoSchema = z.object({
   fechaPrimerVencimiento: z.string().refine((v) => !isNaN(Date.parse(v)), 'Fecha inválida'),
   fondoId: z.string().or(z.number()).transform((v) => Number(v)),
   socioId: z.string().or(z.number()).transform((v) => Number(v)),
-  registradorId: z.string().or(z.number()).transform((v) => Number(v)).optional(),
 })
 
 export const pagoCuotaSchema = z.object({

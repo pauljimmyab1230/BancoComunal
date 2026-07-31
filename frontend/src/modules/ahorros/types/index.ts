@@ -37,12 +37,6 @@ export interface AhorroMovimiento {
   observacion: string | null
   createdAt: string
   cuentaId: number
-  registradorId: number
-  registrador?: {
-    id: number
-    nombres: string
-    apellidoPaterno: string
-  }
   cuenta?: {
     socio: { id: number; codigo: string; nombres: string; apellidoPaterno: string }
     fondo: { id: number; nombre: string; moneda: string }

@@ -6,7 +6,6 @@ export const auditLogSchema = z.object({
   operacion: z.enum(['CREATE', 'UPDATE', 'DELETE'], { message: 'Operación requerida' }),
   datosAnteriores: z.any().optional(),
   datosNuevos: z.any().optional(),
-  usuarioId: z.number().int().positive('El ID del usuario es requerido'),
   ip: z.string().max(45).optional(),
 })
 
@@ -16,7 +15,6 @@ export const auditLogQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
   tabla: z.string().optional(),
   operacion: z.string().optional(),
-  usuarioId: z.coerce.number().int().positive().optional(),
   fechaInicio: z.string().optional(),
   fechaFin: z.string().optional(),
 })

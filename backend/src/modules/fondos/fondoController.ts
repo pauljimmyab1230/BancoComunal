@@ -2,14 +2,19 @@ import { Request, Response, NextFunction } from 'express'
 import { fondoService } from './fondoService'
 import { createFondoSchema, updateFondoSchema } from './fondoValidation'
 
+function safeParseInt(val: unknown): number | null {
+  const n = parseInt(String(val))
+  return isNaN(n) ? null : n
+}
+
 export const fondoController = {
   async list(req: Request, res: Response, next: NextFunction) {
     try {
       const { search, page, limit, estado } = req.query
       const result = await fondoService.list({
         search: search as string,
-        page: page ? parseInt(page as string) : undefined,
-        limit: limit ? parseInt(limit as string) : undefined,
+        page: safeParseInt(page) ?? undefined,
+        limit: safeParseInt(limit) ?? undefined,
         estado: estado as string,
       })
       res.json(result)
@@ -90,15 +95,20 @@ export const fondoController = {
   async addSocio(req: Request, res: Response, next: NextFunction) {
     try {
       const fondoId = parseInt(String(req.params.id))
-      const { socioId } = req.body
-      const result = await fondoService.addSocio(fondoId, parseInt(socioId))
+      const { socioId, ...rest } = req.body
+      const result = await fondoService.addSocio(fondoId, parseInt(socioId), rest)
 
       if (!result) {
         res.status(404).json({ success: false, message: 'Fondo o socio no encontrado' })
         return
       }
 
-      res.status(201).json({ success: true, data: result, message: 'Socio agregado al fondo' })
+      if (!result.success) {
+        res.status(400).json({ success: false, message: result.message })
+        return
+      }
+
+      res.status(201).json({ success: true, data: result.data, message: 'Socio agregado al fondo' })
     } catch (error) {
       next(error)
     }
