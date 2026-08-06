@@ -1,6 +1,9 @@
 import { lazy, Suspense } from 'react'
 import { Navigate } from 'react-router-dom'
 import AdminLayout from '@/components/layout/AdminLayout'
+import RequireAuth from '@/components/auth/RequireAuth'
+
+const LoginPage = lazy(() => import('@/pages/LoginPage'))
 
 const SociosListPage = lazy(() => import('@/modules/socios/pages/SociosListPage'))
 const SocioFormPage = lazy(() => import('@/modules/socios/pages/SocioFormPage'))
@@ -40,11 +43,21 @@ const SuspenseWrapper = ({ children }: { children: React.ReactNode }) => (
 
 export const routes = [
   {
-    path: '/',
+    path: '/login',
     element: (
       <SuspenseWrapper>
-        <AdminLayout />
+        <LoginPage />
       </SuspenseWrapper>
+    ),
+  },
+  {
+    path: '/',
+    element: (
+      <RequireAuth>
+        <SuspenseWrapper>
+          <AdminLayout />
+        </SuspenseWrapper>
+      </RequireAuth>
     ),
     children: [
       { index: true, element: (

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ficha Padrón de Socio</title>
+  <link rel="stylesheet" href="fichasocio.css" />
+</head>
+<body>
+  <div class="hoja">
+
+    <!-- ================= ENCABEZADO ================= -->
+    <header class="cabecera">
+      <div class="emblema">
+        <div class="emblema-circulo">
+          <span class="emblema-mono">BC</span>
+        </div>
+      </div>
+
+      <div class="membrete">
+        <p class="organizacion">Banquito 2.0</p>
+        <p class="lema">Bancos comunitarios</p>
+        <div class="regla-oro"></div>
+        <h1>Ficha Padrón de Socio</h1>
+      </div>
+
+      <div class="ficha-numero">
+        <span class="ficha-etiqueta">Ficha N°</span>
+        <span class="ficha-valor">000001</span>
+      </div>
+    </header>
+
+    <!-- ================= DATOS DEL SOCIO ================= -->
+    <section class="seccion-socio">
+      <div class="encabezado-seccion">
+        <span class="numeracion">I</span>
+        <h2>Datos del Socio</h2>
+      </div>
+
+      <div class="contenido-socio">
+        <!-- Datos -->
+        <div class="columna-datos">
+          <div class="dato">
+            <span class="campo">Código de Socio</span>
+            <span class="valor">SOC-0001</span>
+          </div>
+          <div class="dato">
+            <span class="campo">DNI</span>
+            <span class="valor">70428001</span>
+          </div>
+          <div class="dato">
+            <span class="campo">Sexo</span>
+            <span class="valor">Masculino</span>
+          </div>
+
+          <div class="dato">
+            <span class="campo">Apellido Paterno</span>
+            <span class="valor">BENITES</span>
+          </div>
+          <div class="dato">
+            <span class="campo">Apellido Materno</span>
+            <span class="valor">CHAMORRO</span>
+          </div>
+          <div class="dato">
+            <span class="campo">Nombres</span>
+            <span class="valor">PAUL JIMMY</span>
+          </div>
+
+          <div class="dato">
+            <span class="campo">Fecha de Nacimiento</span>
+            <span class="valor">15 / 03 / 1995</span>
+          </div>
+          <div class="dato">
+            <span class="campo">Estado Civil</span>
+            <span class="valor">Casado</span>
+          </div>
+          <div class="dato">
+            <span class="campo">Teléfono</span>
+            <span class="valor">999 888 777</span>
+          </div>
+
+          <div class="dato span-2">
+            <span class="campo">Correo Electrónico</span>
+            <span class="valor">paul.jimmy@example.com</span>
+          </div>
+          <div class="dato">
+            <span class="campo">Fecha de Ingreso</span>
+            <span class="valor">01 / 01 / 2025</span>
+          </div>
+
+          <div class="dato span-3">
+            <span class="campo">Dirección</span>
+            <span class="valor">Jr. Los Andes 123, Cajamarca</span>
+          </div>
+        </div>
+
+        <!-- Foto -->
+        <aside class="columna-foto">
+          <div class="marco-foto">
+            <span class="foto-texto">Fotografía</span>
+          </div>
+          <div class="firma-huella">
+            <div class="linea-firma"></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ================= BENEFICIARIOS ================= -->
+    <section class="seccion-beneficiarios">
+      <div class="encabezado-seccion">
+        <span class="numeracion">II</span>
+        <h2>Beneficiarios</h2>
+      </div>
+
+      <table class="tabla-beneficiarios">
+        <thead>
+          <tr>
+            <th class="col-num">N°</th>
+            <th>DNI</th>
+            <th>Apellido Paterno</th>
+            <th>Apellido Materno</th>
+            <th>Nombres</th>
+            <th>Parentesco</th>
+            <th>Fecha de Nacimiento</th>
+            <th>Teléfono</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-num">1</td>
+            <td>70011223</td>
+            <td>BENITES</td>
+            <td>CHAMORRO</td>
+            <td>MARÍA FERNANDA</td>
+            <td>Esposa</td>
+            <td>22 / 09 / 1997</td>
+            <td>966 554 433</td>
+          </tr>
+          <tr>
+            <td class="col-num">2</td>
+            <td>70112233</td>
+            <td>BENITES</td>
+            <td>TORRES</td>
+            <td>LUCÍA PAOLA</td>
+            <td>Hija</td>
+            <td>10 / 05 / 2020</td>
+            <td class="sin-dato">—</td>
+          </tr>
+          <tr class="fila-vacia">
+            <td class="col-num">3</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= FIRMAS ================= -->
+    <section class="seccion-firmas">
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Firma del Socio</p>
+      </div>
+
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Firma del Presidente</p>
+      </div>
+    </section>
+
+        <footer class="pie">
+        <div class="regla-oro"></div>
+        <p>Documento emitido por el Banco Comunal · Este documento no constituye un título valor</p>
+        </footer>
+  </div>
+</body>
+</html>

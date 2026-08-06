@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Menu,
@@ -9,6 +9,7 @@ import {
   Settings,
   LogOut,
 } from 'lucide-react'
+import { useAuthStore } from '@/stores/authStore'
 
 interface AdminHeaderProps {
   onToggleSidebar: () => void
@@ -18,6 +19,18 @@ interface AdminHeaderProps {
 export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
+  const logout = useAuthStore((s) => s.logout)
+  const user = useAuthStore((s) => s.user)
+
+  const displayName = user?.name || 'Admin'
+  const displayEmail = user?.email || 'usuario@banquito.com'
+
+  const handleLogout = () => {
+    logout()
+    setUserMenuOpen(false)
+    navigate('/login', { replace: true })
+  }
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -71,7 +84,7 @@ export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps
               className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-gray-100"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-xs font-semibold text-white">
-                A
+                {displayName.charAt(0).toUpperCase()}
               </div>
             </button>
 
@@ -85,8 +98,8 @@ export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps
                   className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
                 >
                   <div className="border-b border-gray-100 px-4 py-3">
-                    <p className="text-sm font-medium text-[#111827]">Admin</p>
-                    <p className="text-xs text-gray-500">admin@banquito.com</p>
+                    <p className="text-sm font-medium text-[#111827]">{displayName}</p>
+                    <p className="text-xs text-gray-500">{displayEmail}</p>
                   </div>
                   <div className="py-1">
                     <Link
@@ -105,6 +118,7 @@ export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps
                     </Link>
                     <button
                       type="button"
+                      onClick={handleLogout}
                       className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50"
                     >
                       <LogOut className="h-4 w-4" />

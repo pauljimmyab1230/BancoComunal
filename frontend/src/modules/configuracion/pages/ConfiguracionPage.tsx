@@ -1,14 +1,11 @@
 import { useState } from 'react'
 import { Users, Key, BookOpen, Building2, Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
-import toast from 'react-hot-toast'
-import { useAuthStore } from '@/stores/authStore'
 import {
   useUsuarios,
   useCreateUsuario,
   useUpdateUsuario,
   useUpdatePassword,
   useDeleteUsuario,
-  useLogin,
   useConceptos,
   useCreateConcepto,
   useUpdateConcepto,
@@ -35,7 +32,6 @@ import type { Usuario, ConceptoCajaItem } from '../types'
 
 const tabs = [
   { id: 'usuarios', label: 'Usuarios', icon: Users },
-  { id: 'login', label: 'Login', icon: Key },
   { id: 'conceptos', label: 'Conceptos de Caja', icon: BookOpen },
   { id: 'organizacion', label: 'Organización', icon: Building2 },
 ]
@@ -308,54 +304,6 @@ function PasswordModal({ open, onClose, onSave, loading }: {
         <Button onClick={() => { if (password) onSave(password) }} loading={loading} disabled={!password}>Guardar</Button>
       </div>
     </Modal>
-  )
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// LOGIN TAB
-// ──────────────────────────────────────────────────────────────────────────────
-function LoginTab() {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [show, setShow] = useState(false)
-  const loginMutation = useLogin()
-
-  const handleLogin = async () => {
-    if (!username || !password) return
-    const result = await loginMutation.mutateAsync({ username, password })
-    if (result?.success) {
-      if (result.data?.token) {
-        useAuthStore.getState().login(result.data.token, {
-          name: result.data.user?.nombres || username,
-          email: result.data.user?.correo || '',
-        })
-      }
-      toast.success('Login exitoso! Bienvenido ' + (result.data?.user?.nombres || username))
-    }
-  }
-
-  return (
-    <div className="max-w-md mx-auto">
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Iniciar Sesión</h3>
-        <div className="space-y-4">
-          <FormField label="Usuario" required>
-            <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Ingrese su usuario" />
-          </FormField>
-          <FormField label="Contraseña" required>
-            <div className="relative">
-              <Input type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Ingrese su contraseña" />
-              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => setShow(!show)}>
-                {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </FormField>
-          <Button className="w-full" onClick={handleLogin} loading={loginMutation.isPending} disabled={!username || !password}>
-            Iniciar Sesión
-          </Button>
-        </div>
-      </Card>
-    </div>
   )
 }
 
@@ -682,7 +630,6 @@ export default function ConfiguracionPage() {
       </div>
 
       {activeTab === 'usuarios' && <UsuariosTab />}
-      {activeTab === 'login' && <LoginTab />}
       {activeTab === 'conceptos' && <ConceptosTab />}
       {activeTab === 'organizacion' && <OrganizacionTab />}
     </div>
