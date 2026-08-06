@@ -13,6 +13,7 @@ const fondoSchema = z.object({
   capitalInicial: z.string().min(1, 'Requerido'),
   moneda: z.enum(['PEN', 'USD']),
   estado: z.enum(['ACTIVO', 'INACTIVO', 'CERRADO']),
+  fechaCierre: z.string().optional().or(z.literal('')),
   descripcion: z.string().optional().or(z.literal('')),
   reglamento: z.string().optional().or(z.literal('')),
   condiciones: z.string().optional().or(z.literal('')),
@@ -33,6 +34,7 @@ export default function FondoFormPage() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FondoFormValues>({
     resolver: zodResolver(fondoSchema),
@@ -42,11 +44,14 @@ export default function FondoFormPage() {
       capitalInicial: '',
       moneda: 'PEN',
       estado: 'ACTIVO',
+      fechaCierre: '',
       descripcion: '',
       reglamento: '',
       condiciones: '',
     },
   })
+
+  const estadoSeleccionado = watch('estado')
 
   useEffect(() => {
     if (fondoData?.data && isEditing) {
@@ -57,6 +62,7 @@ export default function FondoFormPage() {
         capitalInicial: String(f.capitalInicial),
         moneda: f.moneda as 'PEN' | 'USD',
         estado: f.estado as 'ACTIVO' | 'INACTIVO' | 'CERRADO',
+        fechaCierre: f.fechaCierre ? f.fechaCierre.slice(0, 10) : '',
         descripcion: f.descripcion || '',
         reglamento: f.reglamento || '',
         condiciones: f.condiciones || '',
@@ -142,6 +148,12 @@ export default function FondoFormPage() {
                 error={errors.capitalInicial?.message}
               />
             </FormField>
+
+            {estadoSeleccionado === 'CERRADO' && (
+              <FormField label="Fecha de Cierre" error={errors.fechaCierre?.message}>
+                <Input type="date" {...register('fechaCierre')} error={errors.fechaCierre?.message} />
+              </FormField>
+            )}
 
             <FormField label="Descripción" error={errors.descripcion?.message} className="sm:col-span-2">
               <textarea

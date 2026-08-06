@@ -12,16 +12,12 @@ const FondoDetailPage = lazy(() => import('@/modules/fondos/pages/FondoDetailPag
 const AportesListPage = lazy(() => import('@/modules/aportes/pages/AportesListPage'))
 const AporteFormPage = lazy(() => import('@/modules/aportes/pages/AporteFormPage'))
 const AporteDetailPage = lazy(() => import('@/modules/aportes/pages/AporteDetailPage'))
-const AhorrosListPage = lazy(() => import('@/modules/ahorros/pages/AhorrosListPage'))
-const AhorroFormPage = lazy(() => import('@/modules/ahorros/pages/AhorroFormPage'))
-const AhorroDetailPage = lazy(() => import('@/modules/ahorros/pages/AhorroDetailPage'))
 const CreditosListPage = lazy(() => import('@/modules/creditos/pages/CreditosListPage'))
 const CreditoFormPage = lazy(() => import('@/modules/creditos/pages/CreditoFormPage'))
 const CreditoDetailPage = lazy(() => import('@/modules/creditos/pages/CreditoDetailPage'))
 const CajaListPage = lazy(() => import('@/modules/caja/pages/CajaListPage'))
 const CajaFormPage = lazy(() => import('@/modules/caja/pages/CajaFormPage'))
 const CajaDetailPage = lazy(() => import('@/modules/caja/pages/CajaDetailPage'))
-const TesoreriaPage = lazy(() => import('@/modules/tesoreria/pages/TesoreriaPage'))
 const ReportesPage = lazy(() => import('@/modules/reportes/pages/ReportesPage'))
 const ConfiguracionPage = lazy(() => import('@/modules/configuracion/pages/ConfiguracionPage'))
 const AuditoriaPage = lazy(() => import('@/modules/auditoria/pages/AuditoriaPage'))
@@ -162,30 +158,6 @@ export const routes = [
         ),
       },
       {
-        path: 'ahorros',
-        element: (
-          <SuspenseWrapper>
-            <AhorrosListPage />
-          </SuspenseWrapper>
-        ),
-      },
-      {
-        path: 'ahorros/nueva',
-        element: (
-          <SuspenseWrapper>
-            <AhorroFormPage />
-          </SuspenseWrapper>
-        ),
-      },
-      {
-        path: 'ahorros/:id',
-        element: (
-          <SuspenseWrapper>
-            <AhorroDetailPage />
-          </SuspenseWrapper>
-        ),
-      },
-      {
         path: 'creditos',
         element: (
           <SuspenseWrapper>
@@ -206,6 +178,14 @@ export const routes = [
         element: (
           <SuspenseWrapper>
             <CreditoDetailPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: 'creditos/:id/editar',
+        element: (
+          <SuspenseWrapper>
+            <CreditoFormPage />
           </SuspenseWrapper>
         ),
       },
@@ -238,14 +218,6 @@ export const routes = [
         element: (
           <SuspenseWrapper>
             <CajaFormPage />
-          </SuspenseWrapper>
-        ),
-      },
-      {
-        path: 'tesoreria',
-        element: (
-          <SuspenseWrapper>
-            <TesoreriaPage />
           </SuspenseWrapper>
         ),
       },

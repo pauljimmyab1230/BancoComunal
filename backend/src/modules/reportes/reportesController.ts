@@ -11,8 +11,8 @@ import {
 export const reportesController = {
   async estadoCuentasSocio(req: Request, res: Response, next: NextFunction) {
     try {
-      const { socioId, fondoId } = estadoCuentasSocioSchema.parse(req.query)
-      const data = await reportesService.estadoCuentasSocio(socioId, fondoId)
+      const params = estadoCuentasSocioSchema.parse(req.query)
+      const data = await reportesService.estadoCuentasSocio(params)
       if (!data) return res.status(404).json({ success: false, message: 'Socio no encontrado' })
       res.json({ success: true, data })
     } catch (error) { next(error) }

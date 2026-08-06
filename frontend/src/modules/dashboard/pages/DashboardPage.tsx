@@ -1,7 +1,7 @@
-import { Users, Building2, DollarSign, PiggyBank, Wallet, TrendingUp, TrendingDown, AlertTriangle, Clock, Activity, ArrowRight, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Users, Building2, DollarSign, Wallet, TrendingUp, TrendingDown, AlertTriangle, Clock, Activity, ArrowRight, Plus, Pencil, Trash2 } from 'lucide-react'
 import { useDashboard } from '../hooks/useDashboard'
 import { Card, Badge, LoadingSpinner, EmptyState } from '@/components/ui'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatSaldosPorMoneda } from '@/lib/utils'
 import type { DashboardData } from '../types'
 
 const operacionIcon: Record<string, typeof Plus> = { CREATE: Plus, UPDATE: Pencil, DELETE: Trash2 }
@@ -9,18 +9,17 @@ const operacionColor: Record<string, string> = { CREATE: 'text-green-600', UPDAT
 const operacionLabel: Record<string, string> = { CREATE: 'Creó', UPDATE: 'Actualizó', DELETE: 'Eliminó' }
 const tablaLabel: Record<string, string> = {
   Socio: 'un socio', FondoRotatorio: 'un fondo', Aporte: 'un aporte',
-  CuentaAhorro: 'una cuenta de ahorro', Prestamo: 'un préstamo', Caja: 'una caja',
+  Prestamo: 'un préstamo', Caja: 'una caja',
   MovimientoCaja: 'un movimiento de caja', ConceptoCaja: 'un concepto', Usuario: 'un usuario',
-  ArqueoCaja: 'un arqueo', AhorroMovimiento: 'un movimiento de ahorro', CuotaPrestamo: 'una cuota',
+  ArqueoCaja: 'un arqueo', CuotaPrestamo: 'una cuota',
 }
 
 function SummaryCards({ resumen, cajasCount }: { resumen: DashboardData['resumen']; cajasCount: number }) {
   const cards = [
     { label: 'Socios Activos', value: resumen.sociosActivos, sub: `${resumen.totalSocios} total`, icon: Users, color: 'bg-blue-50 text-blue-600', border: 'border-blue-100' },
     { label: 'Fondos Activos', value: resumen.totalFondos, sub: `${resumen.fondosActivos} activos`, icon: Building2, color: 'bg-purple-50 text-purple-600', border: 'border-purple-100' },
-    { label: 'Saldo Total Cajas', value: formatCurrency(resumen.totalSaldoCajas), sub: `${cajasCount} cajas`, icon: Wallet, color: 'bg-green-50 text-green-600', border: 'border-green-100' },
+    { label: 'Saldo Total Cajas', value: formatSaldosPorMoneda(resumen.totalSaldoCajasPorMoneda), sub: `${cajasCount} cajas`, icon: Wallet, color: 'bg-green-50 text-green-600', border: 'border-green-100' },
     { label: 'Cartera Activa', value: formatCurrency(resumen.saldoPendienteCartera), sub: `${resumen.creditosActivos} préstamos`, icon: DollarSign, color: 'bg-indigo-50 text-indigo-600', border: 'border-indigo-100' },
-    { label: 'Ahorros Totales', value: formatCurrency(resumen.totalAhorros), sub: 'en cuentas', icon: PiggyBank, color: 'bg-teal-50 text-teal-600', border: 'border-teal-100' },
     { label: 'Aportes del Mes', value: formatCurrency(resumen.aportesMes), sub: `${resumen.cantidadAportesMes} aportes`, icon: TrendingUp, color: 'bg-amber-50 text-amber-600', border: 'border-amber-100' },
     { label: 'Cuotas Vencidas', value: resumen.cuotasVencidas, sub: 'requieren atención', icon: AlertTriangle, color: 'bg-red-50 text-red-600', border: 'border-red-100' },
     { label: 'Capital Recuperado', value: formatCurrency(resumen.capitalRecuperado), sub: `de ${formatCurrency(resumen.capitalPrestado)}`, icon: TrendingDown, color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-100' },

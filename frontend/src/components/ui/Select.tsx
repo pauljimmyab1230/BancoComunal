@@ -78,11 +78,19 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           (panelRef.current && panelRef.current.contains(target))
         if (!inside) setOpen(false)
       }
-      window.addEventListener('scroll', close, true)
+      // Cerrar solo cuando se scrollee la página, no cuando se scrollee la lista del panel.
+      const onScroll = (e: Event) => {
+        const target = e.target as Node
+        const inside =
+          (containerRef.current && containerRef.current.contains(target)) ||
+          (panelRef.current && panelRef.current.contains(target))
+        if (!inside) setOpen(false)
+      }
+      window.addEventListener('scroll', onScroll, true)
       window.addEventListener('resize', close)
       document.addEventListener('mousedown', onDocMouseDown)
       return () => {
-        window.removeEventListener('scroll', close, true)
+        window.removeEventListener('scroll', onScroll, true)
         window.removeEventListener('resize', close)
         document.removeEventListener('mousedown', onDocMouseDown)
       }

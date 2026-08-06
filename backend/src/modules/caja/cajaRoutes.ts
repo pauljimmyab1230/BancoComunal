@@ -1,40 +1,44 @@
 import { Router } from 'express'
 import { cajaController } from './cajaController'
+import { authorize } from '../../middeware/auth'
 
 const router = Router()
 
 // Rutas fijas ANTES de /:id para evitar captura por Express
 router.get('/', cajaController.list)
-router.post('/', cajaController.create)
+router.post('/', authorize('ADMIN', 'TESORERO'), cajaController.create)
 router.get('/resumen/:cajaId', cajaController.getResumen)
+
+// Transferencias entre cajas
+router.post('/transferencias', authorize('ADMIN', 'TESORERO'), cajaController.transferir)
 
 // Conceptos de Caja
 router.get('/conceptos', cajaController.listConceptos)
-router.post('/conceptos', cajaController.createConcepto)
-router.put('/conceptos/:id', cajaController.updateConcepto)
-router.delete('/conceptos/:id', cajaController.deleteConcepto)
+router.post('/conceptos', authorize('ADMIN'), cajaController.createConcepto)
+router.put('/conceptos/:id', authorize('ADMIN'), cajaController.updateConcepto)
+router.delete('/conceptos/:id', authorize('ADMIN'), cajaController.deleteConcepto)
 
 // Movimientos
 router.get('/movimientos', cajaController.listMovimientos)
 router.get('/movimientos/:id', cajaController.getMovimientoById)
-router.post('/movimientos', cajaController.createMovimiento)
-router.post('/movimientos/:id/anular', cajaController.anularMovimiento)
+router.post('/movimientos', authorize('ADMIN', 'TESORERO'), cajaController.createMovimiento)
+router.post('/movimientos/:id/anular', authorize('ADMIN', 'TESORERO'), cajaController.anularMovimiento)
 
 // Arqueos
 router.get('/arqueos', cajaController.listArqueos)
 router.get('/arqueos/:id', cajaController.getArqueoById)
-router.post('/arqueos', cajaController.createArqueo)
-router.post('/arqueos/:id/aprobar', cajaController.aprobarArqueo)
+router.post('/arqueos', authorize('ADMIN', 'TESORERO'), cajaController.createArqueo)
+router.post('/arqueos/:id/aprobar', authorize('ADMIN', 'TESORERO'), cajaController.aprobarArqueo)
 
 // Flujo Proyectado
 router.get('/flujo-proyectado', cajaController.listFlujoProyectado)
-router.post('/flujo-proyectado', cajaController.createFlujoProyectado)
-router.put('/flujo-proyectado/:id', cajaController.updateFlujoProyectado)
-router.delete('/flujo-proyectado/:id', cajaController.deleteFlujoProyectado)
+router.post('/flujo-proyectado', authorize('ADMIN', 'TESORERO'), cajaController.createFlujoProyectado)
+router.put('/flujo-proyectado/:id', authorize('ADMIN', 'TESORERO'), cajaController.updateFlujoProyectado)
+router.delete('/flujo-proyectado/:id', authorize('ADMIN'), cajaController.deleteFlujoProyectado)
 
 // /:id DESPUÉS de todas las rutas fijas
 router.get('/:id', cajaController.getById)
-router.put('/:id', cajaController.update)
-router.delete('/:id', cajaController.delete)
+router.put('/:id', authorize('ADMIN'), cajaController.update)
+router.delete('/:id', authorize('ADMIN'), cajaController.delete)
 
 export default router

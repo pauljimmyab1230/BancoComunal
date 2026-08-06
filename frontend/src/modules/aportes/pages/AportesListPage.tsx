@@ -1,15 +1,32 @@
 import { useState } from 'react'
 import { Plus, Eye, Trash2, Banknote, Wallet, Calendar } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useAportes, useDeleteAporte } from '../hooks/useAportes'
-import { Button, DataTable, SearchInput, Badge, SectionHeader, Card, ConfirmDialog } from '@/components/ui'
-import { Link } from 'react-router-dom'
+import { Button, DataTable, SearchInput, Badge, SectionHeader, Card, ConfirmDialog, Select, Input } from '@/components/ui'
+import { Link, useSearchParams } from 'react-router-dom'
+import api from '@/lib/api'
 import type { Aporte } from '../types'
+
+const TIPOS = [
+  { value: '', label: 'Todos los tipos' },
+  { value: 'OBLIGATORIO', label: 'Obligatorio' },
+  { value: 'EXTRAORDINARIO', label: 'Extraordinario' },
+  { value: 'VOLUNTARIO', label: 'Voluntario' },
+  { value: 'MULTA', label: 'Multa' },
+]
+
+const ESTADOS = [
+  { value: '', label: 'Todos los estados' },
+  { value: 'ACTIVO', label: 'Activo' },
+  { value: 'ANULADO', label: 'Anulado' },
+]
 
 const tipoBadge = (tipo: string) => {
   switch (tipo) {
     case 'OBLIGATORIO': return <Badge variant="blue">Obligatorio</Badge>
     case 'EXTRAORDINARIO': return <Badge variant="purple">Extraordinario</Badge>
     case 'VOLUNTARIO': return <Badge variant="green">Voluntario</Badge>
+    case 'MULTA': return <Badge variant="red">Multa</Badge>
     default: return <Badge>{tipo}</Badge>
   }
 }
@@ -19,14 +36,39 @@ const formatMonto = (monto: number, moneda = 'PEN') => {
 }
 
 export default function AportesListPage() {
+  const [searchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [tipo, setTipo] = useState('')
+  const [estado, setEstado] = useState('')
+  const [fondo, setFondo] = useState(searchParams.get('fondoId') ?? '')
+  const [periodo, setPeriodo] = useState('')
   const [deleteId, setDeleteId] = useState<number | null>(null)
 
-  const { data, isLoading } = useAportes({ search, page, limit: 10 })
+  const socioId = searchParams.get('socioId')
+
+  const { data: fondosData } = useQuery({
+    queryKey: ['fondos-select'],
+    queryFn: async () => {
+      const { data } = await api.get('/fondos', { params: { limit: 100 } })
+      return data.data as { id: number; nombre: string; moneda: string }[]
+    },
+  })
+
+  const { data, isLoading } = useAportes({
+    search,
+    page,
+    limit: 10,
+    tipo: tipo || undefined,
+    estado: estado || undefined,
+    fondoId: fondo ? Number(fondo) : undefined,
+    periodo: periodo || undefined,
+    socioId: socioId ? Number(socioId) : undefined,
+  })
   const deleteMutation = useDeleteAporte()
 
   const aportes = data?.data || []
+  const totalPorMoneda = data?.totalAportadoPorMoneda || {}
 
   const columns = [
     {
@@ -105,8 +147,9 @@ export default function AportesListPage() {
 
   const handleDelete = () => {
     if (deleteId === null) return
-    deleteMutation.mutate(deleteId)
-    setDeleteId(null)
+    deleteMutation.mutate(deleteId, {
+      onSuccess: () => setDeleteId(null),
+    })
   }
 
   return (
@@ -140,9 +183,17 @@ export default function AportesListPage() {
               <Wallet className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#111827]">
-                {isLoading ? '—' : formatMonto(data?.totalAportado || 0)}
-              </p>
+              {isLoading ? (
+                <p className="text-2xl font-bold text-[#111827]">—</p>
+              ) : (
+                Object.keys(totalPorMoneda).length > 0 ? (
+                  Object.entries(totalPorMoneda).map(([moneda, monto]) => (
+                    <p key={moneda} className="text-lg font-bold text-[#111827]">{formatMonto(monto, moneda)}</p>
+                  ))
+                ) : (
+                  <p className="text-2xl font-bold text-[#111827]">0.00</p>
+                )
+              )}
               <p className="text-xs text-gray-500">Total Aportado</p>
             </div>
           </div>
@@ -160,13 +211,42 @@ export default function AportesListPage() {
         </Card>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
         <SearchInput
           placeholder="Buscar por socio, comprobante o período..."
           value={search}
           onChange={(val) => { setSearch(val); setPage(1) }}
-          className="max-w-md"
+          className="w-full max-w-md"
         />
+        <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Select
+            value={tipo}
+            onChange={(e) => { setTipo(e.target.value); setPage(1) }}
+            options={TIPOS}
+            placeholder="Todos los tipos"
+          />
+          <Select
+            value={estado}
+            onChange={(e) => { setEstado(e.target.value); setPage(1) }}
+            options={ESTADOS}
+            placeholder="Todos los estados"
+          />
+          <Select
+            value={fondo}
+            onChange={(e) => { setFondo(e.target.value); setPage(1) }}
+            options={[
+              { value: '', label: 'Todos los fondos' },
+              ...(fondosData || []).map((f) => ({ value: String(f.id), label: `${f.nombre} (${f.moneda})` })),
+            ]}
+            placeholder="Todos los fondos"
+          />
+          <Input
+            type="month"
+            value={periodo}
+            onChange={(e) => { setPeriodo(e.target.value); setPage(1) }}
+            placeholder="Período"
+          />
+        </div>
       </div>
 
       <DataTable

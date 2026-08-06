@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const tipoEnum = z.enum(['OBLIGATORIO', 'EXTRAORDINARIO', 'VOLUNTARIO'])
+const tipoEnum = z.enum(['OBLIGATORIO', 'EXTRAORDINARIO', 'VOLUNTARIO', 'MULTA'])
 const metodoPagoEnum = z.enum(['EFECTIVO', 'TRANSFERENCIA', 'DEPOSITO'])
 
 export const createAporteSchema = z.object({

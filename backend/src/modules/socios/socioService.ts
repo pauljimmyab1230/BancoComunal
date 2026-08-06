@@ -2,6 +2,8 @@ import prisma from '../../config/prisma'
 import path from 'path'
 import fs from 'fs'
 import { env } from '../../config/env'
+import { HttpError } from '../../middeware/httpError'
+import { createAuditLog } from '../../config/auditLog'
 
 const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR)
 
@@ -16,10 +18,14 @@ function generateCodigo(length = 8): string {
 
 function parseDate(dateStr: string): Date {
   const [year, month, day] = dateStr.split('-').map(Number)
-  return new Date(year!, month! - 1, day!)
+  const date = new Date(year, (month || 1) - 1, day || 1)
+  if (isNaN(date.getTime())) {
+    throw new HttpError(400, 'Fecha inválida (formato YYYY-MM-DD)')
+  }
+  return date
 }
 
-function deleteFileIfExists(rutaArchivo: string | null) {
+function deleteFileIfExists(rutaArchivo: string | null | undefined) {
   if (!rutaArchivo) return
   try {
     const relativePath = rutaArchivo.replace(/^\/uploads\//, '')
@@ -41,7 +47,7 @@ function cleanupTempFile(filePath?: string) {
 }
 
 function isAtleast18(fechaNacimiento: string): boolean {
-  const birth = new Date(fechaNacimiento)
+  const birth = parseDate(fechaNacimiento)
   const today = new Date()
   let age = today.getFullYear() - birth.getFullYear()
   const monthDiff = today.getMonth() - birth.getMonth()
@@ -49,12 +55,6 @@ function isAtleast18(fechaNacimiento: string): boolean {
     age--
   }
   return age >= 18
-}
-
-async function createAuditLog(data: { tabla: string; registroId: number; operacion: string; datosAnteriores?: any; datosNuevos?: any }) {
-  try {
-    await prisma.auditLog.create({ data })
-  } catch { /* tabla puede no existir */ }
 }
 
 export const socioService = {
@@ -108,6 +108,10 @@ export const socioService = {
       include: {
         beneficiarios: true,
         documentos: true,
+        fondosSocios: {
+          include: { fondo: true },
+          orderBy: { fechaIngreso: 'desc' },
+        },
       },
     })
 
@@ -122,11 +126,11 @@ export const socioService = {
   async create(data: any, fotoFile?: Express.Multer.File) {
     const existingDni = await prisma.socio.findUnique({ where: { dni: data.dni } })
     if (existingDni) {
-      throw new Error('El DNI ya está registrado')
+      throw new HttpError(400, 'El DNI ya está registrado')
     }
 
     if (data.fechaNacimiento && !isAtleast18(data.fechaNacimiento)) {
-      throw new Error('El socio debe ser mayor de 18 años')
+      throw new HttpError(400, 'El socio debe ser mayor de 18 años')
     }
 
     let fotoUrl: string | undefined
@@ -148,24 +152,30 @@ export const socioService = {
       exists = await prisma.socio.findUnique({ where: { codigo } })
     }
 
-    const socio = await prisma.socio.create({
-      data: {
-        codigo,
-        dni: data.dni,
-        nombres: data.nombres,
-        apellidoPaterno: data.apellidoPaterno,
-        apellidoMaterno: data.apellidoMaterno,
-        genero: data.genero,
-        fechaNacimiento: data.fechaNacimiento ? parseDate(data.fechaNacimiento) : null,
-        estadoCivil: data.estadoCivil || null,
-        telefono: data.telefono || null,
-        direccion: data.direccion || null,
-        email: data.email || null,
-        fechaIngreso: parseDate(data.fechaIngreso),
-        estado: data.estado || 'A',
-        fotoUrl,
-      },
-    })
+    let socio: Awaited<ReturnType<typeof prisma.socio.create>>
+    try {
+      socio = await prisma.socio.create({
+        data: {
+          codigo,
+          dni: data.dni,
+          nombres: data.nombres,
+          apellidoPaterno: data.apellidoPaterno,
+          apellidoMaterno: data.apellidoMaterno,
+          genero: data.genero,
+          fechaNacimiento: data.fechaNacimiento ? parseDate(data.fechaNacimiento) : null,
+          estadoCivil: data.estadoCivil || null,
+          telefono: data.telefono || null,
+          direccion: data.direccion || null,
+          email: data.email || null,
+          fechaIngreso: parseDate(data.fechaIngreso),
+          estado: data.estado || 'A',
+          fotoUrl,
+        },
+      })
+    } catch (error) {
+      deleteFileIfExists(fotoUrl)
+      throw error
+    }
 
     await createAuditLog({
       tabla: 'Socio',
@@ -187,18 +197,17 @@ export const socioService = {
     if (data.dni && data.dni !== existing.dni) {
       const duplicateDni = await prisma.socio.findUnique({ where: { dni: data.dni } })
       if (duplicateDni) {
-        throw new Error('El DNI ya está registrado en otro socio')
+        throw new HttpError(400, 'El DNI ya está registrado en otro socio')
       }
     }
 
     if (data.fechaNacimiento && !isAtleast18(data.fechaNacimiento)) {
-      throw new Error('El socio debe ser mayor de 18 años')
+      throw new HttpError(400, 'El socio debe ser mayor de 18 años')
     }
 
     let fotoUrl = existing.fotoUrl
 
     if (fotoFile) {
-      deleteFileIfExists(existing.fotoUrl)
       const ext = path.extname(fotoFile.originalname)
       const filename = `fotos/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`
       const destPath = path.join(uploadDir, filename)
@@ -223,10 +232,22 @@ export const socioService = {
     if (data.estado !== undefined) updateData.estado = data.estado
     if (fotoUrl) updateData.fotoUrl = fotoUrl
 
-    const socio = await prisma.socio.update({
-      where: { id },
-      data: updateData,
-    })
+    let socio: Awaited<ReturnType<typeof prisma.socio.update>>
+    try {
+      socio = await prisma.socio.update({
+        where: { id },
+        data: updateData,
+      })
+    } catch (error) {
+      if (fotoFile && fotoUrl !== existing.fotoUrl) {
+        deleteFileIfExists(fotoUrl)
+      }
+      throw error
+    }
+
+    if (fotoFile && fotoUrl !== existing.fotoUrl) {
+      deleteFileIfExists(existing.fotoUrl)
+    }
 
     await createAuditLog({
       tabla: 'Socio',
@@ -251,25 +272,28 @@ export const socioService = {
     })
     if (!socio) return { success: false, message: 'Socio no encontrado' }
 
-    const [prestamosActivos, cuentasCount, aportesCount, membresias] = await Promise.all([
-      prisma.prestamo.count({ where: { fondoSocio: { socioId: id }, estado: 'ACTIVO' } }),
-      prisma.cuentaAhorro.count({ where: { fondoSocio: { socioId: id } } }),
+    const [prestamosCount, aportesCount, membresiasActivas] = await Promise.all([
+      prisma.prestamo.count({ where: { fondoSocio: { socioId: id } } }),
       prisma.aporte.count({ where: { fondoSocio: { socioId: id } } }),
-      prisma.fondoSocio.count({ where: { socioId: id } }),
+      prisma.fondoSocio.count({ where: { socioId: id, fechaSalida: null } }),
     ])
 
-    if (prestamosActivos > 0) {
-      return { success: false, message: 'No se puede eliminar: el socio tiene préstamos activos' }
-    }
-    if (cuentasCount > 0) {
-      return { success: false, message: 'No se puede eliminar: el socio tiene cuentas de ahorro' }
+    if (prestamosCount > 0) {
+      return { success: false, message: 'No se puede eliminar: el socio tiene préstamos registrados' }
     }
     if (aportesCount > 0) {
       return { success: false, message: 'No se puede eliminar: el socio tiene aportes registrados' }
     }
-    if (membresias > 0) {
+    if (membresiasActivas > 0) {
       return { success: false, message: 'No se puede eliminar: el socio pertenece a uno o más fondos' }
     }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.beneficiario.deleteMany({ where: { socioId: id } })
+      await tx.documentoSocio.deleteMany({ where: { socioId: id } })
+      await tx.fondoSocio.deleteMany({ where: { socioId: id } })
+      await tx.socio.delete({ where: { id } })
+    })
 
     deleteFileIfExists(socio.fotoUrl)
     socio.documentos.forEach((d) => deleteFileIfExists(d.rutaArchivo))
@@ -281,7 +305,6 @@ export const socioService = {
       datosAnteriores: { codigo: socio.codigo, dni: socio.dni, nombres: socio.nombres, apellidoPaterno: socio.apellidoPaterno },
     })
 
-    await prisma.socio.delete({ where: { id } })
     return { success: true, message: 'Socio eliminado correctamente' }
   },
 

@@ -7,12 +7,15 @@ export interface AportesQuery {
   page?: number
   limit?: number
   estado?: string
+  tipo?: string
+  periodo?: string
   fondoId?: number
   socioId?: number
 }
 
 export interface AportesListResponse extends PaginatedResponse<Aporte> {
   totalAportado: number
+  totalAportadoPorMoneda: Record<string, number>
   totalActivos: number
 }
 

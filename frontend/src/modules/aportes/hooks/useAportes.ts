@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { aportesApi, type AportesQuery } from '../api/aportesApi'
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  const err = error as { response?: { data?: { message?: string } }; message?: string }
+  return err?.response?.data?.message || err?.message || fallback
+}
+
 export function useAportes(params?: AportesQuery) {
   return useQuery({
     queryKey: ['aportes', params],
@@ -31,7 +36,7 @@ export function useCreateAporte() {
       navigate('/aportes')
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Error al registrar aporte')
+      toast.error(getErrorMessage(error, 'Error al registrar aporte'))
     },
   })
 }
@@ -50,7 +55,7 @@ export function useUpdateAporte(id: number) {
       navigate('/aportes')
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Error al actualizar aporte')
+      toast.error(getErrorMessage(error, 'Error al actualizar aporte'))
     },
   })
 }
@@ -66,7 +71,7 @@ export function useDeleteAporte() {
       queryClient.invalidateQueries({ queryKey: ['fondos'] })
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Error al anular aporte')
+      toast.error(getErrorMessage(error, 'Error al anular aporte'))
     },
   })
 }

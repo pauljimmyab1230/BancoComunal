@@ -4,6 +4,7 @@ import { Plus, Pencil, Eye, Trash2, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSocios, useDeleteSocio } from '../hooks/useSocios'
 import { socioApi } from '../api/socioApi'
+import { getErrorMessage } from '@/lib/api'
 import { Button, DataTable, SearchInput, Badge, SectionHeader, ConfirmDialog, Select } from '@/components/ui'
 import type { Socio } from '../types'
 
@@ -41,8 +42,8 @@ export default function SociosListPage() {
       const a = document.createElement('a')
       a.href = url; a.download = 'socios.csv'; a.click()
       URL.revokeObjectURL(url)
-    } catch {
-      toast.error('Error al exportar socios')
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al exportar socios'))
     }
   }
 

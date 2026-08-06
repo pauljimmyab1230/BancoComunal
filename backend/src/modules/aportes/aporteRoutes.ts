@@ -1,12 +1,13 @@
 import { Router } from 'express'
 import { aporteController } from './aporteController'
+import { authorize } from '../../middeware/auth'
 
 const router = Router()
 
 router.get('/', aporteController.list)
 router.get('/:id', aporteController.getById)
-router.post('/', aporteController.create)
-router.put('/:id', aporteController.update)
-router.delete('/:id', aporteController.delete)
+router.post('/', authorize('ADMIN', 'TESORERO'), aporteController.create)
+router.put('/:id', authorize('ADMIN', 'TESORERO'), aporteController.update)
+router.delete('/:id', authorize('ADMIN'), aporteController.delete)
 
 export default router

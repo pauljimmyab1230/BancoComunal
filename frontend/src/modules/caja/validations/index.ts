@@ -36,6 +36,12 @@ export const aprobarArqueoSchema = z.object({
   observacion: z.string().max(500).optional(),
 })
 
+export const transferirSchema = z.object({
+  cajaDestinoId: z.number().min(1, 'Seleccione la caja destino'),
+  monto: z.number().min(0.01, 'El monto debe ser mayor a 0'),
+  descripcion: z.string().max(500).optional(),
+})
+
 export const flujoProyectadoCreateSchema = z.object({
   cajaId: z.number().min(1, 'Caja es requerida'),
   fecha: z.string().min(1, 'Fecha es requerida'),
@@ -50,4 +56,5 @@ export type CajaCreateInput = z.infer<typeof cajaCreateSchema>
 export type MovimientoCreateInput = z.infer<typeof movimientoCreateSchema>
 export type ArqueoCreateInput = z.infer<typeof arqueoCreateSchema>
 export type AprobarArqueoInput = z.infer<typeof aprobarArqueoSchema>
+export type TransferirInput = z.infer<typeof transferirSchema>
 export type FlujoProyectadoCreateInput = z.infer<typeof flujoProyectadoCreateSchema>

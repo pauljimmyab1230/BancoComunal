@@ -8,6 +8,9 @@ import toast from 'react-hot-toast'
 import api from '@/lib/api'
 import type { AporteFormData, TipoAporte, MetodoPago } from '../types'
 
+const toLocalDateString = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
 export default function AporteFormPage() {
   const { id } = useParams()
   const isEdit = !!id
@@ -20,7 +23,7 @@ export default function AporteFormPage() {
     tipo: 'OBLIGATORIO',
     monto: 0,
     periodo: new Date().toISOString().slice(0, 7),
-    fechaAporte: new Date().toISOString().slice(0, 10),
+    fechaAporte: toLocalDateString(new Date()),
     metodoPago: 'EFECTIVO',
     comprobante: '',
     observacion: '',
@@ -55,7 +58,7 @@ export default function AporteFormPage() {
         tipo: a.tipo,
         monto: a.monto,
         periodo: a.periodo,
-        fechaAporte: a.fechaAporte?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        fechaAporte: a.fechaAporte?.slice(0, 10) || toLocalDateString(new Date()),
         metodoPago: a.metodoPago,
         comprobante: a.comprobante || '',
         observacion: a.observacion || '',
@@ -112,6 +115,7 @@ export default function AporteFormPage() {
                   { value: 'OBLIGATORIO', label: 'Obligatorio' },
                   { value: 'EXTRAORDINARIO', label: 'Extraordinario' },
                   { value: 'VOLUNTARIO', label: 'Voluntario' },
+                  { value: 'MULTA', label: 'Multa' },
                 ]}
                 required
               />

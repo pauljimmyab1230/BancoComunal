@@ -1,3 +1,5 @@
+import type { FondoSocio } from '../modules/fondos/types'
+
 export interface Socio {
   id: number
   codigo: string
@@ -19,6 +21,7 @@ export interface Socio {
   updatedAt: string
   beneficiarios?: Beneficiario[]
   documentos?: DocumentoSocio[]
+  fondosSocios?: FondoSocio[]
 }
 
 export interface Beneficiario {

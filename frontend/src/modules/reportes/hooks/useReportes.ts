@@ -1,15 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { reportesApi } from '../api/reportesApi'
+import type { CarteraCreditosQuery, EstadoCuentasQuery, ReporteAportesQuery } from '../types'
 
-export function useEstadoCuentasSocio(socioId: number | null, fondoId?: number) {
+export function useEstadoCuentasSocio(params?: EstadoCuentasQuery | null) {
+  const enabled = !!params && (params.socioId !== undefined || !!params.search)
   return useQuery({
-    queryKey: ['estadoCuentasSocio', socioId, fondoId],
-    queryFn: () => reportesApi.getEstadoCuentasSocio(socioId!, fondoId),
-    enabled: !!socioId,
+    queryKey: ['estadoCuentasSocio', params],
+    queryFn: () => reportesApi.getEstadoCuentasSocio(params ?? undefined),
+    enabled,
   })
 }
 
-export function useCarteraCreditos(params?: { fondoId?: number; estado?: string; fechaInicio?: string; fechaFin?: string }) {
+export function useCarteraCreditos(params?: CarteraCreditosQuery) {
   return useQuery({
     queryKey: ['carteraCreditos', params],
     queryFn: () => reportesApi.getCarteraCreditos(params),
@@ -24,7 +26,7 @@ export function useEstadoResultados(params: { fondoId?: number; fechaInicio: str
   })
 }
 
-export function useReporteAportes(params?: { fondoId?: number; periodo?: string; tipo?: string }) {
+export function useReporteAportes(params?: ReporteAportesQuery) {
   return useQuery({
     queryKey: ['reporteAportes', params],
     queryFn: () => reportesApi.getReporteAportes(params),

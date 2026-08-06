@@ -1,25 +1,23 @@
 import api from '@/lib/api'
-import type { EstadoCuentasSocio, CarteraCreditoResumen, CarteraCreditoPrestamo, EstadoResultadosFondo, ReporteAporte, Moroso, ResumenEjecutivo } from '../types'
+import type { EstadoCuentasSocio, CarteraCreditoResumen, CarteraCreditoPrestamo, EstadoResultadosFondo, ReporteAporte, Moroso, ResumenEjecutivo, CarteraCreditosQuery, ReporteAportesQuery, EstadoCuentasQuery, ReporteAportesResumen } from '../types'
 
 export const reportesApi = {
-  getEstadoCuentasSocio: async (socioId: number, fondoId?: number): Promise<EstadoCuentasSocio> => {
-    const params: any = { socioId }
-    if (fondoId) params.fondoId = fondoId
+  getEstadoCuentasSocio: async (params?: EstadoCuentasQuery): Promise<EstadoCuentasSocio> => {
     const { data } = await api.get('/reportes/estado-cuentas-socio', { params })
     return data.data
   },
 
-  getCarteraCreditos: async (params?: { fondoId?: number; estado?: string; fechaInicio?: string; fechaFin?: string }): Promise<{ resumen: CarteraCreditoResumen; prestamos: CarteraCreditoPrestamo[] }> => {
+  getCarteraCreditos: async (params?: CarteraCreditosQuery): Promise<{ resumen: CarteraCreditoResumen; prestamos: CarteraCreditoPrestamo[] }> => {
     const { data } = await api.get('/reportes/cartera-creditos', { params })
     return data.data
   },
 
-  getEstadoResultados: async (params: { fondoId?: number; fechaInicio: string; fechaFin: string }): Promise<{ fondos: EstadoResultadosFondo[]; totales: { ingresos: number; egresos: number; neto: number }; periodo: { inicio: string; fin: string } }> => {
+  getEstadoResultados: async (params: { fondoId?: number; fechaInicio: string; fechaFin: string }): Promise<{ fondos: EstadoResultadosFondo[]; totales: { ingresos: number; egresos: number; neto: number }; totalesPorMoneda: Record<string, number>; periodo: { inicio: string; fin: string } }> => {
     const { data } = await api.get('/reportes/estado-resultados', { params })
     return data.data
   },
 
-  getReporteAportes: async (params?: { fondoId?: number; periodo?: string; tipo?: string }): Promise<{ aportes: ReporteAporte[]; resumen: any }> => {
+  getReporteAportes: async (params?: ReporteAportesQuery): Promise<{ aportes: ReporteAporte[]; resumen: ReporteAportesResumen }> => {
     const { data } = await api.get('/reportes/aportes', { params })
     return data.data
   },

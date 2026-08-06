@@ -6,14 +6,14 @@ import { z } from 'zod'
 import {
   ArrowLeft, Pencil, User, Phone, Mail, MapPin, Calendar, Shield,
   FileText, Users, Camera, QrCode, Download, Plus, Trash2, Printer,
-  HandCoins, PiggyBank, Upload,
+  HandCoins, Landmark, Upload,
 } from 'lucide-react'
 import { useSocio } from '../hooks/useSocios'
 import { useAportes } from '@/modules/aportes/hooks/useAportes'
-import { useCuentasAhorro } from '@/modules/ahorros/hooks/useAhorros'
 import { useCreditos } from '@/modules/creditos/hooks/useCreditos'
-import { Button, Card, Badge, LoadingSpinner, Modal, Input, Select, FormField } from '@/components/ui'
+import { Button, Card, Badge, LoadingSpinner, Modal, Input, Select, FormField, QRCode } from '@/components/ui'
 import { socioApi } from '../api/socioApi'
+import { getErrorMessage } from '@/lib/api'
 import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -102,8 +102,8 @@ export default function SocioDetailPage() {
       setShowBenModal(false)
       setEditingBen(null)
       reset()
-    } catch {
-      toast.error(editingBen ? 'Error al actualizar beneficiario' : 'Error al agregar beneficiario')
+    } catch (error) {
+      toast.error(getErrorMessage(error, editingBen ? 'Error al actualizar beneficiario' : 'Error al agregar beneficiario'))
     } finally {
       setSavingBen(false)
     }
@@ -115,8 +115,8 @@ export default function SocioDetailPage() {
       await socioApi.deleteBeneficiario(socio.id, beneficiarioId)
       queryClient.invalidateQueries({ queryKey: ['socio', socio.id] })
       toast.success('Beneficiario eliminado')
-    } catch {
-      toast.error('Error al eliminar beneficiario')
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al eliminar beneficiario'))
     }
   }
 
@@ -133,8 +133,8 @@ export default function SocioDetailPage() {
       setShowDocModal(false)
       setDocFile(null)
       setDocTipo('OTRO')
-    } catch {
-      toast.error('Error al subir documento')
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al subir documento'))
     } finally {
       setUploadingDoc(false)
     }
@@ -146,8 +146,8 @@ export default function SocioDetailPage() {
       await socioApi.deleteDocumento(socio.id, docId)
       queryClient.invalidateQueries({ queryKey: ['socio', socio.id] })
       toast.success('Documento eliminado')
-    } catch {
-      toast.error('Error al eliminar documento')
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al eliminar documento'))
     }
   }
 
@@ -349,6 +349,43 @@ export default function SocioDetailPage() {
           )}
         </Card>
 
+        {/* Fondos */}
+        <Card padding="lg" className="lg:col-span-2">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-[#2563EB]" />
+              <h3 className="font-semibold text-[#111827]">Fondos</h3>
+            </div>
+            <Button variant="secondary" size="sm" as="link" to="/fondos">
+              Ver todos
+            </Button>
+          </div>
+          {(!socio.fondosSocios || socio.fondosSocios.length === 0) ? (
+            <p className="text-sm text-gray-400">No pertenece a ningún fondo</p>
+          ) : (
+            <div className="space-y-3">
+              {socio.fondosSocios.map((fs) => (
+                <div key={fs.id} className="flex items-center gap-4 rounded-lg border border-gray-100 p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+                    <Landmark className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <Link to={`/fondos/${fs.fondo?.id ?? fs.fondoId}`} className="text-sm font-medium text-[#111827] hover:text-[#2563EB]">
+                      {fs.fondo?.nombre ?? `Fondo #${fs.fondoId}`}
+                    </Link>
+                    <p className="text-xs text-gray-500">
+                      {fs.numeroSocio ? `N° ${fs.numeroSocio}` : ''}
+                      {fs.cargo ? ` · ${fs.cargo}` : ''}
+                      {fs.nivel ? ` · ${fs.nivel}` : ''}
+                      {fs.fechaIngreso ? ` · Ingreso: ${new Date(fs.fechaIngreso).toLocaleDateString()}` : ''}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
         {/* Aportes */}
         <Card padding="lg" className="lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
@@ -361,20 +398,6 @@ export default function SocioDetailPage() {
             </Button>
           </div>
           <AportesSocioSection socioId={socio.id} />
-        </Card>
-
-        {/* Ahorros */}
-        <Card padding="lg" className="lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <PiggyBank className="h-5 w-5 text-[#2563EB]" />
-              <h3 className="font-semibold text-[#111827]">Ahorros</h3>
-            </div>
-            <Button variant="secondary" size="sm" as="link" to={`/ahorros?socioId=${socio.id}`}>
-              Ver todos
-            </Button>
-          </div>
-          <AhorrosSocioSection socioId={socio.id} />
         </Card>
 
         {/* Créditos */}
@@ -494,9 +517,9 @@ export default function SocioDetailPage() {
       <Modal open={showQr} onClose={() => setShowQr(false)} title="Código QR del Socio" maxWidth="sm">
         <div className="flex flex-col items-center gap-4 py-4">
           <div className="rounded-xl border border-gray-200 p-4 bg-white">
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=BANCO-SOLIDARIO-SOCIO:${socio.codigo}|DNI:${socio.dni}|NOMBRE:${socio.nombreCompleto}`}
-              alt="QR Code"
+            <QRCode
+              value={`BANCO-SOLIDARIO-SOCIO:${socio.codigo}|DNI:${socio.dni}|NOMBRE:${socio.nombreCompleto}`}
+              size={200}
               className="h-[200px] w-[200px]"
             />
           </div>
@@ -544,45 +567,6 @@ function AportesSocioSection({ socioId }: { socioId: number }) {
               <td className="px-4 py-3 text-gray-600">{format(new Date(a.fechaAporte), 'dd MMM yyyy', { locale: es })}</td>
               <td className="px-4 py-3 text-right">
                 <Link to={`/aportes/${a.id}`} className="text-xs font-medium text-[#2563EB] hover:underline">Detalle</Link>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function AhorrosSocioSection({ socioId }: { socioId: number }) {
-  const { data, isLoading } = useCuentasAhorro({ socioId, limit: 10 })
-  const cuentas = data?.data || []
-
-  if (isLoading) return <p className="text-sm text-gray-400">Cargando...</p>
-  if (cuentas.length === 0) return <p className="text-sm text-gray-400">No tiene cuentas de ahorro</p>
-
-  const formatMonto = (m: number) => m.toLocaleString('es-PE', { style: 'currency', currency: 'PEN' })
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-gray-200">
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-gray-100 bg-gray-50/50">
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Fondo</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Saldo</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Mov.</th>
-            <th className="px-4 py-3" />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {cuentas.map((c: any) => (
-            <tr key={c.id} className="transition-colors hover:bg-gray-50/50">
-              <td className="px-4 py-3">
-                <Link to={"/fondos/" + c.fondo.id} className="font-medium text-[#111827] hover:text-[#2563EB]">{c.fondo.nombre}</Link>
-              </td>
-              <td className="px-4 py-3 font-medium text-emerald-600">{formatMonto(c.saldo)}</td>
-              <td className="px-4 py-3 text-gray-600">{c.totalMovimientos || 0}</td>
-              <td className="px-4 py-3 text-right">
-                <Link to={"/ahorros/" + c.id} className="text-xs font-medium text-[#2563EB] hover:underline">Ver</Link>
               </td>
             </tr>
           ))}

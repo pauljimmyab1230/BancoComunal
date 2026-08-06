@@ -1,9 +1,12 @@
 import { PrismaClient } from '@prisma/client'
+import { marcarCuotasVencidas } from '../creditos/creditoService'
 
 const prisma = new PrismaClient()
 
 export const dashboardService = {
   async getSummary() {
+    await marcarCuotasVencidas()
+
     const hoy = new Date()
     const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
     const inicioSemana = new Date(hoy)
@@ -16,7 +19,7 @@ export const dashboardService = {
       totalFondos, fondosActivos,
       prestamos, cuotasProximas,
       aportesMes, aportesSemana,
-      cuentasAhorro, cajas,
+      cajas,
     ] = await Promise.all([
       prisma.socio.count(),
       prisma.socio.count({ where: { estado: 'A' } }),
@@ -32,7 +35,7 @@ export const dashboardService = {
               fondo: { select: { id: true, nombre: true } },
             },
           },
-          cuotas: { select: { monto: true, montoPagado: true, saldoPendiente: true, estado: true, fechaVencimiento: true, numero: true } },
+          cuotas: { select: { monto: true, amortizacion: true, montoPagado: true, saldoPendiente: true, estado: true, fechaVencimiento: true, numero: true } },
         },
       }),
       prisma.cuotaPrestamo.findMany({
@@ -55,14 +58,13 @@ export const dashboardService = {
         orderBy: { fechaVencimiento: 'asc' },
       }),
       prisma.aporte.findMany({
-        where: { fechaAporte: { gte: inicioMes } },
+        where: { estado: 'ACTIVO', fechaAporte: { gte: inicioMes } },
         select: { monto: true, tipo: true, fechaAporte: true },
       }),
       prisma.aporte.findMany({
-        where: { fechaAporte: { gte: inicioSemana } },
+        where: { estado: 'ACTIVO', fechaAporte: { gte: inicioSemana } },
         select: { monto: true },
       }),
-      prisma.cuentaAhorro.findMany({ select: { saldo: true } }),
       prisma.caja.findMany({
         where: { estado: 'ACTIVA' },
         select: { id: true, codigo: true, nombre: true, saldoActual: true, tipo: true, moneda: true },
@@ -101,11 +103,22 @@ export const dashboardService = {
     } catch { /* tabla AuditLog puede no existir aún */ }
 
     const capitalPrestado = prestamos.reduce((a, p) => a + Number(p.monto), 0)
-    const capitalRecuperado = prestamos.reduce((a, p) => a + p.cuotas.reduce((b, c) => b + Number(c.montoPagado), 0), 0)
+    // Solo la parte de amortización (capital) recuperada; el interés no es capital.
+    const capitalRecuperado = Math.round(prestamos.reduce((a, p) => a + p.cuotas.reduce((b, c) => {
+      const cMonto = Number(c.monto)
+      const cPagado = Number(c.montoPagado)
+      if (cPagado <= 0) return b
+      const proporcion = cMonto > 0 ? Math.min(1, cPagado / cMonto) : 1
+      return b + Number(c.amortizacion) * proporcion
+    }, 0), 0) * 100) / 100
     const saldoPendiente = prestamos.reduce((a, p) => a + p.cuotas.reduce((b, c) => b + Number(c.saldoPendiente), 0), 0)
     const cuotasVencidas = prestamos.reduce((a, p) => a + p.cuotas.filter(c => c.estado === 'VENCIDO' || c.estado === 'PARCIAL').length, 0)
-    const totalAhorros = cuentasAhorro.reduce((a, c) => a + Number(c.saldo), 0)
     const totalSaldoCajas = cajas.reduce((a, c) => a + Number(c.saldoActual), 0)
+    const totalSaldoCajasPorMoneda = cajas.reduce((acc, c) => {
+      const moneda = c.moneda || 'PEN'
+      acc[moneda] = (acc[moneda] || 0) + Number(c.saldoActual)
+      return acc
+    }, {} as Record<string, number>)
     const aportesMesMonto = aportesMes.reduce((a, ap) => a + Number(ap.monto), 0)
     const aportesSemanaMonto = aportesSemana.reduce((a, ap) => a + Number(ap.monto), 0)
     const aportesPorTipo = aportesMes.reduce((acc, ap) => {
@@ -143,8 +156,8 @@ export const dashboardService = {
         capitalRecuperado,
         saldoPendienteCartera: saldoPendiente,
         cuotasVencidas,
-        totalAhorros,
         totalSaldoCajas,
+        totalSaldoCajasPorMoneda,
         aportesMes: aportesMesMonto,
         aportesSemana: aportesSemanaMonto,
         cantidadAportesMes: aportesMes.length,

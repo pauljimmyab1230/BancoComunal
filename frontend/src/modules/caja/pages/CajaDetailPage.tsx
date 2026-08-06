@@ -3,18 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ArrowLeft, Plus, Filter, DollarSign, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Plus, Filter, DollarSign, TrendingUp, TrendingDown, AlertTriangle, ArrowRightLeft } from 'lucide-react'
 import {
   useCaja,
   useCajaResumen,
+  useCajas,
   useConceptos,
   useMovimientos,
   useArqueos,
   useCreateMovimiento,
   useCreateArqueo,
   useAprobarArqueo,
+  useTransferir,
 } from '../hooks/useCajas'
-import { movimientoCreateSchema, arqueoCreateSchema, type MovimientoCreateInput, type ArqueoCreateInput } from '../validations'
+import { movimientoCreateSchema, arqueoCreateSchema, transferirSchema, type MovimientoCreateInput, type ArqueoCreateInput, type TransferirInput } from '../validations'
 import {
   Button,
   Card,
@@ -28,13 +30,13 @@ import {
   EmptyState,
 } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
-import type { MovimientoCaja, ArqueoCaja, ConceptoCaja } from '../types'
+import type { MovimientoCaja, ArqueoCaja, ConceptoCaja, Caja } from '../types'
 
 const filtroTipoOptions = [
   { value: 'TODOS', label: 'Todos' },
   { value: 'INGRESO', label: 'Ingresos' },
   { value: 'EGRESO', label: 'Egresos' },
-  { value: 'TRASPASO', label: 'Traspasos' },
+  { value: 'TRANSFERENCIA', label: 'Traspasos' },
 ]
 
 const tipoMovimientoOptions = [
@@ -50,6 +52,7 @@ export default function CajaDetailPage() {
 
   const { data: caja, isLoading: loadingCaja } = useCaja(cajaId)
   const { data: resumen } = useCajaResumen(cajaId)
+  const { data: cajas } = useCajas({ limit: 100 })
   const { data: conceptos } = useConceptos()
   const { data: movimientos } = useMovimientos({ cajaId, limit: 50 })
   const { data: arqueos } = useArqueos({ cajaId, limit: 10 })
@@ -57,10 +60,12 @@ export default function CajaDetailPage() {
   const createMovimiento = useCreateMovimiento()
   const createArqueo = useCreateArqueo()
   const aprobarArqueo = useAprobarArqueo()
+  const transferir = useTransferir()
 
   const [showMovimientoModal, setShowMovimientoModal] = useState(false)
   const [showArqueoModal, setShowArqueoModal] = useState(false)
   const [showAprobarModal, setShowAprobarModal] = useState(false)
+  const [showTransferModal, setShowTransferModal] = useState(false)
   const [selectedArqueoId, setSelectedArqueoId] = useState<number | null>(null)
   const [filtroTipo, setFiltroTipo] = useState('TODOS')
 
@@ -72,7 +77,17 @@ export default function CajaDetailPage() {
       tipo: 'INGRESO',
       monto: 0,
       descripcion: '',
+      comprobante: '',
       referencia: '',
+    },
+  })
+
+  const transferForm = useForm<z.input<typeof transferirSchema>, any, z.output<typeof transferirSchema>>({
+    resolver: zodResolver(transferirSchema),
+    defaultValues: {
+      cajaDestinoId: 0,
+      monto: 0,
+      descripcion: '',
     },
   })
 
@@ -121,9 +136,15 @@ export default function CajaDetailPage() {
     }
   }
 
+  const tipoSeleccionado = movimientoForm.watch('tipo')
+
   const conceptoOptions = (conceptos || [])
-    .filter((c: ConceptoCaja) => c.estado === 'ACTIVO')
+    .filter((c: ConceptoCaja) => c.estado === 'ACTIVO' && c.tipo === tipoSeleccionado)
     .map((c: ConceptoCaja) => ({ value: String(c.id), label: c.nombre }))
+
+  const cajasDestinoOptions = (cajas?.data || [])
+    .filter((c: Caja) => c.id !== cajaId && c.estado === 'ACTIVA' && c.moneda === caja?.moneda)
+    .map((c: Caja) => ({ value: String(c.id), label: `${c.codigo} - ${c.nombre}` }))
 
   const movimientosFiltrados = (movimientos?.data || []).filter((m: MovimientoCaja) => {
     if (filtroTipo === 'TODOS') return true
@@ -167,6 +188,18 @@ export default function CajaDetailPage() {
     )
   }
 
+  const onSubmitTransferir = (data: TransferirInput) => {
+    transferir.mutate(
+      { cajaOrigenId: cajaId, cajaDestinoId: data.cajaDestinoId, monto: data.monto, descripcion: data.descripcion },
+      {
+        onSuccess: () => {
+          setShowTransferModal(false)
+          transferForm.reset()
+        },
+      }
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -189,6 +222,16 @@ export default function CajaDetailPage() {
             <>
               <Button onClick={() => setShowMovimientoModal(true)} iconLeft={<Plus className="h-4 w-4" />}>
                 Nuevo Movimiento
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  transferForm.reset()
+                  setShowTransferModal(true)
+                }}
+                iconLeft={<ArrowRightLeft className="h-4 w-4" />}
+              >
+                Traspasar a otra caja
               </Button>
               <Button variant="secondary" onClick={() => setShowArqueoModal(true)}>
                 Registrar Arqueo
@@ -294,8 +337,14 @@ export default function CajaDetailPage() {
                       </td>
                       <td className="px-4 py-3 text-gray-600">{conceptoNombre(mov.conceptoId)}</td>
                       <td className="px-4 py-3 text-gray-600">{mov.descripcion || '—'}</td>
-                      <td className={`px-4 py-3 text-right font-medium ${mov.tipo === 'INGRESO' ? 'text-green-600' : 'text-red-600'}`}>
-                        {mov.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(mov.monto)}
+                      <td className={`px-4 py-3 text-right font-medium ${
+                        mov.tipo === 'INGRESO' ? 'text-green-600'
+                          : mov.tipo === 'TRANSFERENCIA' ? 'text-blue-600'
+                          : 'text-red-600'
+                      }`}>
+                        {mov.tipo === 'INGRESO' ? '+'
+                          : mov.tipo === 'TRANSFERENCIA' ? ''
+                          : '-'}{formatCurrency(mov.monto)}
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant={mov.estado === 'CONFIRMADO' ? 'green' : mov.estado === 'ANULADO' ? 'red' : 'yellow'}>
@@ -377,7 +426,14 @@ export default function CajaDetailPage() {
       >
         <form onSubmit={movimientoForm.handleSubmit(onSubmitMovimiento)} className="p-6 space-y-4">
           <FormField label="Tipo" error={movimientoForm.formState.errors.tipo?.message}>
-            <Select options={tipoMovimientoOptions} {...movimientoForm.register('tipo')} />
+            <Select
+              options={tipoMovimientoOptions}
+              value={tipoSeleccionado}
+              onChange={(e) => {
+                movimientoForm.setValue('tipo', e.target.value as any)
+                movimientoForm.setValue('conceptoId', 0, { shouldValidate: true })
+              }}
+            />
           </FormField>
 
           <FormField label="Concepto" error={movimientoForm.formState.errors.conceptoId?.message}>
@@ -405,10 +461,17 @@ export default function CajaDetailPage() {
             />
           </FormField>
 
-          <FormField label="Referencia" error={movimientoForm.formState.errors.referencia?.message}>
+          <FormField label="Comprobante (N° recibo, boleta, etc.)" error={movimientoForm.formState.errors.comprobante?.message}>
+            <Input
+              {...movimientoForm.register('comprobante')}
+              placeholder="Obligatorio para este concepto"
+            />
+          </FormField>
+
+          <FormField label="Referencia (opcional)" error={movimientoForm.formState.errors.referencia?.message}>
             <Input
               {...movimientoForm.register('referencia')}
-              placeholder="N° recibo, comprobante, etc."
+              placeholder="Referencia interna"
             />
           </FormField>
 
@@ -491,6 +554,54 @@ export default function CajaDetailPage() {
             </Button>
             <Button type="submit" loading={aprobarArqueo.isPending}>
               Aprobar Arqueo
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        title="Traspaso entre cajas"
+        maxWidth="md"
+      >
+        <form onSubmit={transferForm.handleSubmit(onSubmitTransferir)} className="p-6 space-y-4">
+          <p className="text-sm text-gray-600">
+            {formatCurrency(caja.saldoActual)} disponibles en <strong>{caja.nombre}</strong>.
+          </p>
+
+          <FormField label="Caja destino" error={transferForm.formState.errors.cajaDestinoId?.message}>
+            <Select
+              options={cajasDestinoOptions}
+              placeholder="Seleccionar caja destino"
+              {...transferForm.register('cajaDestinoId', { valueAsNumber: true })}
+            />
+          </FormField>
+
+          <FormField label="Monto" error={transferForm.formState.errors.monto?.message}>
+            <Input
+              type="number"
+              step="0.01"
+              min="0.01"
+              max={Number(caja.saldoActual)}
+              {...transferForm.register('monto', { valueAsNumber: true })}
+              placeholder="0.00"
+            />
+          </FormField>
+
+          <FormField label="Descripción (opcional)" error={transferForm.formState.errors.descripcion?.message}>
+            <Input
+              {...transferForm.register('descripcion')}
+              placeholder="Motivo del traspaso"
+            />
+          </FormField>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setShowTransferModal(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" loading={transferir.isPending}>
+              Transferir
             </Button>
           </div>
         </form>

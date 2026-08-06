@@ -9,9 +9,10 @@ export const createCajaSchema = z.object({
   nombre: z.string().min(2).max(100),
   descripcion: z.string().max(500).optional(),
   tipo: z.enum(['PRINCIPAL', 'SECUNDARIA', 'CAJA_CHICA']).default('PRINCIPAL'),
-  moneda: z.string().length(3).default('PEN'),
+  moneda: z.enum(['PEN', 'USD']).default('PEN'),
   saldoInicial: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional().default(0)),
   fondoId: z.coerce.number().int().positive(),
+  estado: z.enum(['ACTIVA', 'INACTIVA', 'CERRADA']).default('ACTIVA'),
 })
 
 export const updateCajaSchema = createCajaSchema.partial()
@@ -42,7 +43,7 @@ export const createMovimientoSchema = z.object({
 
 export const createArqueoSchema = z.object({
   cajaId: z.coerce.number().int().positive(),
-  saldoFisico: z.coerce.number(),
+  saldoFisico: z.coerce.number().min(0, 'El saldo físico no puede ser negativo'),
   fechaArqueo: z.string().optional(),
   observacion: z.string().max(500).optional(),
 })
@@ -50,6 +51,13 @@ export const createArqueoSchema = z.object({
 export const aprobarArqueoSchema = z.object({
   estado: z.enum(['APROBADO', 'RECHAZADO']),
   observacion: z.string().max(500).optional(),
+})
+
+export const transferirSchema = z.object({
+  cajaOrigenId: z.coerce.number().int().positive(),
+  cajaDestinoId: z.coerce.number().int().positive(),
+  monto: z.coerce.number().positive('El monto debe ser mayor a 0'),
+  descripcion: z.string().max(500).optional(),
 })
 
 export const createFlujoProyectadoSchema = z.object({

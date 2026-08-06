@@ -38,6 +38,32 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export function extractTokenFromRequest(req: Request): string | null {
+  const authHeader = req.headers.authorization
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.split(' ')[1]
+  }
+  if (typeof req.query?.token === 'string' && req.query.token) {
+    return req.query.token
+  }
+  return null
+}
+
+export function authenticateUploads(req: Request, res: Response, next: NextFunction) {
+  const token = extractTokenFromRequest(req)
+  if (!token) {
+    res.status(401).json({ success: false, message: 'Token requerido' })
+    return
+  }
+
+  try {
+    jwt.verify(token, env.JWT_SECRET)
+    next()
+  } catch {
+    res.status(401).json({ success: false, message: 'Token inválido o expirado' })
+  }
+}
+
 export function authorize(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {

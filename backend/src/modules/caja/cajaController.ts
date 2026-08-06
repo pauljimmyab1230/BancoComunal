@@ -4,7 +4,7 @@ import {
   createCajaSchema, updateCajaSchema,
   createConceptoCajaSchema, updateConceptoCajaSchema,
   createMovimientoSchema,
-  createArqueoSchema, aprobarArqueoSchema,
+  createArqueoSchema, aprobarArqueoSchema, transferirSchema,
   createFlujoProyectadoSchema, updateFlujoProyectadoSchema,
   queryCajaSchema, queryArqueoSchema, queryFlujoSchema
 } from './cajaValidation'
@@ -96,6 +96,7 @@ export const cajaController = {
       if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const data = updateConceptoCajaSchema.parse(req.body)
       const concepto = await cajaService.updateConcepto(id, data)
+      if (!concepto) { res.status(404).json({ success: false, message: 'Concepto no encontrado' }); return }
       res.json({ success: true, data: concepto, message: 'Concepto actualizado correctamente' })
     } catch (error) { next(error) }
   },
@@ -104,7 +105,8 @@ export const cajaController = {
     try {
       const id = safeParseInt(req.params.id)
       if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
-      await cajaService.deleteConcepto(id)
+      const result = await cajaService.deleteConcepto(id)
+      if (result === false) { res.status(404).json({ success: false, message: 'Concepto no encontrado' }); return }
       res.json({ success: true, message: 'Concepto eliminado correctamente' })
     } catch (error) { next(error) }
   },
@@ -186,8 +188,16 @@ export const cajaController = {
       const id = safeParseInt(req.params.id)
       if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const data = aprobarArqueoSchema.parse(req.body)
-      const arqueo = await cajaService.aprobarArqueo(id, data)
+      const arqueo = await cajaService.aprobarArqueo(id, data, req.user?.username ?? null)
       res.json({ success: true, data: arqueo, message: `Arqueo ${data.estado.toLowerCase()} correctamente` })
+    } catch (error) { next(error) }
+  },
+
+  async transferir(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = transferirSchema.parse(req.body)
+      const result = await cajaService.transferir(data)
+      res.json(result)
     } catch (error) { next(error) }
   },
 
@@ -214,6 +224,7 @@ export const cajaController = {
       if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const data = updateFlujoProyectadoSchema.parse(req.body)
       const flujo = await cajaService.updateFlujoProyectado(id, data)
+      if (!flujo) { res.status(404).json({ success: false, message: 'Flujo proyectado no encontrado' }); return }
       res.json({ success: true, data: flujo, message: 'Flujo proyectado actualizado correctamente' })
     } catch (error) { next(error) }
   },
@@ -222,7 +233,8 @@ export const cajaController = {
     try {
       const id = safeParseInt(req.params.id)
       if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
-      await cajaService.deleteFlujoProyectado(id)
+      const result = await cajaService.deleteFlujoProyectado(id)
+      if (result === false) { res.status(404).json({ success: false, message: 'Flujo proyectado no encontrado' }); return }
       res.json({ success: true, message: 'Flujo proyectado eliminado correctamente' })
     } catch (error) { next(error) }
   },

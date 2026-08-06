@@ -9,6 +9,7 @@ const tipoBadge = (tipo: string) => {
     case 'OBLIGATORIO': return <Badge variant="blue">Obligatorio</Badge>
     case 'EXTRAORDINARIO': return <Badge variant="purple">Extraordinario</Badge>
     case 'VOLUNTARIO': return <Badge variant="green">Voluntario</Badge>
+    case 'MULTA': return <Badge variant="red">Multa</Badge>
     default: return <Badge>{tipo}</Badge>
   }
 }

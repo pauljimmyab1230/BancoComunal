@@ -13,8 +13,8 @@ const operacionLabels: Record<AuditLogEntry['operacion'], { label: string; varia
 const tablaLabels: Record<string, string> = {
   Socio: 'Socios',
   FondoRotatorio: 'Fondos',
+  FondoSocio: 'Membresías',
   Aporte: 'Aportes',
-  CuentaAhorro: 'Ahorros',
   Prestamo: 'Préstamos',
   CuotaPrestamo: 'Cuotas',
   Caja: 'Cajas',
@@ -22,7 +22,6 @@ const tablaLabels: Record<string, string> = {
   ConceptoCaja: 'Conceptos',
   ArqueoCaja: 'Arqueos',
   Usuario: 'Usuarios',
-  AhorroMovimiento: 'Mov. Ahorro',
 }
 
 function StatsCards() {

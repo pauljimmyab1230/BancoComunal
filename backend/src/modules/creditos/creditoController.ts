@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { creditoService } from './creditoService'
-import { createPrestamoSchema, pagoCuotaSchema } from './creditoValidation'
+import { createPrestamoSchema, updatePrestamoSchema, pagoCuotaSchema, liquidarSchema } from './creditoValidation'
 
 function safeParseInt(value: unknown): number | null {
   const parsed = parseInt(String(value), 10)
@@ -66,11 +66,34 @@ export const creditoController = {
     }
   },
 
+  async actualizar(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = safeParseInt(req.params.id)
+      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+
+      const data = updatePrestamoSchema.parse(req.body)
+      const prestamo = await creditoService.actualizar(id, data)
+      res.json({ success: true, data: prestamo, message: 'Préstamo actualizado correctamente' })
+    } catch (error) {
+      next(error)
+    }
+  },
+
   async pagarCuota(req: Request, res: Response, next: NextFunction) {
     try {
       const data = pagoCuotaSchema.parse(req.body)
       const result = await creditoService.pagarCuota(data)
       res.json({ success: true, data: result, message: 'Pago registrado correctamente' })
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  async liquidar(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { prestamoId, ...data } = liquidarSchema.parse(req.body)
+      const result = await creditoService.liquidar(prestamoId, data)
+      res.json({ success: true, data: result, message: 'Préstamo liquidado correctamente' })
     } catch (error) {
       next(error)
     }

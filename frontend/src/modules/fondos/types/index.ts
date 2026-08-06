@@ -11,6 +11,7 @@ export interface FondoRotatorio {
   condiciones: string | null
   fechaCierre: string | null
   totalSocios: number
+  capitalPrestado: number
   createdAt: string
   updatedAt: string
   socios?: FondoSocio[]
@@ -27,6 +28,7 @@ export interface FondoSocio {
   fechaAprobacion: string | null
   fondoId: number
   socioId: number
+  fondo?: FondoRotatorio
   socio: {
     id: number
     codigo: string

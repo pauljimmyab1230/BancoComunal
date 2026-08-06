@@ -1,4 +1,4 @@
-export type TipoAporte = 'OBLIGATORIO' | 'EXTRAORDINARIO' | 'VOLUNTARIO'
+export type TipoAporte = 'OBLIGATORIO' | 'EXTRAORDINARIO' | 'VOLUNTARIO' | 'MULTA'
 export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO'
 export type EstadoAporte = 'ACTIVO' | 'ANULADO'
 

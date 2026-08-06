@@ -1,6 +1,6 @@
 import api from '@/lib/api'
-import type { PaginatedResponse, ApiResponse } from '@/types'
-import type { Prestamo, PrestamoFormData, PagoCuotaForm } from '../types'
+import type { ApiResponse } from '@/types'
+import type { Prestamo, PrestamoFormData, PagoCuotaForm, CreditosListResponse } from '../types'
 
 export interface PrestamosQuery {
   search?: string
@@ -12,7 +12,7 @@ export interface PrestamosQuery {
 }
 
 export const creditosApi = {
-  list: async (params?: PrestamosQuery): Promise<PaginatedResponse<Prestamo>> => {
+  list: async (params?: PrestamosQuery): Promise<CreditosListResponse> => {
     const { data } = await api.get('/creditos', { params })
     return data
   },
@@ -29,6 +29,11 @@ export const creditosApi = {
 
   create: async (form: PrestamoFormData): Promise<ApiResponse<Prestamo>> => {
     const { data } = await api.post('/creditos', form)
+    return data
+  },
+
+  update: async (id: number, form: Partial<PrestamoFormData>): Promise<ApiResponse<Prestamo>> => {
+    const { data } = await api.put(`/creditos/${id}`, form)
     return data
   },
 

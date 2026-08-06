@@ -5,7 +5,19 @@ const socioSelect = {
 } as const
 
 export const reportesService = {
-  async estadoCuentasSocio(socioId: number, fondoId?: number) {
+  async estadoCuentasSocio(params: { socioId?: number; search?: string; fondoId?: number }) {
+
+    let socioId = params.socioId
+    if (socioId === undefined && params.search) {
+      const found = await prisma.socio.findFirst({
+        where: { OR: [{ codigo: params.search }, { dni: params.search }] },
+        select: { id: true },
+      })
+      if (!found) return null
+      socioId = found.id
+    }
+    if (socioId === undefined) return null
+
     const socio = await prisma.socio.findUnique({
       where: { id: socioId },
       include: { beneficiarios: true },
@@ -13,18 +25,11 @@ export const reportesService = {
     if (!socio) return null
 
     const fondosWhere: any = { fondoSocio: { socioId } }
-    if (fondoId) fondosWhere.fondoSocio.fondoId = fondoId
+    if (params.fondoId) fondosWhere.fondoSocio.fondoId = params.fondoId
 
-    const [cuentasAhorro, aportes, prestamos] = await Promise.all([
-      prisma.cuentaAhorro.findMany({
-        where: fondosWhere,
-        include: {
-          fondoSocio: { select: { id: true, fechaIngreso: true, fondo: { select: { id: true, nombre: true } } } },
-          movimientos: { orderBy: { createdAt: 'desc' }, take: 20 },
-        },
-      }),
+    const [aportes, prestamos] = await Promise.all([
       prisma.aporte.findMany({
-        where: fondosWhere,
+        where: { ...fondosWhere, estado: 'ACTIVO' },
         include: {
           fondoSocio: { select: { id: true, fechaIngreso: true, fondo: { select: { id: true, nombre: true } } } },
         },
@@ -40,7 +45,6 @@ export const reportesService = {
       }),
     ])
 
-    const totalAhorros = cuentasAhorro.reduce((a, c) => a + Number(c.saldo), 0)
     const totalAportes = aportes.reduce((a, ap) => a + Number(ap.monto), 0)
     const prestamosActivos = prestamos.filter(p => p.estado === 'ACTIVO')
     const totalPrestamos = prestamosActivos.reduce((a, p) => a + Number(p.monto), 0)
@@ -54,8 +58,7 @@ export const reportesService = {
     return {
       socio: { id: socio.id, codigo: socio.codigo, dni: socio.dni, nombres: socio.nombres, apellidoPaterno: socio.apellidoPaterno, apellidoMaterno: socio.apellidoMaterno, telefono: socio.telefono, email: socio.email, fechaIngreso: socio.fechaIngreso, estado: socio.estado },
       beneficiarios: socio.beneficiarios,
-      resumen: { totalAhorros, totalAportes, totalPrestamos, totalCuotasPendientes, totalDeuda, prestamosActivos: prestamosActivos.length },
-      cuentasAhorro: cuentasAhorro.map((c) => ({ ...c, saldo: Number(c.saldo), fondo: c.fondoSocio?.fondo ?? null, fondoSocio: undefined })),
+      resumen: { totalAportes, totalPrestamos, totalCuotasPendientes, totalDeuda, prestamosActivos: prestamosActivos.length },
       aportes: aportes.map((a) => ({ ...a, monto: Number(a.monto), fondo: a.fondoSocio?.fondo ?? null, fondoSocio: undefined })),
       prestamos: prestamos.map((p) => ({
         ...p,
@@ -78,12 +81,16 @@ export const reportesService = {
     }
   },
 
-  async carteraCreditos(params: { fondoId?: number; estado?: string; fechaInicio?: string; fechaFin?: string }) {
-    const { fondoId, estado, fechaInicio, fechaFin } = params
+  async carteraCreditos(params: { fondoId?: number; estado?: string; fechaInicio?: string; fechaFin?: string; limit?: number }) {
+
+    const { fondoId, estado = 'TODOS', fechaInicio, fechaFin, limit = 1000 } = params
 
     const where: any = {}
     if (fondoId) where.fondoSocio = { fondoId: Number(fondoId) }
-    if (estado && estado !== 'TODOS') where.estado = estado
+    // 'TODOS' muestra la cartera real (activos + pagados); los anulados no son cartera
+    // y sus saldos pendientes no deben sumarse a los totales.
+    if (estado === 'TODOS') where.estado = { not: 'ANULADO' }
+    else where.estado = estado
     if (fechaInicio || fechaFin) {
       where.fechaDesembolso = {}
       if (fechaInicio) where.fechaDesembolso.gte = new Date(fechaInicio)
@@ -96,7 +103,7 @@ export const reportesService = {
         fondoSocio: {
           select: {
             socio: { select: socioSelect },
-            fondo: { select: { id: true, nombre: true } },
+            fondo: { select: { id: true, nombre: true, moneda: true } },
           },
         },
         cuotas: { orderBy: { numero: 'asc' } },
@@ -123,6 +130,7 @@ export const reportesService = {
         id: p.id,
         socio: p.fondoSocio?.socio ?? null,
         fondo: p.fondoSocio?.fondo ?? null,
+        moneda: p.fondoSocio?.fondo?.moneda ?? null,
         monto: Number(p.monto),
         tasaInteres: Number(p.tasaInteres),
         numeroCuotas: p.numeroCuotas,
@@ -139,17 +147,19 @@ export const reportesService = {
       }
     })
 
+    const carteraValida = cartera.filter(p => p.estado !== 'ANULADO')
+
     const resumen = {
-      totalPrestamos: cartera.length,
-      prestamosActivos: cartera.filter(p => p.estado === 'ACTIVO').length,
-      prestamosPagados: cartera.filter(p => p.estado === 'PAGADO').length,
-      montoTotal: cartera.reduce((a, p) => a + p.monto, 0),
-      saldoTotal: cartera.reduce((a, p) => a + p.saldoPendiente, 0),
-      cuotasVencidas: cartera.reduce((a, p) => a + p.cuotasVencidas, 0),
-      tasaMorosidad: cartera.length > 0 ? (cartera.filter(p => p.cuotasVencidas > 0).length / cartera.length * 100) : 0,
+      totalPrestamos: carteraValida.length,
+      prestamosActivos: carteraValida.filter(p => p.estado === 'ACTIVO').length,
+      prestamosPagados: carteraValida.filter(p => p.estado === 'PAGADO').length,
+      montoTotal: carteraValida.reduce((a, p) => a + p.monto, 0),
+      saldoTotal: carteraValida.reduce((a, p) => a + p.saldoPendiente, 0),
+      cuotasVencidas: carteraValida.reduce((a, p) => a + p.cuotasVencidas, 0),
+      tasaMorosidad: carteraValida.length > 0 ? (carteraValida.filter(p => p.cuotasVencidas > 0).length / carteraValida.length * 100) : 0,
     }
 
-    return { resumen, prestamos: cartera }
+    return { resumen, prestamos: cartera.slice(0, limit) }
   },
 
   async estadoResultados(params: { fondoId?: number; fechaInicio: string; fechaFin: string }) {
@@ -166,39 +176,48 @@ export const reportesService = {
     })
 
     const resultados = await Promise.all(fondos.map(async (fondo) => {
-      const [cuotasPagadas, aportes, ahorrosRetiros] = await Promise.all([
-        prisma.cuotaPrestamo.findMany({
-          where: {
-            prestamo: { fondoSocio: { fondoId: fondo.id } },
-            estado: 'PAGADO',
-            fechaPago: whereFecha,
-          },
-          include: { prestamo: { select: { monto: true, tasaInteres: true } } },
-        }),
-        prisma.aporte.findMany({
-          where: { fondoSocio: { fondoId: fondo.id }, fechaAporte: whereFecha },
-        }),
-        prisma.ahorroMovimiento.findMany({
-          where: {
-            cuenta: { fondoSocio: { fondoId: fondo.id } },
-            tipo: 'RETIRO',
-            createdAt: whereFecha,
-          },
-        }),
-      ])
+      const cajas = await prisma.caja.findMany({ where: { fondoId: fondo.id }, select: { id: true } })
+      const cajaIds = cajas.map(c => c.id)
 
-      const ingresosIntereses = cuotasPagadas.reduce((a, c) => a + Number(c.interes), 0)
-      const ingresosAportes = aportes.reduce((a, ap) => a + Number(ap.monto), 0)
-      const totalIngresos = ingresosIntereses + ingresosAportes
+      const movimientos = cajaIds.length > 0
+        ? await prisma.movimientoCaja.findMany({
+            where: {
+              cajaId: { in: cajaIds },
+              estado: { not: 'ANULADO' },
+              fechaMovimiento: whereFecha,
+            },
+            select: { monto: true, concepto: { select: { codigo: true } } },
+          })
+        : []
 
-      const egresosRetiros = ahorrosRetiros.reduce((a, r) => a + Number(r.monto), 0)
+      const sum = (codigo: string) => movimientos
+        .filter(m => m.concepto?.codigo === codigo)
+        .reduce((a, m) => a + Number(m.monto), 0)
+
+      const ingresos = {
+        cuotas: sum('ING-CUOTA'),
+        intereses: sum('ING-INTERES'),
+        reintegros: sum('ING-REINTEGRO'),
+        otros: sum('ING-OTRO') + sum('AJU-DIF-SOBRANTE'),
+        total: 0,
+      }
+      ingresos.total = ingresos.cuotas + ingresos.intereses + ingresos.reintegros + ingresos.otros
+
+      const egresos = {
+        desembolsos: sum('ING-PRESTAMO'),
+        gastos: sum('EGR-GASTO') + sum('EGR-OTRO') + sum('EGR-PROVISION'),
+        faltantes: sum('AJU-DIF-FALTANTE'),
+        total: 0,
+      }
+      egresos.total = egresos.desembolsos + egresos.gastos + egresos.faltantes
+
+      const resultadoNeto = ingresos.total - egresos.total
 
       return {
         fondo: { id: fondo.id, nombre: fondo.nombre, capitalInicial: Number(fondo.capitalInicial), capitalDisponible: Number(fondo.capitalDisponible), moneda: fondo.moneda },
-        ingresos: { intereses: ingresosIntereses, aportes: ingresosAportes, total: totalIngresos },
-        egresos: { retiros: egresosRetiros, total: egresosRetiros },
-        resultadoNeto: totalIngresos - egresosRetiros,
-        detalle: { cuotasPagadas: cuotasPagadas.length, aportes: aportes.length, retiros: ahorrosRetiros.length },
+        ingresos,
+        egresos,
+        resultadoNeto,
       }
     }))
 
@@ -208,13 +227,19 @@ export const reportesService = {
       neto: a.neto + r.resultadoNeto,
     }), { ingresos: 0, egresos: 0, neto: 0 })
 
-    return { fondos: resultados, totales, periodo: { inicio: fechaInicio, fin: fechaFin } }
+    const totalesPorMoneda = resultados.reduce((acc, r) => {
+      const moneda = r.fondo.moneda || 'PEN'
+      acc[moneda] = (acc[moneda] || 0) + r.resultadoNeto
+      return acc
+    }, {} as Record<string, number>)
+
+    return { fondos: resultados, totales, totalesPorMoneda, periodo: { inicio: fechaInicio, fin: fechaFin } }
   },
 
-  async reporteAportes(params: { fondoId?: number; periodo?: string; tipo?: string }) {
-    const { fondoId, periodo, tipo } = params
+  async reporteAportes(params: { fondoId?: number; periodo?: string; tipo?: string; limit?: number }) {
+    const { fondoId, periodo, tipo, limit = 1000 } = params
 
-    const where: any = {}
+    const where: any = { estado: 'ACTIVO' }
     if (fondoId) where.fondoSocio = { fondoId: Number(fondoId) }
     if (periodo) where.periodo = periodo
     if (tipo && tipo !== 'TODOS') where.tipo = tipo
@@ -233,13 +258,13 @@ export const reportesService = {
       orderBy: { fechaAporte: 'desc' },
     })
 
-    const resumen = {
-      totalAportes: aportes.length,
+    const resumen = {      totalAportes: aportes.length,
       montoTotal: aportes.reduce((a, ap) => a + Number(ap.monto), 0),
       porTipo: {
         obligatorio: aportes.filter(ap => ap.tipo === 'OBLIGATORIO').reduce((a, ap) => a + Number(ap.monto), 0),
         extraordinario: aportes.filter(ap => ap.tipo === 'EXTRAORDINARIO').reduce((a, ap) => a + Number(ap.monto), 0),
         voluntario: aportes.filter(ap => ap.tipo === 'VOLUNTARIO').reduce((a, ap) => a + Number(ap.monto), 0),
+        multa: aportes.filter(ap => ap.tipo === 'MULTA').reduce((a, ap) => a + Number(ap.monto), 0),
       },
       porMetodo: aportes.reduce((acc, ap) => {
         acc[ap.metodoPago] = (acc[ap.metodoPago] || 0) + Number(ap.monto)
@@ -248,7 +273,7 @@ export const reportesService = {
     }
 
     return {
-      aportes: aportes.map((a) => ({
+      aportes: aportes.slice(0, limit).map((a) => ({
         ...a,
         monto: Number(a.monto),
         socio: a.fondoSocio?.socio ?? null,
@@ -260,6 +285,7 @@ export const reportesService = {
   },
 
   async morosos(params: { fondoId?: number; diasMinimos?: number }) {
+
     const { fondoId, diasMinimos = 1 } = params
     const hoy = new Date()
 
@@ -323,44 +349,56 @@ export const reportesService = {
   },
 
   async resumenEjecutivo() {
+
     const hoy = new Date()
     const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
     const inicioAnio = new Date(hoy.getFullYear(), 0, 1)
 
-    const [totalSocios, sociosActivos, totalFondos, fondosActivos, prestamos, cuotasHoy, aportesMes, ahorros, cajas] = await Promise.all([
+    const [totalSocios, sociosActivos, totalFondos, fondosActivos, prestamos, cuotasHoy, aportesMes, cajas] = await Promise.all([
       prisma.socio.count(),
       prisma.socio.count({ where: { estado: 'A' } }),
       prisma.fondoRotatorio.count(),
       prisma.fondoRotatorio.count({ where: { estado: 'ACTIVO' } }),
       prisma.prestamo.findMany({
         where: { estado: 'ACTIVO' },
-        select: { monto: true, cuotas: { select: { monto: true, montoPagado: true, saldoPendiente: true, estado: true, fechaVencimiento: true } } },
+        select: { monto: true, cuotas: { select: { monto: true, amortizacion: true, montoPagado: true, saldoPendiente: true, estado: true, fechaVencimiento: true } } },
       }),
       prisma.cuotaPrestamo.findMany({
-        where: { fechaVencimiento: { gte: hoy, lt: new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000) } },
+        where: {
+          fechaVencimiento: { gte: hoy, lt: new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000) },
+          estado: { in: ['PENDIENTE', 'PARCIAL'] },
+        },
         include: { prestamo: { select: { fondoSocio: { select: { socio: { select: { nombres: true, apellidoPaterno: true, telefono: true } } } } } } },
       }),
       prisma.aporte.findMany({
         where: { fechaAporte: { gte: inicioMes } },
         select: { monto: true, tipo: true },
       }),
-      prisma.cuentaAhorro.findMany({
-        select: { saldo: true },
-      }),
       prisma.caja.findMany({
         where: { estado: 'ACTIVA' },
-        select: { codigo: true, nombre: true, saldoActual: true },
+        select: { codigo: true, nombre: true, saldoActual: true, moneda: true },
       }),
     ])
 
     const capitalPrestado = prestamos.reduce((a, p) => a + Number(p.monto), 0)
-    const capitalRecuperado = prestamos.reduce((a, p) => a + p.cuotas.reduce((b, c) => b + Number(c.montoPagado), 0), 0)
+    // Solo la parte de amortización (capital) recuperada; el interés no es capital.
+    const capitalRecuperado = Math.round(prestamos.reduce((a, p) => a + p.cuotas.reduce((b, c) => {
+      const cMonto = Number(c.monto)
+      const cPagado = Number(c.montoPagado)
+      if (cPagado <= 0) return b
+      const proporcion = cMonto > 0 ? Math.min(1, cPagado / cMonto) : 1
+      return b + Number(c.amortizacion) * proporcion
+    }, 0), 0) * 100) / 100
     const saldoPendienteCartera = prestamos.reduce((a, p) => a + p.cuotas.reduce((b, c) => b + Number(c.saldoPendiente), 0), 0)
     const cuotasVencidas = prestamos.reduce((a, p) => a + p.cuotas.filter(c => c.estado === 'VENCIDO' || c.estado === 'PARCIAL').length, 0)
 
-    const totalAhorros = ahorros.reduce((a, c) => a + Number(c.saldo), 0)
     const totalAportesMes = aportesMes.reduce((a, ap) => a + Number(ap.monto), 0)
     const totalSaldoCajas = cajas.reduce((a, c) => a + Number(c.saldoActual), 0)
+    const totalSaldoCajasPorMoneda = cajas.reduce((acc, c) => {
+      const moneda = c.moneda || 'PEN'
+      acc[moneda] = (acc[moneda] || 0) + Number(c.saldoActual)
+      return acc
+    }, {} as Record<string, number>)
 
     return {
       socios: { total: totalSocios, activos: sociosActivos, inactivos: totalSocios - sociosActivos },
@@ -373,10 +411,10 @@ export const reportesService = {
         cuotasVencidas,
         tasaMorosidad: prestamos.length > 0 ? (prestamos.filter(p => p.cuotas.some(c => c.estado === 'VENCIDO' || c.estado === 'PARCIAL')).length / prestamos.length * 100) : 0,
       },
-      ahorros: { total: totalAhorros, cuentas: ahorros.length },
       aportes: { mesActual: totalAportesMes, cantidad: aportesMes.length },
       cajas: cajas.map(c => ({ ...c, saldoActual: Number(c.saldoActual) })),
       totalSaldoCajas,
+      totalSaldoCajasPorMoneda,
       cuotasPorVencer: cuotasHoy.length,
       cuotasPorVencerDetalle: cuotasHoy.slice(0, 10).map(c => ({
         socio: `${c.prestamo?.fondoSocio?.socio?.nombres} ${c.prestamo?.fondoSocio?.socio?.apellidoPaterno}`,

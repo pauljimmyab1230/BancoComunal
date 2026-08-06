@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Users, Key, BookOpen, Building2, Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { useAuthStore } from '@/stores/authStore'
 import {
   useUsuarios,
   useCreateUsuario,
@@ -322,7 +324,13 @@ function LoginTab() {
     if (!username || !password) return
     const result = await loginMutation.mutateAsync({ username, password })
     if (result?.success) {
-      alert('Login exitoso! Bienvenido ' + (result.data?.usuario?.nombres || username))
+      if (result.data?.token) {
+        useAuthStore.getState().login(result.data.token, {
+          name: result.data.user?.nombres || username,
+          email: result.data.user?.correo || '',
+        })
+      }
+      toast.success('Login exitoso! Bienvenido ' + (result.data?.user?.nombres || username))
     }
   }
 
@@ -385,7 +393,6 @@ function ConceptosTab() {
                 { value: 'INGRESO', label: 'Ingreso' },
                 { value: 'EGRESO', label: 'Egreso' },
                 { value: 'APORTE', label: 'Aporte' },
-                { value: 'AHORRO', label: 'Ahorro' },
                 { value: 'CREDITO', label: 'Crédito' },
                 { value: 'OTRO', label: 'Otro' },
               ]}
@@ -436,7 +443,7 @@ function ConceptosTab() {
                       {c.descripcion && <div className="text-xs text-gray-500 max-w-[300px] truncate">{c.descripcion}</div>}
                     </td>
                     <td className="px-5 py-3 text-center">
-                      <Badge variant={c.tipo === 'INGRESO' ? 'green' : c.tipo === 'EGRESO' ? 'red' : c.tipo === 'APORTE' ? 'blue' : c.tipo === 'AHORRO' ? 'purple' : c.tipo === 'CREDITO' ? 'yellow' : 'gray'}>{c.tipo}</Badge>
+                      <Badge variant={c.tipo === 'INGRESO' ? 'green' : c.tipo === 'EGRESO' ? 'red' : c.tipo === 'APORTE' ? 'blue' : c.tipo === 'CREDITO' ? 'yellow' : 'gray'}>{c.tipo}</Badge>
                     </td>
                     <td className="px-5 py-3 text-center text-sm text-gray-600">{c.afectaSaldo}</td>
                     <td className="px-5 py-3 text-center text-sm">{c.requiereComprobante ? 'Sí' : 'No'}</td>
@@ -539,7 +546,6 @@ function ConceptoFormModal({ open, onClose, editingConcepto, onSave, loading }: 
               { value: 'INGRESO', label: 'Ingreso' },
               { value: 'EGRESO', label: 'Egreso' },
               { value: 'APORTE', label: 'Aporte' },
-              { value: 'AHORRO', label: 'Ahorro' },
               { value: 'CREDITO', label: 'Crédito' },
               { value: 'OTRO', label: 'Otro' },
             ]}

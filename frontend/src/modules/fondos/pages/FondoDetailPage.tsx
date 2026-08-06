@@ -13,15 +13,14 @@ import {
   Trash2,
   Search,
   HandCoins,
-  PiggyBank,
 } from 'lucide-react'
 import { useFondo } from '../hooks/useFondos'
 import { useSocios } from '@/modules/socios/hooks/useSocios'
 import { useAportes } from '@/modules/aportes/hooks/useAportes'
-import { useCuentasAhorro } from '@/modules/ahorros/hooks/useAhorros'
 import { useCreditos } from '@/modules/creditos/hooks/useCreditos'
-import { Button, Card, Badge, LoadingSpinner, Modal, Input } from '@/components/ui'
+import { Button, Card, Badge, LoadingSpinner, Modal, Input, ConfirmDialog } from '@/components/ui'
 import { fondosApi } from '../api/fondosApi'
+import { getErrorMessage } from '@/lib/api'
 import { useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 
@@ -34,6 +33,7 @@ export default function FondoDetailPage() {
   const [showSocioModal, setShowSocioModal] = useState(false)
   const [socioSearch, setSocioSearch] = useState('')
   const [savingSocio, setSavingSocio] = useState(false)
+  const [removeSocioId, setRemoveSocioId] = useState<number | null>(null)
 
   const { data: sociosData } = useSocios({ search: socioSearch, limit: 20 })
 
@@ -65,7 +65,7 @@ export default function FondoDetailPage() {
     }
   })()
 
-  const capitalUsado = fondo.capitalInicial - fondo.capitalDisponible
+  const capitalUsado = fondo.capitalPrestado ?? 0
   const porcentajeUsado = fondo.capitalInicial > 0 ? (capitalUsado / fondo.capitalInicial) * 100 : 0
 
   const handleAddSocio = async (socioId: number) => {
@@ -77,8 +77,8 @@ export default function FondoDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Socio agregado al fondo')
       setShowSocioModal(false)
-    } catch {
-      toast.error('Error al agregar socio')
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al agregar socio'))
     } finally {
       setSavingSocio(false)
     }
@@ -91,8 +91,8 @@ export default function FondoDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['fondos'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Socio retirado del fondo')
-    } catch {
-      toast.error('Error al retirar socio')
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al retirar socio'))
     }
   }
 
@@ -165,7 +165,7 @@ export default function FondoDetailPage() {
               <Percent className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Capital Prestado</p>
+              <p className="text-xs text-gray-500">Capital Prestado (saldo vigente)</p>
               <p className="text-xl font-bold text-amber-600">
                 {capitalUsado.toLocaleString('es-PE', { style: 'currency', currency: fondo.moneda })}
               </p>
@@ -225,6 +225,7 @@ export default function FondoDetailPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">N°</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Código</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">DNI</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Nombres</th>
@@ -236,6 +237,7 @@ export default function FondoDetailPage() {
               <tbody className="divide-y divide-gray-100">
                 {fondo.socios.map((rel: any) => (
                   <tr key={rel.id} className="transition-colors hover:bg-gray-50/50">
+                    <td className="px-4 py-3 font-semibold text-[#2563EB]">{rel.numeroSocio ?? '—'}</td>
                     <td className="px-4 py-3 font-medium text-[#111827]">{rel.socio.codigo}</td>
                     <td className="px-4 py-3 text-gray-600">{rel.socio.dni}</td>
                     <td className="px-4 py-3">
@@ -249,7 +251,7 @@ export default function FondoDetailPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => handleRemoveSocio(rel.socio.id)}
+                        onClick={() => setRemoveSocioId(rel.socio.id)}
                         className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -275,15 +277,6 @@ export default function FondoDetailPage() {
           </Button>
         </div>
         <AportesFondoSection fondoId={fondo.id} moneda={fondo.moneda} />
-      </Card>
-
-      {/* Ahorros del Fondo */}
-      <Card padding="lg" className="mt-6">
-        <div className="mb-4 flex items-center gap-2">
-          <PiggyBank className="h-5 w-5 text-[#2563EB]" />
-          <h3 className="font-semibold text-[#111827]">Ahorros</h3>
-        </div>
-        <AhorrosFondoSection fondoId={fondo.id} moneda={fondo.moneda} />
       </Card>
 
       {/* Créditos del Fondo */}
@@ -329,14 +322,17 @@ export default function FondoDetailPage() {
                       <p className="text-xs text-gray-500">{socio.dni} · {socio.codigo}</p>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    disabled={yaAsignado || savingSocio}
-                    loading={savingSocio}
-                    onClick={() => handleAddSocio(socio.id)}
-                  >
-                    {yaAsignado ? 'Ya asignado' : 'Agregar'}
-                  </Button>
+                  <div className="flex items-center gap-3">
+                    {socio.estado === 'I' && <Badge variant="red">Inactivo</Badge>}
+                    <Button
+                      size="sm"
+                      disabled={yaAsignado || savingSocio}
+                      loading={savingSocio}
+                      onClick={() => handleAddSocio(socio.id)}
+                    >
+                      {yaAsignado ? 'Ya asignado' : 'Agregar'}
+                    </Button>
+                  </div>
                 </div>
               )
             })}
@@ -346,6 +342,19 @@ export default function FondoDetailPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={removeSocioId !== null}
+        onClose={() => setRemoveSocioId(null)}
+        onConfirm={() => {
+          if (removeSocioId !== null) handleRemoveSocio(removeSocioId)
+          setRemoveSocioId(null)
+        }}
+        title="Retirar Socio"
+        message="¿Estás seguro de retirar a este socio del fondo?"
+        confirmText="Retirar"
+        variant="danger"
+      />
     </div>
   )
 }
@@ -400,44 +409,6 @@ function AportesFondoSection({ fondoId, moneda }: { fondoId: number; moneda: str
                 >
                   Detalle
                 </Link>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function AhorrosFondoSection({ fondoId: fid, moneda }: { fondoId: number; moneda: string }) {
-  const { data, isLoading } = useCuentasAhorro({ fondoId: fid, limit: 10 })
-  const cuentas = data?.data || []
-  const fmt = (m: any) => Number(m).toLocaleString("es-PE", { style: "currency", currency: moneda })
-  if (isLoading) return <p className="text-sm text-gray-400">Cargando...</p>
-  if (cuentas.length === 0) return <p className="text-sm text-gray-400">No hay cuentas de ahorro en este fondo</p>
-  return (
-    <div className="overflow-hidden rounded-xl border border-gray-200">
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-gray-100 bg-gray-50/50">
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Socio</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Saldo</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Mov.</th>
-            <th className="px-4 py-3" />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {cuentas.map((c: any) => (
-            <tr key={c.id} className="transition-colors hover:bg-gray-50/50">
-              <td className="px-4 py-3">
-                <Link to={"/socios/" + c.socio.id} className="font-medium text-[#111827] hover:text-[#2563EB]">
-                  {c.socio.nombres} {c.socio.apellidoPaterno}
-                </Link>
-              </td>
-              <td className="px-4 py-3 font-medium text-emerald-600">{fmt(c.saldo)}</td>
-              <td className="px-4 py-3 text-gray-600">{c.totalMovimientos || 0}</td>
-              <td className="px-4 py-3 text-right">
-                <Link to={"/ahorros/" + c.id} className="text-xs font-medium text-[#2563EB] hover:underline">Ver</Link>
               </td>
             </tr>
           ))}

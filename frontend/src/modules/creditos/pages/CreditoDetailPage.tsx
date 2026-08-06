@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, User, Building2, Calendar, CheckCircle, DollarSign } from 'lucide-react'
-import { useCredito, usePagarCuota } from '../hooks/useCreditos'
-import { Button, SectionHeader, Card, Badge, LoadingSpinner, Modal, FormField, Input, Select } from '@/components/ui'
+import { ArrowLeft, User, Building2, Calendar, CheckCircle, DollarSign, Pencil, Trash2 } from 'lucide-react'
+import { useCredito, usePagarCuota, useAnularCredito } from '../hooks/useCreditos'
+import { Button, SectionHeader, Card, Badge, LoadingSpinner, Modal, ConfirmDialog, FormField, Input, Select } from '@/components/ui'
 import toast from 'react-hot-toast'
 import type { Prestamo, CuotaPrestamo } from '../types'
 
@@ -41,12 +41,14 @@ export default function CreditoDetailPage() {
   const { id } = useParams()
   const { data, isLoading } = useCredito(Number(id))
   const pagarCuota = usePagarCuota()
+  const anularMutation = useAnularCredito()
 
   const [pagoModal, setPagoModal] = useState(false)
   const [selectedCuota, setSelectedCuota] = useState<CuotaPrestamo | null>(null)
   const [pagoMonto, setPagoMonto] = useState('')
   const [pagoMetodo, setPagoMetodo] = useState('EFECTIVO')
   const [pagoComprobante, setPagoComprobante] = useState('')
+  const [anularModal, setAnularModal] = useState(false)
 
   if (isLoading) {
     return <LoadingSpinner />
@@ -58,12 +60,19 @@ export default function CreditoDetailPage() {
   }
 
   const abrirPago = (cuota: CuotaPrestamo) => {
+    if (prestamo.estado !== 'ACTIVO') {
+      toast.error('Solo se pueden pagar cuotas de créditos activos')
+      return
+    }
     setSelectedCuota(cuota)
     setPagoMonto(String(cuota.saldoPendiente))
     setPagoMetodo('EFECTIVO')
     setPagoComprobante('')
     setPagoModal(true)
   }
+
+  const cuotasPagadas = (prestamo.cuotas || []).filter((c) => c.estado === 'PAGADO').length
+  const puedeEditar = prestamo.estado === 'ACTIVO' && cuotasPagadas === 0
 
   const handlePago = (e: React.FormEvent) => {
     e.preventDefault()
@@ -104,9 +113,25 @@ export default function CreditoDetailPage() {
           title="Detalle del Crédito"
           description={`Crédito #${prestamo.id} - ${prestamo.socio.nombres} ${prestamo.socio.apellidoPaterno}`}
         />
-        <Button as="link" to="/creditos" variant="secondary" iconLeft={<ArrowLeft className="h-4 w-4" />}>
-          Volver
-        </Button>
+        <div className="flex items-center gap-2">
+          {puedeEditar && (
+            <Button as="link" to={`/creditos/${prestamo.id}/editar`} variant="secondary" iconLeft={<Pencil className="h-4 w-4" />}>
+              Editar
+            </Button>
+          )}
+          {prestamo.estado === 'ACTIVO' && (
+            <Button
+              variant="danger"
+              iconLeft={<Trash2 className="h-4 w-4" />}
+              onClick={() => setAnularModal(true)}
+            >
+              Anular
+            </Button>
+          )}
+          <Button as="link" to="/creditos" variant="secondary" iconLeft={<ArrowLeft className="h-4 w-4" />}>
+            Volver
+          </Button>
+        </div>
       </div>
 
       {/* Resumen */}
@@ -140,11 +165,11 @@ export default function CreditoDetailPage() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Cuotas</span>
-              <span className="font-medium">{prestamo.numeroCuotas} × {formatMonto(prestamo.montoCuota)}</span>
+              <span className="font-medium">{prestamo.numeroCuotas} × {formatMonto(prestamo.montoCuota, prestamo.fondo.moneda)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Total Intereses</span>
-              <span className="font-medium">{formatMonto(prestamo.totalInteres)}</span>
+              <span className="font-medium">{formatMonto(prestamo.totalInteres, prestamo.fondo.moneda)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Desembolso</span>
@@ -257,17 +282,17 @@ export default function CreditoDetailPage() {
                 <tr className="border-t-2 border-gray-200 bg-gray-50/80 font-semibold">
                   <td className="px-3 py-3 text-sm text-gray-500" colSpan={2}>Totales</td>
                   <td className="px-3 py-3 text-right">
-                    {formatMonto(prestamo.cuotas.reduce((s, c) => s + c.monto, 0))}
+                    {formatMonto(prestamo.cuotas.reduce((s, c) => s + c.monto, 0), prestamo.fondo.moneda)}
                   </td>
                   <td className="px-3 py-3 text-right text-gray-700">
-                    {formatMonto(prestamo.cuotas.reduce((s, c) => s + c.interes, 0))}
+                    {formatMonto(prestamo.cuotas.reduce((s, c) => s + c.interes, 0), prestamo.fondo.moneda)}
                   </td>
                   <td className="px-3 py-3 text-right text-gray-700">
-                    {formatMonto(prestamo.cuotas.reduce((s, c) => s + c.amortizacion, 0))}
+                    {formatMonto(prestamo.cuotas.reduce((s, c) => s + c.amortizacion, 0), prestamo.fondo.moneda)}
                   </td>
-                  <td className="px-3 py-3 text-right text-amber-700">{formatMonto(prestamo.monto)}</td>
+                  <td className="px-3 py-3 text-right text-amber-700">{formatMonto(prestamo.monto, prestamo.fondo.moneda)}</td>
                   <td className="px-3 py-3 text-right text-emerald-700">
-                    {formatMonto(prestamo.cuotas.reduce((s, c) => s + c.montoPagado, 0))}
+                    {formatMonto(prestamo.cuotas.reduce((s, c) => s + c.montoPagado, 0), prestamo.fondo.moneda)}
                   </td>
                   <td className="px-3 py-3" colSpan={2} />
                 </tr>
@@ -288,7 +313,7 @@ export default function CreditoDetailPage() {
               </div>
               <div className="mt-1 flex justify-between">
                 <span className="text-gray-500">Saldo Pendiente</span>
-                <span className="font-bold text-amber-600">{formatMonto(selectedCuota.saldoPendiente)}</span>
+                <span className="font-bold text-amber-600">{formatMonto(selectedCuota.saldoPendiente, prestamo.fondo.moneda)}</span>
               </div>
             </div>
           )}
@@ -336,6 +361,20 @@ export default function CreditoDetailPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={anularModal}
+        onClose={() => setAnularModal(false)}
+        onConfirm={() => {
+          anularMutation.mutate(prestamo.id)
+          setAnularModal(false)
+        }}
+        title="Anular Crédito"
+        message="¿Estás seguro de anular este crédito? El capital desembolsado será restituido al fondo rotatorio. Solo se puede anular si no tiene cuotas pagadas."
+        confirmText="Anular"
+        variant="danger"
+        loading={anularMutation.isPending}
+      />
     </div>
   )
 }

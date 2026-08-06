@@ -179,6 +179,13 @@ export interface AprobarArqueoInput {
   observacion?: string
 }
 
+export interface TransferirInput {
+  cajaOrigenId: number
+  cajaDestinoId: number
+  monto: number
+  descripcion?: string
+}
+
 export interface CreateFlujoProyectadoInput {
   cajaId: number
   fecha: string

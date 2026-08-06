@@ -8,6 +8,14 @@ function safeParseInt(val: unknown): number | null {
   return isNaN(n) ? null : n
 }
 
+function extractToken(req: Request): string | null {
+  const authHeader = req.headers.authorization
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.split(' ')[1]
+  }
+  return null
+}
+
 export const socioController = {
   async list(req: Request, res: Response, next: NextFunction) {
     try {
@@ -22,7 +30,7 @@ export const socioController = {
         ...result,
         data: result.data.map((s: any) => ({
           ...s,
-          fotoUrl: getFullUrl(req, s.fotoUrl),
+          fotoUrl: getFullUrl(req, s.fotoUrl, extractToken(req)),
         })),
       })
     } catch (error) {
@@ -45,10 +53,10 @@ export const socioController = {
         success: true,
         data: {
           ...socio,
-          fotoUrl: getFullUrl(req, socio.fotoUrl),
+          fotoUrl: getFullUrl(req, socio.fotoUrl, extractToken(req)),
           documentos: socio.documentos?.map((d: any) => ({
             ...d,
-            rutaArchivo: getFullUrl(req, d.rutaArchivo),
+            rutaArchivo: getFullUrl(req, d.rutaArchivo, extractToken(req)),
           })),
         },
       })

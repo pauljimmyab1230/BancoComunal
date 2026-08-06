@@ -1,17 +1,18 @@
 import { Router } from 'express'
 import { fondoController } from './fondoController'
+import { authorize } from '../../middeware/auth'
 
 const router = Router()
 
 router.get('/', fondoController.list)
 router.get('/:id', fondoController.getById)
-router.post('/', fondoController.create)
-router.put('/:id', fondoController.update)
-router.delete('/:id', fondoController.delete)
+router.post('/', authorize('ADMIN', 'TESORERO'), fondoController.create)
+router.put('/:id', authorize('ADMIN', 'TESORERO'), fondoController.update)
+router.delete('/:id', authorize('ADMIN'), fondoController.delete)
 
 // Socios del fondo
 router.get('/:id/socios', fondoController.getSocios)
-router.post('/:id/socios', fondoController.addSocio)
-router.delete('/:id/socios/:socioId', fondoController.removeSocio)
+router.post('/:id/socios', authorize('ADMIN', 'TESORERO'), fondoController.addSocio)
+router.delete('/:id/socios/:socioId', authorize('ADMIN', 'TESORERO'), fondoController.removeSocio)
 
 export default router

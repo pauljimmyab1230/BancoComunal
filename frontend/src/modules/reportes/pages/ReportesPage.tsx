@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Search, TrendingUp, Users, DollarSign, AlertTriangle, Wallet, HandCoins, BarChart3 } from 'lucide-react'
+import { Search, TrendingUp, Users, DollarSign, AlertTriangle, Wallet, HandCoins, BarChart3, Printer, Download } from 'lucide-react'
 import { useResumenEjecutivo, useCarteraCreditos, useEstadoResultados, useReporteAportes, useMorosos, useEstadoCuentasSocio } from '../hooks/useReportes'
+import { useFondos } from '@/modules/fondos/hooks/useFondos'
 import { Button, Card, FormField, Input, Select, SectionHeader, Badge, LoadingSpinner, EmptyState } from '@/components/ui'
-import { formatCurrency } from '@/lib/utils'
-import type { ResumenEjecutivo, CarteraCreditoPrestamo, EstadoResultadosFondo, ReporteAporte, Moroso } from '../types'
+import { formatCurrency, formatSaldosPorMoneda, exportCsv } from '@/lib/utils'
+import type { ResumenEjecutivo, CarteraCreditoPrestamo, EstadoResultadosFondo, ReporteAporte, Moroso, CarteraCreditosQuery, ReporteAportesQuery } from '../types'
 
 const tabs = [
   { id: 'resumen', label: 'Resumen Ejecutivo', icon: BarChart3 },
@@ -39,7 +40,7 @@ function ResumenTab() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50"><Wallet className="h-5 w-5 text-green-600" /></div>
             <div>
               <p className="text-xs text-gray-500">Saldo Total Cajas</p>
-              <p className="text-lg font-bold text-green-600">{formatCurrency(r.totalSaldoCajas)}</p>
+              <p className="text-lg font-bold text-green-600">{formatSaldosPorMoneda(r.totalSaldoCajasPorMoneda)}</p>
             </div>
           </div>
         </Card>
@@ -74,10 +75,8 @@ function ResumenTab() {
           </div>
         </Card>
         <Card>
-          <div className="px-5 py-3 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Ahorros y Aportes</h3></div>
+          <div className="px-5 py-3 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Aportes</h3></div>
           <div className="p-5 space-y-3">
-            <div className="flex justify-between"><span className="text-sm text-gray-500">Total ahorros</span><span className="text-sm font-medium">{formatCurrency(r.ahorros.total)}</span></div>
-            <div className="flex justify-between"><span className="text-sm text-gray-500">Cuentas de ahorro</span><span className="text-sm font-medium">{r.ahorros.cuentas}</span></div>
             <div className="flex justify-between"><span className="text-sm text-gray-500">Aportes del mes</span><span className="text-sm font-medium">{formatCurrency(r.aportes.mesActual)}</span></div>
             <div className="flex justify-between"><span className="text-sm text-gray-500">Cuotas por vencer (7 días)</span><span className="text-sm font-medium">{r.cuotasPorVencer}</span></div>
           </div>
@@ -86,12 +85,21 @@ function ResumenTab() {
 
       {r.cajas.length > 0 && (
         <Card>
-          <div className="px-5 py-3 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Estado de Cajas</h3></div>
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700">Estado de Cajas</h3>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={() => exportCsv('resumen-cajas.csv', ['Código', 'Nombre', 'Moneda', 'Saldo'], r.cajas.map(c => [c.codigo, c.nombre, c.moneda || 'PEN', c.saldoActual]))}>
+                <Download className="h-4 w-4 mr-1" /> CSV
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir</Button>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b border-gray-100">
                 <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Código</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Nombre</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Moneda</th>
                 <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Saldo</th>
               </tr></thead>
               <tbody className="divide-y divide-gray-50">
@@ -99,7 +107,8 @@ function ResumenTab() {
                   <tr key={i} className="hover:bg-gray-50">
                     <td className="px-5 py-3 font-mono text-xs">{c.codigo}</td>
                     <td className="px-5 py-3">{c.nombre}</td>
-                    <td className="px-5 py-3 text-right font-medium">{formatCurrency(c.saldoActual)}</td>
+                    <td className="px-5 py-3"><Badge variant="gray">{c.moneda || 'PEN'}</Badge></td>
+                    <td className="px-5 py-3 text-right font-medium">{formatCurrency(c.saldoActual, c.moneda || 'PEN')}</td>
                   </tr>
                 ))}
               </tbody>
@@ -112,13 +121,23 @@ function ResumenTab() {
 }
 
 function CarteraTab() {
-  const [estado, setEstado] = useState('TODOS')
-  const { data, isLoading } = useCarteraCreditos({ estado })
+  const [estado, setEstado] = useState<CarteraCreditosQuery['estado']>('TODOS')
+  const [fondoId, setFondoId] = useState('')
+  const [fechaInicio, setFechaInicio] = useState('')
+  const [fechaFin, setFechaFin] = useState('')
+  const { data: fondosData } = useFondos({ limit: 1000 })
+  const { data, isLoading } = useCarteraCreditos({
+    estado,
+    fondoId: fondoId ? Number(fondoId) : undefined,
+    fechaInicio: fechaInicio || undefined,
+    fechaFin: fechaFin || undefined,
+  })
 
   if (isLoading) return <div className="flex items-center justify-center py-20"><LoadingSpinner text="Cargando cartera..." /></div>
   if (!data) return <EmptyState title="Sin datos" />
 
   const { resumen, prestamos } = data
+  const fondosOptions = (fondosData?.data || []).map((f) => ({ value: String(f.id), label: f.nombre }))
 
   return (
     <div className="space-y-6">
@@ -142,7 +161,7 @@ function CarteraTab() {
       </div>
 
       <Card className="p-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-end gap-4 flex-wrap">
           <FormField label="Estado">
             <Select
               options={[
@@ -152,9 +171,28 @@ function CarteraTab() {
                 { value: 'ANULADO', label: 'Anulados' },
               ]}
               value={estado}
-              onChange={(e) => setEstado(e.target.value)}
+              onChange={(e) => setEstado(e.target.value as CarteraCreditosQuery['estado'])}
             />
           </FormField>
+          <FormField label="Fondo">
+            <Select
+              options={[{ value: '', label: 'Todos los fondos' }, ...fondosOptions]}
+              value={fondoId}
+              onChange={(e) => setFondoId(e.target.value)}
+            />
+          </FormField>
+          <FormField label="Desde">
+            <Input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
+          </FormField>
+          <FormField label="Hasta">
+            <Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
+          </FormField>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => exportCsv('cartera-creditos.csv', ['Socio', 'Código', 'Fondo', 'Moneda', 'Monto', 'Pagado', 'Pendiente', 'Cuotas Pagadas', 'Cuotas Vencidas', 'Estado'], prestamos.map(p => [p.socio.nombres + ' ' + p.socio.apellidoPaterno, p.socio.codigo, p.fondo.nombre, p.moneda || '', p.monto, p.totalPagado, p.saldoPendiente, `${p.cuotasPagadas}/${p.numeroCuotas}`, p.cuotasVencidas, p.estado]))}>
+              <Download className="h-4 w-4 mr-1" /> CSV
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir</Button>
+          </div>
         </div>
       </Card>
 
@@ -164,6 +202,7 @@ function CarteraTab() {
             <thead><tr className="border-b border-gray-100 bg-gray-50/50">
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Socio</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Fondo</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Moneda</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Monto</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Pagado</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Pendiente</th>
@@ -178,9 +217,10 @@ function CarteraTab() {
                     <div className="text-xs text-gray-500">{p.socio.codigo}</div>
                   </td>
                   <td className="px-5 py-3 text-sm text-gray-600">{p.fondo.nombre}</td>
-                  <td className="px-5 py-3 text-right">{formatCurrency(p.monto)}</td>
-                  <td className="px-5 py-3 text-right text-green-600">{formatCurrency(p.totalPagado)}</td>
-                  <td className="px-5 py-3 text-right text-red-600 font-medium">{formatCurrency(p.saldoPendiente)}</td>
+                  <td className="px-5 py-3"><Badge variant="gray">{p.moneda || 'PEN'}</Badge></td>
+                  <td className="px-5 py-3 text-right">{formatCurrency(p.monto, p.moneda || 'PEN')}</td>
+                  <td className="px-5 py-3 text-right text-green-600">{formatCurrency(p.totalPagado, p.moneda || 'PEN')}</td>
+                  <td className="px-5 py-3 text-right text-red-600 font-medium">{formatCurrency(p.saldoPendiente, p.moneda || 'PEN')}</td>
                   <td className="px-5 py-3 text-center">
                     <span className="text-sm">{p.cuotasPagadas}/{p.numeroCuotas}</span>
                     {p.cuotasVencidas > 0 && <span className="ml-1 text-xs text-red-500">({p.cuotasVencidas} vencidas)</span>}
@@ -223,6 +263,10 @@ function ResultadosTab() {
           <FormField label="Fecha Fin">
             <Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
           </FormField>
+          <Button variant="secondary" size="sm" onClick={() => exportCsv('estado-resultados.csv', ['Fondo', 'Moneda', 'Ingresos - Cuotas', 'Ingresos - Intereses', 'Ingresos - Reintegros', 'Ingresos - Otros', 'Total Ingresos', 'Egresos - Desembolsos', 'Egresos - Gastos', 'Egresos - Faltantes', 'Total Egresos', 'Resultado Neto'], data.fondos.map(f => [f.fondo.nombre, f.fondo.moneda, f.ingresos.cuotas, f.ingresos.intereses, f.ingresos.reintegros, f.ingresos.otros, f.ingresos.total, f.egresos.desembolsos, f.egresos.gastos, f.egresos.faltantes, f.egresos.total, f.resultadoNeto]))}>
+            <Download className="h-4 w-4 mr-1" /> CSV
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir</Button>
         </div>
       </Card>
 
@@ -238,6 +282,46 @@ function ResultadosTab() {
         <Card className="p-4">
           <p className="text-xs text-gray-500">Resultado Neto</p>
           <p className={`text-lg font-bold ${data.totales.neto >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(data.totales.neto)}</p>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <div className="px-5 py-3 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Ingresos por concepto</h3></div>
+          <div className="p-5 space-y-2 text-sm">
+            {data.fondos.reduce((rows, f) => {
+              const push = (label: string, value: number) => {
+                const existing = rows.find(r => r[0] === label)
+                if (existing) existing[1] = (existing[1] as number) + value
+                else rows.push([label, value])
+              }
+              push('Cuotas cobradas', f.ingresos.cuotas)
+              push('Intereses', f.ingresos.intereses)
+              push('Reintegros', f.ingresos.reintegros)
+              push('Otros ingresos', f.ingresos.otros)
+              return rows
+            }, [] as [string, number][]).map(([label, value]) => (
+              <div key={label} className="flex justify-between"><span className="text-gray-500">{label}</span><span className="font-medium text-green-600">{formatCurrency(value)}</span></div>
+            ))}
+          </div>
+        </Card>
+        <Card>
+          <div className="px-5 py-3 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Egresos por concepto</h3></div>
+          <div className="p-5 space-y-2 text-sm">
+            {data.fondos.reduce((rows, f) => {
+              const push = (label: string, value: number) => {
+                const existing = rows.find(r => r[0] === label)
+                if (existing) existing[1] = (existing[1] as number) + value
+                else rows.push([label, value])
+              }
+              push('Desembolsos de préstamos', f.egresos.desembolsos)
+              push('Gastos operativos', f.egresos.gastos)
+              push('Faltantes de arqueo', f.egresos.faltantes)
+              return rows
+            }, [] as [string, number][]).map(([label, value]) => (
+              <div key={label} className="flex justify-between"><span className="text-gray-500">{label}</span><span className="font-medium text-red-600">{formatCurrency(value)}</span></div>
+            ))}
+          </div>
         </Card>
       </div>
 
@@ -270,7 +354,7 @@ function ResultadosTab() {
 }
 
 function AportesTab() {
-  const [tipo, setTipo] = useState('TODOS')
+  const [tipo, setTipo] = useState<ReporteAportesQuery['tipo']>('TODOS')
   const { data, isLoading } = useReporteAportes({ tipo })
 
   if (isLoading) return <div className="flex items-center justify-center py-20"><LoadingSpinner text="Cargando aportes..." /></div>
@@ -280,7 +364,7 @@ function AportesTab() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card className="p-4">
           <p className="text-xs text-gray-500">Total Aportes</p>
           <p className="text-lg font-bold">{resumen.totalAportes}</p>
@@ -297,21 +381,50 @@ function AportesTab() {
           <p className="text-xs text-gray-500">Extraordinarios</p>
           <p className="text-lg font-bold text-purple-600">{formatCurrency(resumen.porTipo.extraordinario)}</p>
         </Card>
+        <Card className="p-4">
+          <p className="text-xs text-gray-500">Voluntarios</p>
+          <p className="text-lg font-bold text-emerald-600">{formatCurrency(resumen.porTipo.voluntario)}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs text-gray-500">Multas</p>
+          <p className="text-lg font-bold text-red-600">{formatCurrency(resumen.porTipo.multa)}</p>
+        </Card>
       </div>
 
+      {Object.keys(resumen.porMetodo).length > 0 && (
+        <Card>
+          <div className="px-5 py-3 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Aportes por método de pago</h3></div>
+          <div className="p-5 flex flex-wrap gap-4 text-sm">
+            {Object.entries(resumen.porMetodo).map(([metodo, monto]) => (
+              <div key={metodo} className="flex flex-col">
+                <span className="text-xs text-gray-500">{metodo}</span>
+                <span className="font-semibold">{formatCurrency(monto)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <Card className="p-4">
-        <FormField label="Tipo">
-          <Select
-            options={[
-              { value: 'TODOS', label: 'Todos' },
-              { value: 'OBLIGATORIO', label: 'Obligatorio' },
-              { value: 'EXTRAORDINARIO', label: 'Extraordinario' },
-              { value: 'VOLUNTARIO', label: 'Voluntario' },
-            ]}
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value)}
-          />
-        </FormField>
+        <div className="flex items-end gap-4">
+          <FormField label="Tipo">
+            <Select
+              options={[
+                { value: 'TODOS', label: 'Todos' },
+                { value: 'OBLIGATORIO', label: 'Obligatorio' },
+                { value: 'EXTRAORDINARIO', label: 'Extraordinario' },
+                { value: 'VOLUNTARIO', label: 'Voluntario' },
+                { value: 'MULTA', label: 'Multa' },
+              ]}
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value as ReporteAportesQuery['tipo'])}
+            />
+          </FormField>
+          <Button variant="secondary" size="sm" onClick={() => exportCsv('reporte-aportes.csv', ['Socio', 'Código', 'Fondo', 'Periodo', 'Tipo', 'Monto', 'Fecha', 'Método'], aportes.map(a => [a.socio.nombres + ' ' + a.socio.apellidoPaterno, a.socio.codigo, a.fondo.nombre, a.periodo, a.tipo, a.monto, a.fechaAporte, a.metodoPago]))}>
+            <Download className="h-4 w-4 mr-1" /> CSV
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir</Button>
+        </div>
       </Card>
 
       <Card>
@@ -334,7 +447,7 @@ function AportesTab() {
                   </td>
                   <td className="px-5 py-3 text-sm text-gray-600">{a.fondo.nombre}</td>
                   <td className="px-5 py-3 text-sm font-mono">{a.periodo}</td>
-                  <td className="px-5 py-3"><Badge variant={a.tipo === 'OBLIGATORIO' ? 'blue' : a.tipo === 'EXTRAORDINARIO' ? 'purple' : 'gray'}>{a.tipo}</Badge></td>
+                  <td className="px-5 py-3"><Badge variant={a.tipo === 'OBLIGATORIO' ? 'blue' : a.tipo === 'EXTRAORDINARIO' ? 'purple' : a.tipo === 'MULTA' ? 'red' : 'green'}>{a.tipo}</Badge></td>
                   <td className="px-5 py-3 text-right font-medium">{formatCurrency(a.monto)}</td>
                   <td className="px-5 py-3 text-sm text-gray-600">{new Date(a.fechaAporte).toLocaleDateString('es-PE')}</td>
                 </tr>
@@ -417,28 +530,35 @@ function MorososTab() {
 }
 
 function EstadoCuentaTab() {
-  const [socioId, setSocioId] = useState<number | null>(null)
+  const [query, setQuery] = useState<{ socioId?: number; search?: string } | null>(null)
   const [socioSearch, setSocioSearch] = useState('')
-  const { data, isLoading } = useEstadoCuentasSocio(socioId)
+  const { data, isLoading } = useEstadoCuentasSocio(query)
+
+  const handleSearch = () => {
+    const value = socioSearch.trim()
+    if (!value) return
+    const id = Number(value)
+    setQuery(id > 0 ? { socioId: id } : { search: value })
+  }
 
   return (
     <div className="space-y-6">
       <Card className="p-4">
         <div className="flex items-end gap-4">
-          <FormField label="ID del Socio">
-            <Input type="number" min="1" value={socioSearch} onChange={(e) => setSocioSearch(e.target.value)} placeholder="Ingrese ID del socio" className="max-w-[200px]" />
+          <FormField label="ID, DNI o Código del Socio">
+            <Input type="text" value={socioSearch} onChange={(e) => setSocioSearch(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }} placeholder="Ej: 5, 45876123 o SOC-003" className="max-w-[260px]" />
           </FormField>
-          <Button onClick={() => { const id = Number(socioSearch); if (id > 0) setSocioId(id) }}>
+          <Button onClick={handleSearch}>
             <Search className="h-4 w-4 mr-2" /> Buscar
           </Button>
         </div>
       </Card>
 
-      {!socioId && <EmptyState title="Busque un socio" description="Ingrese el ID del socio para ver su estado de cuentas." />}
+      {!query && <EmptyState title="Busque un socio" description="Ingrese el ID, DNI o código del socio para ver su estado de cuentas." />}
 
-      {socioId && isLoading && <div className="flex items-center justify-center py-20"><LoadingSpinner text="Cargando estado de cuentas..." /></div>}
+      {query && isLoading && <div className="flex items-center justify-center py-20"><LoadingSpinner text="Cargando estado de cuentas..." /></div>}
 
-      {socioId && !isLoading && !data && <EmptyState title="Socio no encontrado" description="No se encontró un socio con ese ID." />}
+      {query && !isLoading && !data && <EmptyState title="Socio no encontrado" description="No se encontró un socio con ese ID, DNI o código." />}
 
       {data && (
         <div className="space-y-6">
@@ -451,12 +571,12 @@ function EstadoCuentaTab() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5">
               <div>
-                <p className="text-xs text-gray-500">Total Ahorros</p>
-                <p className="text-lg font-bold text-blue-600">{formatCurrency(data.resumen.totalAhorros)}</p>
-              </div>
-              <div>
                 <p className="text-xs text-gray-500">Total Aportes</p>
                 <p className="text-lg font-bold text-green-600">{formatCurrency(data.resumen.totalAportes)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Total Préstamos</p>
+                <p className="text-lg font-bold text-blue-600">{formatCurrency(data.resumen.totalPrestamos)}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Deuda Total</p>

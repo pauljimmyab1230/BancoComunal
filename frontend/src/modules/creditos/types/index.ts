@@ -1,3 +1,8 @@
+import type { PaginatedResponse } from '@/types'
+
+export type EstadoPrestamo = 'ACTIVO' | 'PAGADO' | 'ANULADO'
+export type EstadoCuota = 'PENDIENTE' | 'VENCIDO' | 'PAGADO' | 'PARCIAL' | 'ANULADO'
+
 export interface Prestamo {
   id: number
   monto: number
@@ -7,7 +12,7 @@ export interface Prestamo {
   totalInteres: number
   fechaDesembolso: string
   fechaPrimerVencimiento: string
-  estado: 'ACTIVO' | 'PAGADO' | 'ANULADO' | 'PENDIENTE'
+  estado: EstadoPrestamo
   createdAt: string
   updatedAt: string
   fondoId: number
@@ -40,7 +45,7 @@ export interface CuotaPrestamo {
   montoPagado: number
   saldoPendiente: number
   fechaPago: string | null
-  estado: 'PENDIENTE' | 'PAGADO' | 'VENCIDO' | 'PARCIAL' | 'ANULADO'
+  estado: EstadoCuota
   metodoPago: string | null
   comprobante: string | null
   prestamoId: number
@@ -51,8 +56,8 @@ export interface PrestamoFormData {
   tasaInteres: number
   numeroCuotas: number
   fechaPrimerVencimiento: string
-  fondoId: number
-  socioId: number
+  fondoId?: number
+  socioId?: number
 }
 
 export interface PagoCuotaForm {
@@ -61,4 +66,10 @@ export interface PagoCuotaForm {
   fechaPago?: string
   metodoPago: string
   comprobante?: string
+}
+
+export interface CreditosListResponse extends PaginatedResponse<Prestamo> {
+  totalPrestado: number
+  totalPrestadoPorMoneda: Record<string, number>
+  totalActivos: number
 }

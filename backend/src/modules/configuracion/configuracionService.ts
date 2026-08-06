@@ -1,5 +1,9 @@
 import prisma from '../../config/prisma'
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+import { env } from '../../config/env'
+import { HttpError } from '../../middeware/httpError'
+import { cajaService } from '../caja/cajaService'
 
 export const configuracionService = {
   // ==================== USUARIOS ====================
@@ -42,11 +46,11 @@ export const configuracionService = {
 
   async createUsuario(data: any) {
     const existing = await prisma.usuario.findUnique({ where: { username: data.username } })
-    if (existing) throw new Error('El nombre de usuario ya existe')
+    if (existing) throw new HttpError(400, 'El nombre de usuario ya existe')
 
     if (data.correo) {
       const existingEmail = await prisma.usuario.findUnique({ where: { correo: data.correo } })
-      if (existingEmail) throw new Error('El correo ya está registrado')
+      if (existingEmail) throw new HttpError(400, 'El correo ya está registrado')
     }
 
     const hashedPassword = await bcrypt.hash(data.password, 12)
@@ -73,12 +77,12 @@ export const configuracionService = {
 
     if (data.username && data.username !== existing.username) {
       const dup = await prisma.usuario.findUnique({ where: { username: data.username } })
-      if (dup) throw new Error('El nombre de usuario ya existe')
+      if (dup) throw new HttpError(400, 'El nombre de usuario ya existe')
     }
 
     if (data.correo && data.correo !== existing.correo) {
       const dup = await prisma.usuario.findUnique({ where: { correo: data.correo } })
-      if (dup) throw new Error('El correo ya está registrado')
+      if (dup) throw new HttpError(400, 'El correo ya está registrado')
     }
 
     const updateData: any = {}
@@ -113,7 +117,7 @@ export const configuracionService = {
   async deleteUsuario(id: number) {
     const existing = await prisma.usuario.findUnique({ where: { id } })
     if (!existing) return false
-    if (existing.username === 'admin') throw new Error('No se puede eliminar el usuario admin')
+    if (existing.username === 'admin') throw new HttpError(400, 'No se puede eliminar el usuario admin')
     await prisma.usuario.delete({ where: { id } })
     return true
   },
@@ -121,20 +125,30 @@ export const configuracionService = {
   // ==================== LOGIN ====================
   async login(username: string, password: string) {
     const usuario = await prisma.usuario.findUnique({ where: { username } })
-    if (!usuario) throw new Error('Usuario o contraseña incorrectos')
-    if (usuario.estado !== 'ACTIVO') throw new Error('La cuenta está desactivada')
+    if (!usuario) throw new HttpError(400, 'Usuario o contraseña incorrectos')
+    if (usuario.estado !== 'ACTIVO') throw new HttpError(400, 'La cuenta está desactivada')
 
     const validPassword = await bcrypt.compare(password, usuario.password)
-    if (!validPassword) throw new Error('Usuario o contraseña incorrectos')
+    if (!validPassword) throw new HttpError(400, 'Usuario o contraseña incorrectos')
 
     await prisma.usuario.update({ where: { id: usuario.id }, data: { ultimoAcceso: new Date() } })
 
+    const token = jwt.sign(
+      { userId: usuario.id, username: usuario.username, rol: usuario.rol },
+      env.JWT_SECRET,
+      { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] },
+    )
+
     return {
+      token,
       user: { id: usuario.id, nombres: usuario.nombres, apellidoPaterno: usuario.apellidoPaterno, username: usuario.username, correo: usuario.correo, rol: usuario.rol },
     }
   },
 
   // ==================== CONCEPTOS DE CAJA ====================
+  // Las mutaciones delegan al servicio de caja para aplicar las validaciones estrictas
+  // (no editar/eliminar conceptos con movimientos, 404s, etc.) y evitar dos fuentes de verdad.
+
   async listConceptos(params: { search?: string; page?: number; limit?: number; estado?: string; tipo?: string }) {
     const { search, page = 1, limit = 20, estado, tipo } = params
     const skip = (page - 1) * limit
@@ -158,34 +172,21 @@ export const configuracionService = {
   },
 
   async getConceptoById(id: number) {
-    return prisma.conceptoCaja.findUnique({ where: { id } })
+    return cajaService.getConceptoById(id)
   },
 
   async createConcepto(data: any) {
     const existing = await prisma.conceptoCaja.findUnique({ where: { codigo: data.codigo } })
-    if (existing) throw new Error('El código del concepto ya existe')
-    return prisma.conceptoCaja.create({ data })
+    if (existing) throw new HttpError(400, 'El código del concepto ya existe')
+    return cajaService.createConcepto(data)
   },
 
   async updateConcepto(id: number, data: any) {
-    const existing = await prisma.conceptoCaja.findUnique({ where: { id } })
-    if (!existing) return null
-
-    if (data.codigo && data.codigo !== existing.codigo) {
-      const dup = await prisma.conceptoCaja.findUnique({ where: { codigo: data.codigo } })
-      if (dup) throw new Error('El código del concepto ya existe')
-    }
-
-    return prisma.conceptoCaja.update({ where: { id }, data })
+    return cajaService.updateConcepto(id, data)
   },
 
   async deleteConcepto(id: number) {
-    const existing = await prisma.conceptoCaja.findUnique({ where: { id } })
-    if (!existing) return false
-    const hasMovimientos = await prisma.movimientoCaja.findFirst({ where: { conceptoId: id } })
-    if (hasMovimientos) throw new Error('No se puede eliminar: tiene movimientos asociados')
-    await prisma.conceptoCaja.delete({ where: { id } })
-    return true
+    return cajaService.deleteConcepto(id)
   },
 
   // ==================== ORGANIZACION ====================

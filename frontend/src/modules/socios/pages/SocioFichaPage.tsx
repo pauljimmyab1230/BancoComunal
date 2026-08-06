@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom'
 import { useSocio } from '../hooks/useSocios'
-import { LoadingSpinner, Button, Badge } from '@/components/ui'
+import { LoadingSpinner, Button, Badge, QRCode } from '@/components/ui'
 import { Printer, ArrowLeft, User, Phone, Users } from 'lucide-react'
 
 const estadoCivilMap: Record<string, string> = {
@@ -74,9 +74,9 @@ export default function SocioFichaPage() {
 
               {/* QR Code */}
               <div className="mt-4 flex h-16 w-16 items-center justify-center rounded-xl bg-white p-1">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=BANCO-SOLIDARIO-SOCIO:${socio.codigo}|DNI:${socio.dni}|NOMBRE:${socio.nombreCompleto}`}
-                  alt="QR Code"
+                <QRCode
+                  value={`BANCO-SOLIDARIO-SOCIO:${socio.codigo}|DNI:${socio.dni}|NOMBRE:${socio.nombreCompleto}`}
+                  size={120}
                   className="h-full w-full"
                 />
               </div>

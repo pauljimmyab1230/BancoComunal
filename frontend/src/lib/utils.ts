@@ -46,3 +46,23 @@ export function formatCurrency(
     currency,
   }).format(amount)
 }
+
+export function formatSaldosPorMoneda(saldos?: Record<string, number>): string {
+  if (!saldos || Object.keys(saldos).length === 0) return formatCurrency(0)
+  return Object.entries(saldos)
+    .map(([moneda, monto]) => formatCurrency(monto, moneda))
+    .join(' · ')
+}
+
+export function exportCsv(filename: string, headers: string[], rows: (string | number | null | undefined)[][]): void {
+  const csv = [headers, ...rows]
+    .map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}

@@ -7,14 +7,15 @@ import rateLimit from 'express-rate-limit'
 import path from 'path'
 import { env } from './config/env'
 import { errorHandler } from './middeware/errorHandler'
+import { authenticate, authenticateUploads } from './middeware/auth'
 import { seedDatabase } from './config/seed'
+import { marcarCuotasVencidas } from './modules/creditos/creditoService'
+import { cajaService } from './modules/caja/cajaService'
 import socioRoutes from './modules/socios/socioRoutes'
 import fondosRoutes from './modules/fondos/fondoRoutes'
 import aportesRoutes from './modules/aportes/aporteRoutes'
-import ahorrosRoutes from './modules/ahorros/ahorroRoutes'
 import creditosRoutes from './modules/creditos/creditoRoutes'
 import cajaRoutes from './modules/caja/cajaRoutes'
-import tesoreriaRoutes from './modules/tesoreria/tesoreriaRoutes'
 import reportesRoutes from './modules/reportes/reportesRoutes'
 import configuracionRoutes from './modules/configuracion/configuracionRoutes'
 import auditoriaRoutes from './modules/auditoria/auditoriaRoutes'
@@ -32,7 +33,8 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
+  standardHeaders: true,
   message: { success: false, message: 'Demasiadas solicitudes, intenta de nuevo más tarde' },
 })
 app.use('/api/', limiter)
@@ -43,21 +45,19 @@ app.use(morgan('dev'))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
-// Archivos estáticos (uploads)
-app.use('/uploads', express.static(path.resolve(process.cwd(), env.UPLOAD_DIR)))
+// Archivos estáticos (uploads) — solo accesibles con token válido
+app.use('/uploads', authenticateUploads, express.static(path.resolve(process.cwd(), env.UPLOAD_DIR)))
 
 // Rutas
-app.use('/api/socios', socioRoutes)
-app.use('/api/fondos', fondosRoutes)
-app.use('/api/aportes', aportesRoutes)
-app.use('/api/ahorros', ahorrosRoutes)
-app.use('/api/creditos', creditosRoutes)
-app.use('/api/caja', cajaRoutes)
-app.use('/api/tesoreria', tesoreriaRoutes)
-app.use('/api/reportes', reportesRoutes)
+app.use('/api/socios', authenticate, socioRoutes)
+app.use('/api/fondos', authenticate, fondosRoutes)
+app.use('/api/aportes', authenticate, aportesRoutes)
+app.use('/api/creditos', authenticate, creditosRoutes)
+app.use('/api/caja', authenticate, cajaRoutes)
+app.use('/api/reportes', authenticate, reportesRoutes)
 app.use('/api/configuracion', configuracionRoutes)
-app.use('/api/auditoria', auditoriaRoutes)
-app.use('/api/dashboard', dashboardRoutes)
+app.use('/api/auditoria', authenticate, auditoriaRoutes)
+app.use('/api/dashboard', authenticate, dashboardRoutes)
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -71,6 +71,15 @@ app.use(errorHandler)
 async function start() {
   try {
     await seedDatabase()
+
+    // Garantiza que existan los conceptos de caja por defecto (ING-PRESTAMO, ING-CUOTA, etc.).
+    await cajaService.crearConceptosPorDefecto()
+
+    // Marcar cuotas vencidas cada 30 minutos para mantener el estado al día.
+    await marcarCuotasVencidas().catch(() => {})
+    setInterval(() => {
+      marcarCuotasVencidas().catch(() => {})
+    }, 30 * 60 * 1000)
 
     app.listen(env.PORT, () => {
       console.log(`

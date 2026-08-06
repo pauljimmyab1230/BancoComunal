@@ -9,9 +9,14 @@ export interface FondosQuery {
   estado?: string
 }
 
+export interface CapitalResumen {
+  moneda: string
+  capitalInicial: number
+  capitalDisponible: number
+}
+
 export interface FondosListResponse extends PaginatedResponse<FondoRotatorio> {
-  totalCapitalInicial: number
-  totalCapitalDisponible: number
+  capitalResumen: CapitalResumen[]
   totalSocios: number
 }
 

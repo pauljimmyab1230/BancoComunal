@@ -12,6 +12,7 @@ import type {
   CreateMovimientoInput,
   CreateArqueoInput,
   AprobarArqueoInput,
+  TransferirInput,
   CreateFlujoProyectadoInput,
 } from '../types'
 
@@ -103,6 +104,11 @@ export const cajaApi = {
 
   aprobarArqueo: async (id: number, data: AprobarArqueoInput): Promise<{ message: string; data: ArqueoCaja }> => {
     const res = await api.post(`/caja/arqueos/${id}/aprobar`, data)
+    return res.data
+  },
+
+  transferir: async (data: TransferirInput): Promise<{ message: string; success: boolean }> => {
+    const res = await api.post('/caja/transferencias', data)
     return res.data
   },
 

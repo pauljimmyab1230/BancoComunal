@@ -1,6 +1,6 @@
 # Banquito Solidario - Banco Comunal
 
-Sistema de gestión para bancos comunitarios (bancos solidarios). Plataforma web para administrar socios, ahorros, aportes, créditos, caja, tesorería, fondos, auditoría y reportes.
+Sistema de gestión para bancos comunitarios (bancos solidarios). Plataforma web para administrar socios, aportes, créditos, caja, tesorería, fondos, auditoría y reportes.
 
 ## Arquitectura
 
@@ -17,10 +17,8 @@ Monorepo con npm workspaces:
 |--------|-------------|
 | Socios | Gestión de miembros del banco comunal |
 | Aportes | Registro y control de aportes |
-| Ahorros | Administración de cuentas de ahorro |
 | Créditos | Préstamos y créditos |
 | Caja | Control de caja diario |
-| Tesorería | Gestión de tesorería |
 | Fondos | Administración de fondos |
 | Auditoría | Registro de auditoría |
 | Reportes | Generación de reportes |

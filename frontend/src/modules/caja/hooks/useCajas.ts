@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { cajaApi } from '../api/cajaApi'
-import type { PaginationParams, CreateCajaInput, UpdateCajaInput, CreateMovimientoInput, CreateArqueoInput, AprobarArqueoInput, CreateFlujoProyectadoInput } from '../types'
+import type { PaginationParams, CreateCajaInput, UpdateCajaInput, CreateMovimientoInput, CreateArqueoInput, AprobarArqueoInput, TransferirInput, CreateFlujoProyectadoInput } from '../types'
 
 export function useCajas(params?: PaginationParams) {
   return useQuery({
@@ -211,9 +211,31 @@ export function useAprobarArqueo() {
       toast.success(res.message || 'Arqueo procesado correctamente')
       queryClient.invalidateQueries({ queryKey: ['arqueosCaja'] })
       queryClient.invalidateQueries({ queryKey: ['arqueo'] })
+      queryClient.invalidateQueries({ queryKey: ['cajaResumen'] })
+      queryClient.invalidateQueries({ queryKey: ['cajas'] })
+      queryClient.invalidateQueries({ queryKey: ['movimientosCaja'] })
+      queryClient.invalidateQueries({ queryKey: ['caja'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al procesar arqueo')
+    },
+  })
+}
+
+export function useTransferir() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: TransferirInput) => cajaApi.transferir(data),
+    onSuccess: (res) => {
+      toast.success(res.message || 'Transferencia realizada correctamente')
+      queryClient.invalidateQueries({ queryKey: ['cajas'] })
+      queryClient.invalidateQueries({ queryKey: ['caja'] })
+      queryClient.invalidateQueries({ queryKey: ['movimientosCaja'] })
+      queryClient.invalidateQueries({ queryKey: ['cajaResumen'] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al realizar la transferencia')
     },
   })
 }

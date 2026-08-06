@@ -1,18 +1,14 @@
 import prisma from '../../config/prisma'
-
-function generateCodigo(prefix: string): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let result = prefix
-  for (let i = 0; i < 10; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return result
-}
+import { HttpError } from '../../middeware/httpError'
+import { generateCodigo } from './movimientoHelper'
 
 export const cajaService = {
   // Cajas
   async list(params: { search?: string; page?: number; limit?: number; estado?: string; tipo?: string; fondoId?: number }) {
     const { search, page = 1, limit = 10, estado, tipo, fondoId } = params
+    if (page < 1 || limit < 1) {
+      throw new HttpError(400, 'Parámetros de paginación inválidos')
+    }
     const skip = (page - 1) * limit
 
     const where: any = {}
@@ -45,7 +41,6 @@ export const cajaService = {
         ...c,
         saldoInicial: Number(c.saldoInicial),
         saldoActual: Number(c.saldoActual),
-        _count: undefined,
         totalMovimientos: c._count.movimientos,
         totalArqueos: c._count.arqueos,
       })),
@@ -100,11 +95,14 @@ export const cajaService = {
   },
 
   async create(data: any) {
-    if (!data.fondoId) throw new Error('La caja debe pertenecer a un fondo rotatorio')
+    if (!data.fondoId) throw new HttpError(400, 'La caja debe pertenecer a un fondo rotatorio')
 
     const fondo = await prisma.fondoRotatorio.findUnique({ where: { id: data.fondoId } })
-    if (!fondo) throw new Error('Fondo no encontrado')
-    if (fondo.estado !== 'ACTIVO') throw new Error('El fondo no está activo')
+    if (!fondo) throw new HttpError(400, 'Fondo no encontrado')
+    if (fondo.estado !== 'ACTIVO') throw new HttpError(400, 'El fondo no está activo')
+    if (data.moneda && fondo.moneda && data.moneda !== fondo.moneda) {
+      throw new HttpError(400, `La moneda de la caja debe coincidir con la del fondo (${fondo.moneda})`)
+    }
 
     let codigo = generateCodigo('CAJ-')
     let exists = await prisma.caja.findUnique({ where: { codigo } })
@@ -123,7 +121,7 @@ export const cajaService = {
         saldoInicial: data.saldoInicial || 0,
         saldoActual: data.saldoInicial || 0,
         fondoId: data.fondoId,
-        estado: data.estado,
+        estado: data.estado || 'ACTIVA',
       },
       include: { fondo: { select: { id: true, nombre: true } } },
     })
@@ -135,22 +133,27 @@ export const cajaService = {
   async crearConceptosPorDefecto() {
     const conceptos = [
       { codigo: 'ING-APORTE', nombre: 'Aporte de Socio', tipo: 'INGRESO', afectaSaldo: 'AUMENTA', orden: 1 },
-      { codigo: 'ING-AHORRO', nombre: 'Apertura Ahorro', tipo: 'INGRESO', afectaSaldo: 'AUMENTA', orden: 2 },
       { codigo: 'ING-PRESTAMO', nombre: 'Desembolso Préstamo', tipo: 'EGRESO', afectaSaldo: 'DISMINUYE', orden: 3 },
       { codigo: 'ING-CUOTA', nombre: 'Pago Cuota Préstamo', tipo: 'INGRESO', afectaSaldo: 'AUMENTA', orden: 4 },
-      { codigo: 'ING-INTERES', nombre: 'Interés Cobrado', tipo: 'INGRESO', afectaSaldo: 'AUMENTA', orden: 5 },
-      { codigo: 'ING-OTRO', nombre: 'Otros Ingresos', tipo: 'INGRESO', afectaSaldo: 'AUMENTA', orden: 6 },
-      { codigo: 'EGR-RETIRO', nombre: 'Retiro Ahorro', tipo: 'EGRESO', afectaSaldo: 'DISMINUYE', orden: 10 },
+      { codigo: 'ING-REINTEGRO', nombre: 'Reintegro Préstamo Anulado', tipo: 'INGRESO', afectaSaldo: 'AUMENTA', orden: 5 },
+      { codigo: 'ING-INTERES', nombre: 'Interés Cobrado', tipo: 'INGRESO', afectaSaldo: 'AUMENTA', orden: 6 },
+      { codigo: 'ING-OTRO', nombre: 'Otros Ingresos', tipo: 'INGRESO', afectaSaldo: 'AUMENTA', orden: 7 },
       { codigo: 'EGR-GASTO', nombre: 'Gasto Operativo', tipo: 'EGRESO', afectaSaldo: 'DISMINUYE', orden: 11 },
       { codigo: 'EGR-PROVISION', nombre: 'Provisión Fondo', tipo: 'EGRESO', afectaSaldo: 'DISMINUYE', orden: 12 },
       { codigo: 'EGR-OTRO', nombre: 'Otros Egresos', tipo: 'EGRESO', afectaSaldo: 'DISMINUYE', orden: 13 },
       { codigo: 'TRF-ENTRE-CAJAS', nombre: 'Transferencia Entre Cajas', tipo: 'TRANSFERENCIA', afectaSaldo: 'NO_AFECTA', orden: 20 },
+      { codigo: 'TRF-SALIDA-CAJAS', nombre: 'Transferencia Entre Cajas (Salida)', tipo: 'TRANSFERENCIA', afectaSaldo: 'DISMINUYE', orden: 20 },
+      { codigo: 'TRF-ENTRADA-CAJAS', nombre: 'Transferencia Entre Cajas (Entrada)', tipo: 'TRANSFERENCIA', afectaSaldo: 'AUMENTA', orden: 20 },
+      { codigo: 'AJU-DIF-SOBRANTE', nombre: 'Ajuste por Sobrante de Arqueo', tipo: 'AJUSTE', afectaSaldo: 'AUMENTA', orden: 21 },
+      { codigo: 'AJU-DIF-FALTANTE', nombre: 'Ajuste por Faltante de Arqueo', tipo: 'AJUSTE', afectaSaldo: 'DISMINUYE', orden: 22 },
+      { codigo: 'AJU-APERTURA', nombre: 'Ajuste de Apertura / Reconciliación', tipo: 'AJUSTE', afectaSaldo: 'AUMENTA', orden: 23 },
     ]
 
     for (const c of conceptos) {
       await prisma.conceptoCaja.upsert({
         where: { codigo: c.codigo },
-        update: {},
+        // Repara los conceptos de sistema en cada arranque.
+        update: { nombre: c.nombre, tipo: c.tipo, afectaSaldo: c.afectaSaldo, requiereComprobante: true, estado: 'ACTIVO' },
         create: { ...c, requiereComprobante: true, estado: 'ACTIVO' },
       })
     }
@@ -167,10 +170,41 @@ export const cajaService = {
     if (data.moneda !== undefined) updateData.moneda = data.moneda
     if (data.fondoId !== undefined) {
       const fondo = await prisma.fondoRotatorio.findUnique({ where: { id: Number(data.fondoId) } })
-      if (!fondo) throw new Error('Fondo no encontrado')
+      if (!fondo) throw new HttpError(400, 'Fondo no encontrado')
+      if (fondo.estado !== 'ACTIVO') throw new HttpError(400, 'El fondo no está activo')
       updateData.fondoId = Number(data.fondoId)
     }
     if (data.estado !== undefined) updateData.estado = data.estado
+    if (data.saldoInicial !== undefined) {
+      const nuevoSaldoInicial = Number(data.saldoInicial)
+      if (isNaN(nuevoSaldoInicial) || nuevoSaldoInicial < 0) {
+        throw new HttpError(400, 'El saldo inicial no puede ser negativo')
+      }
+      const delta = nuevoSaldoInicial - Number(existing.saldoInicial)
+      if (delta !== 0 && Number(existing.saldoActual) + delta < 0) {
+        throw new HttpError(400, 'El nuevo saldo inicial haría que el saldo actual sea negativo')
+      }
+      updateData.saldoInicial = nuevoSaldoInicial
+      if (delta !== 0) {
+        updateData.saldoActual = { increment: delta }
+      }
+    }
+
+    const monedaFinal = data.moneda ?? existing.moneda
+    const fondoIdFinal = data.fondoId !== undefined ? Number(data.fondoId) : existing.fondoId
+    if (data.fondoId !== undefined || data.moneda !== undefined) {
+      const fondo = await prisma.fondoRotatorio.findUnique({ where: { id: fondoIdFinal } })
+      if (fondo?.moneda && monedaFinal && monedaFinal !== fondo.moneda) {
+        throw new HttpError(400, `La moneda de la caja debe coincidir con la del fondo (${fondo.moneda})`)
+      }
+      const movimientosCount = await prisma.movimientoCaja.count({ where: { cajaId: id, estado: { not: 'ANULADO' } } })
+      if (movimientosCount > 0 && data.moneda !== undefined && data.moneda !== existing.moneda) {
+        throw new HttpError(400, 'No se puede cambiar la moneda de una caja con movimientos registrados')
+      }
+      if (movimientosCount > 0 && data.fondoId !== undefined && Number(data.fondoId) !== existing.fondoId) {
+        throw new HttpError(400, 'No se puede cambiar el fondo de una caja con movimientos registrados')
+      }
+    }
 
     return prisma.caja.update({ where: { id }, data: updateData, include: { fondo: { select: { id: true, nombre: true } } } })
   },
@@ -179,13 +213,14 @@ export const cajaService = {
     const caja = await prisma.caja.findUnique({ where: { id } })
     if (!caja) return false
 
-    const [movimientosCount, arqueosCount] = await Promise.all([
+    const [movimientosCount, arqueosCount, flujoCount] = await Promise.all([
       prisma.movimientoCaja.count({ where: { cajaId: id } }),
       prisma.arqueoCaja.count({ where: { cajaId: id } }),
+      prisma.flujoCajaProyectado.count({ where: { cajaId: id } }),
     ])
 
-    if (movimientosCount > 0 || arqueosCount > 0) {
-      return 'No se puede eliminar: la caja tiene movimientos o arqueos registrados. Inactive la caja en su lugar.'
+    if (movimientosCount > 0 || arqueosCount > 0 || flujoCount > 0) {
+      return 'No se puede eliminar: la caja tiene movimientos, arqueos o flujo proyectado registrados. Inactive la caja en su lugar.'
     }
 
     await prisma.caja.delete({ where: { id } })
@@ -209,10 +244,31 @@ export const cajaService = {
   },
 
   async updateConcepto(id: number, data: any) {
+    const existing = await prisma.conceptoCaja.findUnique({ where: { id } })
+    if (!existing) return null
+
+    const movimientosCount = await prisma.movimientoCaja.count({ where: { conceptoId: id } })
+    if (movimientosCount > 0) {
+      const protectedFields = ['codigo', 'tipo', 'afectaSaldo']
+      for (const field of protectedFields) {
+        if (data[field] !== undefined && data[field] !== (existing as any)[field]) {
+          throw new HttpError(400, `No se puede modificar ${field}: el concepto ya tiene movimientos registrados`)
+        }
+      }
+    }
+
     return prisma.conceptoCaja.update({ where: { id }, data })
   },
 
   async deleteConcepto(id: number) {
+    const existing = await prisma.conceptoCaja.findUnique({ where: { id } })
+    if (!existing) return false
+
+    const movimientosCount = await prisma.movimientoCaja.count({ where: { conceptoId: id } })
+    if (movimientosCount > 0) {
+      throw new HttpError(400, 'No se puede eliminar: el concepto tiene movimientos registrados')
+    }
+
     await prisma.conceptoCaja.delete({ where: { id } })
     return true
   },
@@ -266,26 +322,50 @@ export const cajaService = {
 
   async createMovimiento(data: any) {
     const caja = await prisma.caja.findUnique({ where: { id: data.cajaId } })
-    if (!caja) throw new Error('Caja no encontrada')
-    if (caja.estado !== 'ACTIVA') throw new Error('La caja no está activa')
+    if (!caja) throw new HttpError(400, 'Caja no encontrada')
+    if (caja.estado !== 'ACTIVA') throw new HttpError(400, 'La caja no está activa')
 
     const concepto = await prisma.conceptoCaja.findUnique({ where: { id: data.conceptoId } })
-    if (!concepto) throw new Error('Concepto no encontrado')
+    if (!concepto) throw new HttpError(400, 'Concepto no encontrado')
+    if (concepto.estado !== 'ACTIVO') throw new HttpError(400, 'El concepto de caja no está activo')
+    if (data.tipo !== concepto.tipo) {
+      throw new HttpError(400, `El tipo del movimiento (${data.tipo}) no corresponde al concepto (${concepto.tipo})`)
+    }
+    if (concepto.requiereComprobante && !data.comprobante) {
+      throw new HttpError(400, 'El concepto requiere número de comprobante')
+    }
 
-    const codigo = generateCodigo('MOV-')
+    let codigo = generateCodigo('MOV-')
     let exists = await prisma.movimientoCaja.findUnique({ where: { codigo } })
     while (exists) {
-      exists = await prisma.movimientoCaja.findUnique({ where: { codigo: generateCodigo('MOV-') } })
+      codigo = generateCodigo('MOV-')
+      exists = await prisma.movimientoCaja.findUnique({ where: { codigo } })
     }
 
     const fechaMovimiento = data.fechaMovimiento ? new Date(data.fechaMovimiento) : new Date()
-    const saldoAnterior = Number(caja.saldoActual)
-
-    let saldoNuevo = saldoAnterior
-    if (concepto.afectaSaldo === 'AUMENTA') saldoNuevo += Number(data.monto)
-    else if (concepto.afectaSaldo === 'DISMINUYE') saldoNuevo -= Number(data.monto)
 
     const movimiento = await prisma.$transaction(async (tx) => {
+      // Cálculo del delta dentro de la transacción con actualización atómica
+      // para evitar la pérdida de actualización del saldo (race condition).
+      let delta = 0
+      if (concepto.afectaSaldo === 'AUMENTA') delta = Number(data.monto)
+      else if (concepto.afectaSaldo === 'DISMINUYE') delta = -Number(data.monto)
+
+      if (delta < 0) {
+        const ok = await tx.caja.updateMany({
+          where: { id: data.cajaId, saldoActual: { gte: -delta } },
+          data: { saldoActual: { increment: delta } },
+        })
+        if (ok.count === 0) {
+          throw new HttpError(400, 'Saldo insuficiente en caja para realizar el movimiento')
+        }
+      } else if (delta > 0) {
+        await tx.caja.update({
+          where: { id: data.cajaId },
+          data: { saldoActual: { increment: delta } },
+        })
+      }
+
       const mov = await tx.movimientoCaja.create({
         data: {
           codigo, tipo: data.tipo, monto: data.monto, descripcion: data.descripcion,
@@ -295,7 +375,6 @@ export const cajaService = {
         },
         include: { caja: true, concepto: true },
       })
-      await tx.caja.update({ where: { id: data.cajaId }, data: { saldoActual: saldoNuevo } })
       return mov
     })
 
@@ -306,20 +385,35 @@ export const cajaService = {
     const movimiento = await prisma.movimientoCaja.findUnique({
       where: { id }, include: { caja: true, concepto: true },
     })
-    if (!movimiento) throw new Error('Movimiento no encontrado')
-    if (movimiento.estado === 'ANULADO') throw new Error('Movimiento ya anulado')
+    if (!movimiento) throw new HttpError(400, 'Movimiento no encontrado')
+    if (movimiento.estado === 'ANULADO') throw new HttpError(400, 'Movimiento ya anulado')
+
+    // Los movimientos vinculados a aportes, préstamos o cuotas se anulan desde
+    // su propio módulo para revertir también el saldo del fondo (evita dobles anulaciones).
+    if (movimiento.referencia && /^(APORTE-|PRESTAMO-|CUOTA-)/.test(movimiento.referencia)) {
+      throw new HttpError(400, 'No se puede anular un movimiento vinculado desde caja; anúlelo desde su módulo (aporte o crédito)')
+    }
 
     const caja = movimiento.caja
     const concepto = movimiento.concepto
-    const saldoAnterior = Number(caja.saldoActual)
 
-    let saldoNuevo = saldoAnterior
-    if (concepto?.afectaSaldo === 'AUMENTA') saldoNuevo -= Number(movimiento.monto)
-    else if (concepto?.afectaSaldo === 'DISMINUYE') saldoNuevo += Number(movimiento.monto)
+    let delta = 0
+    if (concepto?.afectaSaldo === 'AUMENTA') delta = -Number(movimiento.monto)
+    else if (concepto?.afectaSaldo === 'DISMINUYE') delta = Number(movimiento.monto)
 
     await prisma.$transaction(async (tx) => {
+      if (delta < 0) {
+        const ok = await tx.caja.updateMany({
+          where: { id: caja.id, saldoActual: { gte: -delta } },
+          data: { saldoActual: { increment: delta } },
+        })
+        if (ok.count === 0) {
+          throw new HttpError(400, 'No se puede anular: el saldo de la caja quedaría negativo')
+        }
+      } else if (delta !== 0) {
+        await tx.caja.update({ where: { id: caja.id }, data: { saldoActual: { increment: delta } } })
+      }
       await tx.movimientoCaja.update({ where: { id }, data: { estado: 'ANULADO' } })
-      await tx.caja.update({ where: { id: caja.id }, data: { saldoActual: saldoNuevo } })
     })
 
     return { success: true }
@@ -375,7 +469,8 @@ export const cajaService = {
 
   async createArqueo(data: any) {
     const caja = await prisma.caja.findUnique({ where: { id: data.cajaId } })
-    if (!caja) throw new Error('Caja no encontrada')
+    if (!caja) throw new HttpError(400, 'Caja no encontrada')
+    if (caja.estado !== 'ACTIVA') throw new HttpError(400, 'La caja no está activa')
 
     const fechaArqueo = data.fechaArqueo ? new Date(data.fechaArqueo) : new Date()
 
@@ -409,20 +504,158 @@ export const cajaService = {
     }
   },
 
-  async aprobarArqueo(id: number, data: any) {
-    const arqueo = await prisma.arqueoCaja.findUnique({ where: { id } })
-    if (!arqueo) throw new Error('Arqueo no encontrado')
-    if (arqueo.estado === 'APROBADO' || arqueo.estado === 'RECHAZADO') throw new Error('Arqueo ya procesado')
-
-    return prisma.arqueoCaja.update({
+  async aprobarArqueo(id: number, data: any, usuario?: string | null) {
+    const arqueo = await prisma.arqueoCaja.findUnique({
       where: { id },
-      data: {
-        estado: data.estado,
-        fechaAprobacion: new Date(),
-        observacion: data.observacion || arqueo.observacion,
-      },
       include: { caja: true },
     })
+    if (!arqueo) throw new HttpError(400, 'Arqueo no encontrado')
+    if (arqueo.estado === 'APROBADO' || arqueo.estado === 'RECHAZADO') throw new HttpError(400, 'Arqueo ya procesado')
+
+    const diferencia = Number(arqueo.diferencia)
+    const esAprobado = data.estado === 'APROBADO'
+
+    if (!esAprobado || diferencia === 0) {
+      return prisma.arqueoCaja.update({
+        where: { id },
+        data: {
+          estado: data.estado,
+          // Solo los arqueos aprobados registran fecha de aprobación.
+          fechaAprobacion: esAprobado ? new Date() : null,
+          aprobadoPor: usuario || null,
+          observacion: data.observacion || arqueo.observacion,
+        },
+        include: { caja: true },
+      })
+    }
+
+    // Si hay diferencia y se aprueba, se cuadra el saldo de la caja al saldo físico
+    // y se registra un movimiento de ajuste (AJUSTE) que deja trazabilidad.
+    return prisma.$transaction(async (tx) => {
+      const conceptoCodigo = diferencia > 0 ? 'AJU-DIF-SOBRANTE' : 'AJU-DIF-FALTANTE'
+      const concepto = await tx.conceptoCaja.findUnique({ where: { codigo: conceptoCodigo } })
+      if (!concepto) {
+        throw new HttpError(400, `Concepto de ajuste ${conceptoCodigo} no configurado`)
+      }
+
+      let codigo = generateCodigo('MOV-')
+      let exists = await tx.movimientoCaja.findUnique({ where: { codigo } })
+      while (exists) {
+        codigo = generateCodigo('MOV-')
+        exists = await tx.movimientoCaja.findUnique({ where: { codigo } })
+      }
+
+      await tx.movimientoCaja.create({
+        data: {
+          codigo,
+          tipo: 'AJUSTE',
+          monto: Math.abs(diferencia),
+          descripcion: `Ajuste por arqueo ${arqueo.codigo} (${diferencia > 0 ? 'sobrante' : 'faltante'})`,
+          metodoPago: 'EFECTIVO',
+          referencia: arqueo.codigo,
+          fechaMovimiento: arqueo.fechaArqueo,
+          estado: 'REGISTRADO',
+          cajaId: arqueo.cajaId,
+          conceptoId: concepto.id,
+        },
+      })
+
+      await tx.caja.update({
+        where: { id: arqueo.cajaId },
+        data: { saldoActual: { increment: diferencia } },
+      })
+
+      return tx.arqueoCaja.update({
+        where: { id },
+        data: {
+          estado: 'APROBADO',
+          fechaAprobacion: new Date(),
+          aprobadoPor: usuario || null,
+          observacion: data.observacion || arqueo.observacion,
+        },
+        include: { caja: true },
+      })
+    })
+  },
+
+  // Transferencias entre cajas
+  async transferir(data: { cajaOrigenId: number; cajaDestinoId: number; monto: number; descripcion?: string }) {
+    if (data.cajaOrigenId === data.cajaDestinoId) {
+      throw new HttpError(400, 'Las cajas de origen y destino deben ser distintas')
+    }
+    if (!(data.monto > 0)) {
+      throw new HttpError(400, 'El monto debe ser mayor a 0')
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const [origen, destino] = await Promise.all([
+        tx.caja.findUnique({ where: { id: data.cajaOrigenId } }),
+        tx.caja.findUnique({ where: { id: data.cajaDestinoId } }),
+      ])
+      if (!origen) throw new HttpError(400, 'Caja origen no encontrada')
+      if (!destino) throw new HttpError(400, 'Caja destino no encontrada')
+      if (origen.estado !== 'ACTIVA' || destino.estado !== 'ACTIVA') {
+        throw new HttpError(400, 'Ambas cajas deben estar activas')
+      }
+      if (origen.moneda !== destino.moneda) {
+        throw new HttpError(400, 'Las cajas deben ser de la misma moneda')
+      }
+
+      const [conceptoSalida, conceptoEntrada] = await Promise.all([
+        tx.conceptoCaja.findUnique({ where: { codigo: 'TRF-SALIDA-CAJAS' } }),
+        tx.conceptoCaja.findUnique({ where: { codigo: 'TRF-ENTRADA-CAJAS' } }),
+      ])
+      if (!conceptoSalida || !conceptoEntrada) {
+        throw new HttpError(400, 'Conceptos de transferencia no configurados. Reinicie el servidor para crearlos.')
+      }
+
+      // Decremento atómico del saldo de origen.
+      const ok = await tx.caja.updateMany({
+        where: { id: data.cajaOrigenId, saldoActual: { gte: data.monto } },
+        data: { saldoActual: { decrement: data.monto } },
+      })
+      if (ok.count === 0) {
+        throw new HttpError(400, 'Saldo insuficiente en la caja de origen')
+      }
+
+      await tx.caja.update({
+        where: { id: data.cajaDestinoId },
+        data: { saldoActual: { increment: data.monto } },
+      })
+
+      const fecha = new Date()
+      const referencia = `TRF-${fecha.getTime()}`
+      await tx.movimientoCaja.create({
+        data: {
+          codigo: generateCodigo('MOV-'),
+          tipo: 'TRANSFERENCIA',
+          monto: data.monto,
+          descripcion: data.descripcion || `Transferencia a ${destino.nombre}`,
+          metodoPago: 'EFECTIVO',
+          referencia,
+          fechaMovimiento: fecha,
+          estado: 'REGISTRADO',
+          cajaId: data.cajaOrigenId,
+          conceptoId: conceptoSalida.id,
+        },
+      })
+      await tx.movimientoCaja.create({
+        data: {
+          codigo: generateCodigo('MOV-'),
+          tipo: 'TRANSFERENCIA',
+          monto: data.monto,
+          descripcion: data.descripcion || `Transferencia desde ${origen.nombre}`,
+          metodoPago: 'EFECTIVO',
+          referencia,
+          fechaMovimiento: fecha,
+          estado: 'REGISTRADO',
+          cajaId: data.cajaDestinoId,
+          conceptoId: conceptoEntrada.id,
+        },
+      })
+    })
+
+    return { success: true, message: 'Transferencia realizada correctamente' }
   },
 
   // Flujo Proyectado
@@ -445,6 +678,10 @@ export const cajaService = {
   },
 
   async createFlujoProyectado(data: any) {
+    if (!data.cajaId) throw new HttpError(400, 'La caja es requerida')
+    const caja = await prisma.caja.findUnique({ where: { id: Number(data.cajaId) } })
+    if (!caja) throw new HttpError(400, 'Caja no encontrada')
+
     return prisma.flujoCajaProyectado.create({
       data: { ...data, fecha: new Date(data.fecha) },
       include: { caja: true },
@@ -452,12 +689,22 @@ export const cajaService = {
   },
 
   async updateFlujoProyectado(id: number, data: any) {
+    const existing = await prisma.flujoCajaProyectado.findUnique({ where: { id } })
+    if (!existing) return null
+
+    if (data.cajaId !== undefined) {
+      const caja = await prisma.caja.findUnique({ where: { id: Number(data.cajaId) } })
+      if (!caja) throw new HttpError(400, 'Caja no encontrada')
+    }
+
     const updateData: any = { ...data }
     if (data.fecha) updateData.fecha = new Date(data.fecha)
     return prisma.flujoCajaProyectado.update({ where: { id }, data: updateData, include: { caja: true } })
   },
 
   async deleteFlujoProyectado(id: number) {
+    const existing = await prisma.flujoCajaProyectado.findUnique({ where: { id } })
+    if (!existing) return false
     await prisma.flujoCajaProyectado.delete({ where: { id } })
     return true
   },
