@@ -8,7 +8,6 @@ const LoginPage = lazy(() => import('@/pages/LoginPage'))
 const SociosListPage = lazy(() => import('@/modules/socios/pages/SociosListPage'))
 const SocioFormPage = lazy(() => import('@/modules/socios/pages/SocioFormPage'))
 const SocioDetailPage = lazy(() => import('@/modules/socios/pages/SocioDetailPage'))
-const SocioFichaPage = lazy(() => import('@/modules/socios/pages/SocioFichaPage'))
 const FondosListPage = lazy(() => import('@/modules/fondos/pages/FondosListPage'))
 const FondoFormPage = lazy(() => import('@/modules/fondos/pages/FondoFormPage'))
 const FondoDetailPage = lazy(() => import('@/modules/fondos/pages/FondoDetailPage'))
@@ -95,14 +94,6 @@ export const routes = [
         element: (
           <SuspenseWrapper>
             <SocioFormPage />
-          </SuspenseWrapper>
-        ),
-      },
-      {
-        path: 'socios/:id/ficha',
-        element: (
-          <SuspenseWrapper>
-            <SocioFichaPage />
           </SuspenseWrapper>
         ),
       },

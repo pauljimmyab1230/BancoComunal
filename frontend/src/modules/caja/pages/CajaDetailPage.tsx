@@ -213,7 +213,7 @@ export default function CajaDetailPage() {
             Volver
           </Button>
           <SectionHeader
-            title={`${caja.codigo} - ${caja.nombre}`}
+            title={caja.nombre}
             description={caja.descripcion || `Caja tipo ${caja.tipo}`}
           />
         </div>

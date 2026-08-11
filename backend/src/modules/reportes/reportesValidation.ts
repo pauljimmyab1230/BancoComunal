@@ -35,3 +35,48 @@ export const morososSchema = z.object({
 })
 
 export const resumenEjecutivoSchema = z.object({})
+
+export const fichaSocioPdfSchema = z.object({
+  socioId: z.coerce.number().int().positive(),
+  fondoId: z.coerce.number().int().positive().optional(),
+})
+
+export const aportesSocioPdfSchema = z.object({
+  socioId: z.coerce.number().int().positive(),
+  fondoId: z.coerce.number().int().positive().optional(),
+})
+
+export const creditosSocioPdfSchema = z.object({
+  socioId: z.coerce.number().int().positive(),
+  fondoId: z.coerce.number().int().positive().optional(),
+})
+
+export const estadoCuentaPdfSchema = z.object({
+  socioId: z.coerce.number().int().positive(),
+  fondoId: z.coerce.number().int().positive().optional(),
+})
+
+export const padronFondoPdfSchema = z.object({
+  fondoId: z.coerce.number().int().positive(),
+})
+
+export const resumenFondoPdfSchema = z.object({
+  fondoId: z.coerce.number().int().positive(),
+})
+
+export const cronogramaCuotasPdfSchema = z.object({
+  prestamoId: z.coerce.number().int().positive(),
+})
+
+export const comprobanteAportePdfSchema = z.object({
+  aporteId: z.coerce.number().int().positive(),
+})
+
+export const aportesFondoPdfSchema = z.object({
+  fondoId: z.coerce.number().int().positive(),
+  anio: z.coerce.number().int().positive().optional(),
+})
+
+export const aportesFondoAniosSchema = z.object({
+  fondoId: z.coerce.number().int().positive(),
+})

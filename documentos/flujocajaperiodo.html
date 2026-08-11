@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flujo de Caja por Periodo</title>
+  <link rel="stylesheet" href="flujocajaperiodo.css" />
+</head>
+<body>
+  <div class="hoja">
+
+    <!-- ================= ENCABEZADO ================= -->
+    <header class="cabecera">
+      <div class="emblema">
+        <div class="emblema-circulo">
+          <span class="emblema-mono">BC</span>
+        </div>
+      </div>
+
+      <div class="membrete">
+        <p class="organizacion">Banco Comunal</p>
+        <p class="lema">Registro solidario de ahorro y crédito</p>
+        <div class="regla-oro"></div>
+        <h1>Flujo de Caja por Periodo</h1>
+      </div>
+
+      <div class="ficha-numero">
+        <span class="ficha-etiqueta">Caja</span>
+        <span class="ficha-valor">CAJ-001</span>
+      </div>
+    </header>
+
+    <!-- ================= DATOS DEL PERIODO ================= -->
+    <section class="seccion-datos">
+      <div class="bloque-dato">
+        <span class="campo">Caja</span>
+        <span class="valor fondo">CAJA PRINCIPAL</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Fondo Rotatorio</span>
+        <span class="valor">BANQUITO SUMAC AYLLU</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Moneda</span>
+        <span class="valor">SOLES (PEN)</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Periodo</span>
+        <span class="valor">01/01/2026 – 31/08/2026</span>
+      </div>
+    </section>
+
+    <!-- ================= RESUMEN DEL FLUJO ================= -->
+    <section class="seccion-resumen">
+      <div class="tarjeta">
+        <span class="tarjeta-valor">S/ 5,000.00</span>
+        <span class="tarjeta-etiqueta">Saldo Inicial</span>
+      </div>
+      <div class="tarjeta tarjeta-ingreso">
+        <span class="tarjeta-valor">S/ 2,700.00</span>
+        <span class="tarjeta-etiqueta">Total Ingresos</span>
+      </div>
+      <div class="tarjeta tarjeta-egreso">
+        <span class="tarjeta-valor">S/ 2,300.00</span>
+        <span class="tarjeta-etiqueta">Total Egresos</span>
+      </div>
+      <div class="tarjeta tarjeta-destacada">
+        <span class="tarjeta-valor">S/ 5,400.00</span>
+        <span class="tarjeta-etiqueta">Saldo Final</span>
+      </div>
+    </section>
+
+    <!-- ================= INGRESOS POR CONCEPTO ================= -->
+    <section class="seccion-tabla">
+      <div class="encabezado-seccion">
+        <span class="numeracion">I</span>
+        <h2>Ingresos por Concepto</h2>
+      </div>
+
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Concepto</th>
+            <th class="der">N° Mov.</th>
+            <th class="der">Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-codigo">ING-APORTE</td>
+            <td>Aporte de Socio</td>
+            <td class="der">48</td>
+            <td class="der ingreso">S/ 1,100.00</td>
+          </tr>
+          <tr>
+            <td class="col-codigo">ING-CUOTA</td>
+            <td>Pago Cuota Préstamo</td>
+            <td class="der">20</td>
+            <td class="der ingreso">S/ 800.00</td>
+          </tr>
+          <tr>
+            <td class="col-codigo">ING-INTERES</td>
+            <td>Interés Cobrado</td>
+            <td class="der">20</td>
+            <td class="der ingreso">S/ 500.00</td>
+          </tr>
+          <tr>
+            <td class="col-codigo">ING-REINTEGRO</td>
+            <td>Reintegro Préstamo Anulado</td>
+            <td class="der">0</td>
+            <td class="der ingreso">S/ 0.00</td>
+          </tr>
+          <tr>
+            <td class="col-codigo">ING-OTRO</td>
+            <td>Otros Ingresos</td>
+            <td class="der">5</td>
+            <td class="der ingreso">S/ 300.00</td>
+          </tr>
+          <tr class="fila-total fila-ingreso">
+            <td class="der" colspan="2">Total de Ingresos</td>
+            <td class="der">93</td>
+            <td class="der">S/ 2,700.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= EGRESOS POR CONCEPTO ================= -->
+    <section class="seccion-tabla">
+      <div class="encabezado-seccion">
+        <span class="numeracion">II</span>
+        <h2>Egresos por Concepto</h2>
+      </div>
+
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Concepto</th>
+            <th class="der">N° Mov.</th>
+            <th class="der">Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-codigo">ING-PRESTAMO</td>
+            <td>Desembolso Préstamo</td>
+            <td class="der">3</td>
+            <td class="der egreso">S/ 1,300.00</td>
+          </tr>
+          <tr>
+            <td class="col-codigo">EGR-GASTO</td>
+            <td>Gasto Operativo</td>
+            <td class="der">8</td>
+            <td class="der egreso">S/ 600.00</td>
+          </tr>
+          <tr>
+            <td class="col-codigo">EGR-PROVISION</td>
+            <td>Provisión Fondo</td>
+            <td class="der">2</td>
+            <td class="der egreso">S/ 250.00</td>
+          </tr>
+          <tr>
+            <td class="col-codigo">EGR-OTRO</td>
+            <td>Otros Egresos</td>
+            <td class="der">3</td>
+            <td class="der egreso">S/ 150.00</td>
+          </tr>
+          <tr class="fila-total fila-egreso">
+            <td class="der" colspan="2">Total de Egresos</td>
+            <td class="der">16</td>
+            <td class="der">S/ 2,300.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= MOVIMIENTOS DEL PERIODO ================= -->
+    <section class="seccion-tabla">
+      <div class="encabezado-seccion">
+        <span class="numeracion">III</span>
+        <h2>Movimientos del Periodo</h2>
+      </div>
+
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Código</th>
+            <th>Concepto</th>
+            <th>Descripción</th>
+            <th>Método</th>
+            <th class="der">Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>05/01/2026</td>
+            <td class="col-codigo">ING-APORTE</td>
+            <td>Aporte de Socio</td>
+            <td>Aporte enero 2026</td>
+            <td>EFECTIVO</td>
+            <td class="der ingreso">S/ 100.00</td>
+          </tr>
+          <tr>
+            <td>12/01/2026</td>
+            <td class="col-codigo">ING-PRESTAMO</td>
+            <td>Desembolso Préstamo</td>
+            <td>Desembolso PRE-002</td>
+            <td>EFECTIVO</td>
+            <td class="der egreso">S/ 800.00</td>
+          </tr>
+          <tr>
+            <td>15/02/2026</td>
+            <td class="col-codigo">ING-CUOTA</td>
+            <td>Pago Cuota Préstamo</td>
+            <td>Cuota 1 PRE-001</td>
+            <td>EFECTIVO</td>
+            <td class="der ingreso">S/ 80.00</td>
+          </tr>
+          <tr>
+            <td>20/02/2026</td>
+            <td class="col-codigo">ING-INTERES</td>
+            <td>Interés Cobrado</td>
+            <td>Interés PRE-001</td>
+            <td>EFECTIVO</td>
+            <td class="der ingreso">S/ 25.00</td>
+          </tr>
+          <tr>
+            <td>10/03/2026</td>
+            <td class="col-codigo">EGR-GASTO</td>
+            <td>Gasto Operativo</td>
+            <td>Movilidad reuniones</td>
+            <td>EFECTIVO</td>
+            <td class="der egreso">S/ 60.00</td>
+          </tr>
+          <tr>
+            <td>18/04/2026</td>
+            <td class="col-codigo">ING-PRESTAMO</td>
+            <td>Desembolso Préstamo</td>
+            <td>Desembolso PRE-003</td>
+            <td>EFECTIVO</td>
+            <td class="der egreso">S/ 500.00</td>
+          </tr>
+          <tr>
+            <td>22/06/2026</td>
+            <td class="col-codigo">ING-CUOTA</td>
+            <td>Pago Cuota Préstamo</td>
+            <td>Cuota 4 PRE-002</td>
+            <td>EFECTIVO</td>
+            <td class="der ingreso">S/ 80.00</td>
+          </tr>
+          <tr>
+            <td>30/08/2026</td>
+            <td class="col-codigo">EGR-OTRO</td>
+            <td>Otros Egresos</td>
+            <td>Gastos menores</td>
+            <td>EFECTIVO</td>
+            <td class="der egreso">S/ 40.00</td>
+          </tr>
+          <tr class="fila-total">
+            <td class="der" colspan="5">Resultado Neto del Periodo</td>
+            <td class="der">S/ 400.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= OBSERVACIONES ================= -->
+    <section class="seccion-notas">
+      <span class="campo">Observaciones</span>
+      <div class="caja-notas"></div>
+    </section>
+
+    <!-- ================= FIRMAS ================= -->
+    <section class="seccion-firmas">
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Firma del Tesorero</p>
+      </div>
+
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Firma del Presidente</p>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

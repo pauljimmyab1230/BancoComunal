@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, User, Building2, Calendar, CheckCircle, DollarSign, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, User, Building2, Calendar, CheckCircle, DollarSign, Pencil, Trash2, Printer } from 'lucide-react'
 import { useCredito, usePagarCuota, useAnularCredito } from '../hooks/useCreditos'
 import { Button, SectionHeader, Card, Badge, LoadingSpinner, Modal, ConfirmDialog, FormField, Input, Select } from '@/components/ui'
+import { openProtectedPdf, getErrorMessage } from '@/lib/api'
 import toast from 'react-hot-toast'
 import type { Prestamo, CuotaPrestamo } from '../types'
 
@@ -49,6 +50,7 @@ export default function CreditoDetailPage() {
   const [pagoMetodo, setPagoMetodo] = useState('EFECTIVO')
   const [pagoComprobante, setPagoComprobante] = useState('')
   const [anularModal, setAnularModal] = useState(false)
+  const [printingCronograma, setPrintingCronograma] = useState(false)
 
   if (isLoading) {
     return <LoadingSpinner />
@@ -57,6 +59,17 @@ export default function CreditoDetailPage() {
   const prestamo = data?.data as Prestamo | undefined
   if (!prestamo) {
     return <div className="text-center py-20 text-gray-500">Crédito no encontrado</div>
+  }
+
+  const handleImprimirCronograma = async () => {
+    try {
+      setPrintingCronograma(true)
+      await openProtectedPdf(`/reportes/cronograma-cuotas/pdf?prestamoId=${prestamo.id}`)
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al generar el cronograma de cuotas'))
+    } finally {
+      setPrintingCronograma(false)
+    }
   }
 
   const abrirPago = (cuota: CuotaPrestamo) => {
@@ -238,7 +251,18 @@ export default function CreditoDetailPage() {
             <Calendar className="h-5 w-5 text-[#2563EB]" />
             <h3 className="font-semibold text-[#111827]">Cuotas</h3>
           </div>
-          <Badge variant="green">{prestamo.cuotas?.length || 0} cuotas</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="green">{prestamo.cuotas?.length || 0} cuotas</Badge>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleImprimirCronograma}
+              disabled={printingCronograma}
+              iconLeft={<Printer className="h-4 w-4" />}
+            >
+              {printingCronograma ? 'Generando...' : 'Cronograma PDF'}
+            </Button>
+          </div>
         </div>
 
         {(!prestamo.cuotas || prestamo.cuotas.length === 0) ? (

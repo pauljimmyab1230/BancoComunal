@@ -1,0 +1,380 @@
+/* ============================================================
+   PADRÓN DE SOCIOS POR FONDO — Banco Comunal
+   Listado de socios de un fondo rotatorio
+   Solo HTML + CSS (listo para imprimir · A4)
+   ============================================================ */
+
+:root {
+  --navy: #0f172a;
+  --navy-suave: #1e293b;
+  --oro: #2563eb;
+  --oro-claro: #3b82f6;
+  --tinta: #111827;
+  --tinta-suave: #6b7280;
+  --papel: #ffffff;
+  --linea: #e5e7eb;
+  --linea-suave: #f3f4f6;
+  --serif: Georgia, 'Times New Roman', serif;
+  --sans: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--sans);
+  color: var(--tinta);
+  background: #f8fafc;
+  padding: 20px;
+  line-height: 1.5;
+}
+
+.hoja {
+  max-width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: var(--papel);
+  padding: 44px 52px 32px;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.18);
+}
+
+/* ================= ENCABEZADO ================= */
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  border-bottom: 1px solid var(--linea);
+  padding-bottom: 26px;
+  margin-bottom: 26px;
+}
+
+.emblema-circulo {
+  width: 62px;
+  height: 62px;
+  border: 1.5px solid var(--oro);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(37, 99, 235, 0.12), transparent 70%);
+}
+
+.emblema-mono {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--navy);
+}
+
+.membrete {
+  flex: 1;
+}
+
+.organizacion {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--navy);
+  text-transform: uppercase;
+}
+
+.lema {
+  font-size: 11px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+  margin-top: 2px;
+}
+
+.membrete h1 {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  color: var(--oro);
+  margin-top: 10px;
+}
+
+.regla-oro {
+  height: 2px;
+  background: linear-gradient(90deg, var(--oro), var(--oro-claro), transparent);
+  margin: 8px 0;
+  width: 96px;
+  border-radius: 2px;
+}
+
+.ficha-numero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--linea);
+  border-radius: 8px;
+  padding: 10px 18px;
+  background: #fff;
+}
+
+.ficha-etiqueta {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.ficha-valor {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: 1px;
+}
+
+/* ================= DATOS DEL FONDO ================= */
+.seccion-datos {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0 20px;
+  border: 1px solid var(--linea);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+
+.bloque-dato {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bloque-dato + .bloque-dato {
+  border-left: 1px solid var(--linea-suave);
+  padding-left: 20px;
+}
+
+.bloque-dato .campo {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.bloque-dato .valor {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy);
+  text-transform: uppercase;
+}
+
+.bloque-dato .valor.fondo {
+  color: var(--oro);
+}
+
+/* ================= RESUMEN ================= */
+.seccion-resumen {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 26px;
+}
+
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 16px 10px;
+  border: 1px solid var(--linea);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.tarjeta-valor {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.tarjeta-etiqueta {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+/* ================= SECCIÓN DE TABLA ================= */
+.seccion-tabla {
+  margin-bottom: 26px;
+}
+
+.encabezado-seccion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.encabezado-seccion h2 {
+  font-family: var(--serif);
+  font-size: 16px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--navy);
+}
+
+.numeracion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--oro);
+  border-radius: 50%;
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--oro);
+  flex-shrink: 0;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabla th {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--navy);
+  padding: 8px 10px;
+  border-bottom: 1.5px solid var(--navy);
+}
+
+.tabla th:first-child {
+  padding-left: 0;
+}
+
+.tabla td {
+  font-size: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--linea-suave);
+  color: var(--tinta);
+  text-transform: uppercase;
+}
+
+.tabla td:first-child {
+  padding-left: 0;
+}
+
+.tabla tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.tabla .col-num {
+  width: 34px;
+  color: var(--oro);
+  font-family: var(--serif);
+  font-weight: 700;
+}
+
+/* ================= BADGES ================= */
+.badge-activo,
+.badge-retirado {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 3px;
+}
+
+.badge-activo {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.badge-retirado {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+/* ================= FIRMAS ================= */
+.seccion-firmas {
+  display: flex;
+  justify-content: space-between;
+  gap: 60px;
+  padding: 0 40px;
+  margin-top: 110px;
+}
+
+.bloque-firma {
+  flex: 1;
+  text-align: center;
+}
+
+.linea-firma {
+  border-top: 1px solid var(--tinta);
+  height: 30px;
+  width: 100%;
+}
+
+.bloque-firma .linea-firma {
+  height: 4px;
+}
+
+.nombre-firma {
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--tinta);
+  margin-top: 8px;
+}
+
+/* ================= PIE ================= */
+.pie {
+  margin-top: 40px;
+}
+
+.pie p {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* ================= IMPRESIÓN ================= */
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  body {
+    background: #ffffff;
+    padding: 0;
+  }
+
+  .hoja {
+    box-shadow: none;
+    max-width: none;
+    min-height: auto;
+    padding: 8mm 12mm;
+  }
+
+  .seccion-datos,
+  .seccion-resumen {
+    break-inside: avoid;
+  }
+}

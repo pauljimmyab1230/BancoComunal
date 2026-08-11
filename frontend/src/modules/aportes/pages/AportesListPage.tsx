@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { Plus, Eye, Trash2, Banknote, Wallet, Calendar } from 'lucide-react'
+import { Plus, Eye, Trash2, Banknote, Wallet, Calendar, Receipt } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAportes, useDeleteAporte } from '../hooks/useAportes'
 import { Button, DataTable, SearchInput, Badge, SectionHeader, Card, ConfirmDialog, Select, Input } from '@/components/ui'
 import { Link, useSearchParams } from 'react-router-dom'
 import api from '@/lib/api'
+import { openProtectedPdf, getErrorMessage } from '@/lib/api'
+import toast from 'react-hot-toast'
 import type { Aporte } from '../types'
 
 const TIPOS = [
@@ -132,6 +134,13 @@ export default function AportesListPage() {
       className: 'text-right',
       render: (a: Aporte) => (
         <div className="flex justify-end gap-1">
+          <button
+            onClick={() => handleImprimirComprobante(a)}
+            title="Ver comprobante"
+            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+          >
+            <Receipt className="h-4 w-4" />
+          </button>
           <Link to={`/aportes/${a.id}`} className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-[#2563EB]/10 hover:text-[#2563EB]">
             <Eye className="h-4 w-4" />
           </Link>
@@ -150,6 +159,14 @@ export default function AportesListPage() {
     deleteMutation.mutate(deleteId, {
       onSuccess: () => setDeleteId(null),
     })
+  }
+
+  const handleImprimirComprobante = async (aporte: Aporte) => {
+    try {
+      await openProtectedPdf(`/reportes/comprobante-aporte/pdf?aporteId=${aporte.id}`)
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al generar el comprobante de ingreso'))
+    }
   }
 
   return (

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arqueo de Caja</title>
+  <link rel="stylesheet" href="arqueocaja.css" />
+</head>
+<body>
+  <div class="hoja">
+
+    <!-- ================= ENCABEZADO ================= -->
+    <header class="cabecera">
+      <div class="emblema">
+        <div class="emblema-circulo">
+          <span class="emblema-mono">BC</span>
+        </div>
+      </div>
+
+      <div class="membrete">
+        <p class="organizacion">Banco Comunal</p>
+        <p class="lema">Registro solidario de ahorro y crédito</p>
+        <div class="regla-oro"></div>
+        <h1>Arqueo de Caja</h1>
+      </div>
+
+      <div class="ficha-numero">
+        <span class="ficha-etiqueta">Arqueo N°</span>
+        <span class="ficha-valor">ARQ-004</span>
+      </div>
+    </header>
+
+    <!-- ================= DATOS DEL ARQUEO ================= -->
+    <section class="seccion-datos">
+      <div class="bloque-dato">
+        <span class="campo">Caja</span>
+        <span class="valor fondo">CAJ-001 · CAJA PRINCIPAL</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Fondo Rotatorio</span>
+        <span class="valor">BANQUITO SUMAC AYLLU</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Fecha del Arqueo</span>
+        <span class="valor">31/08/2026</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Estado</span>
+        <span class="valor estado-aprobado">APROBADO</span>
+      </div>
+    </section>
+
+    <section class="seccion-datos seccion-datos-doble">
+      <div class="bloque-dato">
+        <span class="campo">Moneda</span>
+        <span class="valor">SOLES (PEN)</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Aprobado por</span>
+        <span class="valor">ADMIN</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Fecha de Aprobación</span>
+        <span class="valor">31/08/2026</span>
+      </div>
+    </section>
+
+    <!-- ================= CONFORMIDAD DEL ARQUEO ================= -->
+    <section class="seccion-resumen">
+      <div class="tarjeta tarjeta-destacada">
+        <span class="tarjeta-valor">S/ 6,600.00</span>
+        <span class="tarjeta-etiqueta">Saldo del Sistema</span>
+      </div>
+      <div class="tarjeta tarjeta-destacada">
+        <span class="tarjeta-valor">S/ 6,600.00</span>
+        <span class="tarjeta-etiqueta">Saldo Físico</span>
+      </div>
+      <div class="tarjeta tarjeta-ok">
+        <span class="tarjeta-valor">S/ 0.00</span>
+        <span class="tarjeta-etiqueta">Diferencia</span>
+      </div>
+      <div class="tarjeta tarjeta-ok">
+        <span class="tarjeta-valor">CUADRADO</span>
+        <span class="tarjeta-etiqueta">Resultado</span>
+      </div>
+    </section>
+
+    <!-- ================= RESULTADO DEL ARQUEO ================= -->
+    <section class="seccion-tabla">
+      <div class="encabezado-seccion">
+        <span class="numeracion">I</span>
+        <h2>Detalle del Arqueo</h2>
+      </div>
+
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Campo</th>
+            <th class="der">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Fecha del arqueo</td>
+            <td class="der">31/08/2026</td>
+          </tr>
+          <tr>
+            <td>Saldo según sistema</td>
+            <td class="der">S/ 6,600.00</td>
+          </tr>
+          <tr>
+            <td>Saldo físico contado</td>
+            <td class="der">S/ 6,600.00</td>
+          </tr>
+          <tr>
+            <td>Diferencia</td>
+            <td class="der">S/ 0.00</td>
+          </tr>
+          <tr>
+            <td>Estado</td>
+            <td class="der">APROBADO</td>
+          </tr>
+          <tr>
+            <td>Fecha de aprobación</td>
+            <td class="der">31/08/2026</td>
+          </tr>
+          <tr>
+            <td>Aprobado por</td>
+            <td class="der">ADMIN</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= OBSERVACIONES ================= -->
+    <section class="seccion-notas">
+      <span class="campo">Observaciones</span>
+      <div class="caja-notas"></div>
+    </section>
+
+    <!-- ================= FIRMAS ================= -->
+    <section class="seccion-firmas">
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Responsable de Caja</p>
+      </div>
+
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Tesorero</p>
+      </div>
+
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Visto Bueno</p>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

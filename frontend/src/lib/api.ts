@@ -81,3 +81,20 @@ api.interceptors.response.use(
 
 export { api }
 export default api
+
+/**
+ * Descarga un PDF protegido por autenticación (con el token Bearer) y lo
+ * abre en una pestaña nueva. Devuelve true si el PDF se abrió correctamente.
+ */
+export async function openProtectedPdf(url: string): Promise<boolean> {
+  const token = localStorage.getItem('token')
+  const response = await api.get(url, {
+    responseType: 'blob',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+  const blob = new Blob([response.data], { type: 'application/pdf' })
+  const objectUrl = URL.createObjectURL(blob)
+  window.open(objectUrl, '_blank')
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+  return true
+}

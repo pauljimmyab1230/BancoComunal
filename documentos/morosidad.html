@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reporte de Morosidad</title>
+  <link rel="stylesheet" href="morosidad.css" />
+</head>
+<body>
+  <div class="hoja">
+
+    <!-- ================= ENCABEZADO ================= -->
+    <header class="cabecera">
+      <div class="emblema">
+        <div class="emblema-circulo">
+          <span class="emblema-mono">BC</span>
+        </div>
+      </div>
+
+      <div class="membrete">
+        <p class="organizacion">Banco Comunal</p>
+        <p class="lema">Registro solidario de ahorro y crédito</p>
+        <div class="regla-oro"></div>
+        <h1>Reporte de Morosidad</h1>
+      </div>
+
+      <div class="ficha-numero">
+        <span class="ficha-etiqueta">Corte al</span>
+        <span class="ficha-valor">31/08/2026</span>
+      </div>
+    </header>
+
+    <!-- ================= DATOS DEL FONDO ================= -->
+    <section class="seccion-datos">
+      <div class="bloque-dato">
+        <span class="campo">Fondo Rotatorio</span>
+        <span class="valor fondo">BANQUITO SUMAC AYLLU</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Moneda</span>
+        <span class="valor">SOLES (PEN)</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Fecha de Corte</span>
+        <span class="valor">31/08/2026</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Antigüedad Mínima</span>
+        <span class="valor">1 día de atraso</span>
+      </div>
+    </section>
+
+    <!-- ================= RESUMEN DE MOROSIDAD ================= -->
+    <section class="seccion-resumen">
+      <div class="tarjeta tarjeta-alerta">
+        <span class="tarjeta-valor">6</span>
+        <span class="tarjeta-etiqueta">Socios en Mora</span>
+      </div>
+      <div class="tarjeta tarjeta-alerta">
+        <span class="tarjeta-valor">13</span>
+        <span class="tarjeta-etiqueta">Cuotas Vencidas</span>
+      </div>
+      <div class="tarjeta tarjeta-alerta">
+        <span class="tarjeta-valor">S/ 1,050.00</span>
+        <span class="tarjeta-etiqueta">Total en Mora</span>
+      </div>
+      <div class="tarjeta tarjeta-alerta">
+        <span class="tarjeta-valor">28</span>
+        <span class="tarjeta-etiqueta">Días Máx. de Atraso</span>
+      </div>
+    </section>
+
+    <!-- ================= CARTERA EN RIESGO ================= -->
+    <section class="seccion-resumen">
+      <div class="tarjeta">
+        <span class="tarjeta-valor">S/ 8,000.00</span>
+        <span class="tarjeta-etiqueta">Cartera Total</span>
+      </div>
+      <div class="tarjeta">
+        <span class="tarjeta-valor">S/ 3,750.00</span>
+        <span class="tarjeta-etiqueta">Cartera en Riesgo</span>
+      </div>
+      <div class="tarjeta">
+        <span class="tarjeta-valor">46.9%</span>
+        <span class="tarjeta-etiqueta">% Cartera en Riesgo</span>
+      </div>
+      <div class="tarjeta">
+        <span class="tarjeta-valor">S/ 1,050.00</span>
+        <span class="tarjeta-etiqueta">Mora de Cuota</span>
+      </div>
+    </section>
+
+    <!-- ================= TABLA DE MOROSOS ================= -->
+    <section class="seccion-tabla">
+      <div class="encabezado-seccion">
+        <span class="numeracion">I</span>
+        <h2>Socios con Cuotas Vencidas</h2>
+      </div>
+
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Socio</th>
+            <th>DNI</th>
+            <th class="der">Préstamo</th>
+            <th class="der">Cuotas Vencidas</th>
+            <th class="der">Días Atraso</th>
+            <th class="der">Monto en Mora</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-num">1</td>
+            <td>CHÁVEZ FLORES, ANA MARÍA</td>
+            <td>41234567</td>
+            <td class="der">PRE-003</td>
+            <td class="der">3</td>
+            <td class="der">28</td>
+            <td class="der mora">S/ 240.00</td>
+          </tr>
+          <tr>
+            <td class="col-num">2</td>
+            <td>QUISPE HUAMÁN, JUAN CARLOS</td>
+            <td>45238790</td>
+            <td class="der">PRE-005</td>
+            <td class="der">2</td>
+            <td class="der">25</td>
+            <td class="der mora">S/ 180.00</td>
+          </tr>
+          <tr>
+            <td class="col-num">3</td>
+            <td>RAMOS TORRES, LUIS ALBERTO</td>
+            <td>42116723</td>
+            <td class="der">PRE-001</td>
+            <td class="der">2</td>
+            <td class="der">20</td>
+            <td class="der mora">S/ 160.00</td>
+          </tr>
+          <tr>
+            <td class="col-num">4</td>
+            <td>SÁNCHEZ ROJAS, CARMEN ROSA</td>
+            <td>43890215</td>
+            <td class="der">PRE-004</td>
+            <td class="der">2</td>
+            <td class="der">18</td>
+            <td class="der mora">S/ 170.00</td>
+          </tr>
+          <tr>
+            <td class="col-num">5</td>
+            <td>TORRES MAMANI, JORGE LUIS</td>
+            <td>45561234</td>
+            <td class="der">PRE-002</td>
+            <td class="der">2</td>
+            <td class="der">12</td>
+            <td class="der mora">S/ 150.00</td>
+          </tr>
+          <tr>
+            <td class="col-num">6</td>
+            <td>VARGAS CÁRDENAS, ROSA MARÍA</td>
+            <td>44099112</td>
+            <td class="der">PRE-006</td>
+            <td class="der">2</td>
+            <td class="der">7</td>
+            <td class="der mora">S/ 150.00</td>
+          </tr>
+          <tr class="fila-total">
+            <td class="der" colspan="4">Total de la Mora</td>
+            <td class="der">13</td>
+            <td class="der">—</td>
+            <td class="der">S/ 1,050.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= ANÁLISIS POR RANGO DE ATRASO ================= -->
+    <section class="seccion-tabla">
+      <div class="encabezado-seccion">
+        <span class="numeracion">II</span>
+        <h2>Morosidad por Rango de Atraso</h2>
+      </div>
+
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Rango de Atraso</th>
+            <th>N° Socios</th>
+            <th class="der">N° Cuotas</th>
+            <th class="der">Monto en Mora</th>
+            <th class="der">% del Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1 – 15 días</td>
+            <td>2</td>
+            <td class="der">4</td>
+            <td class="der">S/ 300.00</td>
+            <td class="der">28.6%</td>
+          </tr>
+          <tr>
+            <td>16 – 30 días</td>
+            <td>4</td>
+            <td class="der">9</td>
+            <td class="der">S/ 750.00</td>
+            <td class="der">71.4%</td>
+          </tr>
+          <tr>
+            <td>31 – 60 días</td>
+            <td>0</td>
+            <td class="der">0</td>
+            <td class="der">S/ 0.00</td>
+            <td class="der">0.0%</td>
+          </tr>
+          <tr>
+            <td>Más de 60 días</td>
+            <td>0</td>
+            <td class="der">0</td>
+            <td class="der">S/ 0.00</td>
+            <td class="der">0.0%</td>
+          </tr>
+          <tr class="fila-total">
+            <td class="der">Total</td>
+            <td>6</td>
+            <td class="der">13</td>
+            <td class="der">S/ 1,050.00</td>
+            <td class="der">100.0%</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= OBSERVACIONES ================= -->
+    <section class="seccion-notas">
+      <span class="campo">Observaciones</span>
+      <div class="caja-notas"></div>
+    </section>
+
+    <!-- ================= FIRMAS ================= -->
+    <section class="seccion-firmas">
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Firma del Presidente</p>
+      </div>
+
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Firma del Tesorero</p>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

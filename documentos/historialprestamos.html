@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Historial de Préstamos — Socio</title>
+  <link rel="stylesheet" href="historialprestamos.css" />
+</head>
+<body>
+  <div class="hoja">
+
+    <!-- ================= ENCABEZADO ================= -->
+    <header class="cabecera">
+      <div class="emblema">
+        <div class="emblema-circulo">
+          <span class="emblema-mono">BC</span>
+        </div>
+      </div>
+
+      <div class="membrete">
+        <p class="organizacion">Banco Comunal</p>
+        <p class="lema">Registro solidario de ahorro y crédito</p>
+        <div class="regla-oro"></div>
+        <h1>Historial de Préstamos</h1>
+      </div>
+
+      <div class="ficha-numero">
+        <span class="ficha-etiqueta">Emitido el</span>
+        <span class="ficha-valor">2025</span>
+      </div>
+    </header>
+
+    <!-- ================= DATOS DEL SOCIO ================= -->
+    <section class="seccion-datos">
+      <div class="bloque-dato">
+        <span class="campo">Socio</span>
+        <span class="valor">PAUL JIMMY BENITES CHAMORRO</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">DNI</span>
+        <span class="valor">70428001</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Código de Socio</span>
+        <span class="valor">SOC-0001</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Fecha de Emisión</span>
+        <span class="valor">10/08/2026</span>
+      </div>
+    </section>
+
+    <!-- ================= RESUMEN ================= -->
+    <section class="seccion-resumen">
+      <div class="tarjeta">
+        <span class="tarjeta-valor">S/ 2,300.00</span>
+        <span class="tarjeta-etiqueta">Total Desembolsado</span>
+      </div>
+      <div class="tarjeta">
+        <span class="tarjeta-valor">3</span>
+        <span class="tarjeta-etiqueta">Préstamos</span>
+      </div>
+      <div class="tarjeta">
+        <span class="tarjeta-valor">2</span>
+        <span class="tarjeta-etiqueta">Activos</span>
+      </div>
+      <div class="tarjeta">
+        <span class="tarjeta-valor">S/ 620.00</span>
+        <span class="tarjeta-etiqueta">Saldo por Pagar</span>
+      </div>
+    </section>
+
+    <!-- ================= TABLA DE PRÉSTAMOS ================= -->
+    <section class="seccion-tabla">
+      <div class="encabezado-seccion">
+        <span class="numeracion">I</span>
+        <h2>Préstamos Otorgados</h2>
+      </div>
+
+      <table class="tabla-prestamos">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Fecha Desembolso</th>
+            <th>Fondo</th>
+            <th class="der">Monto</th>
+            <th class="der">Tasa</th>
+            <th class="der">Cuotas</th>
+            <th class="der">Cuota</th>
+            <th class="der">Avance</th>
+            <th class="der">Saldo</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-num">1</td>
+            <td>15/03/2024</td>
+            <td>Banquito Sumac Ayllu</td>
+            <td class="der">S/ 1,000.00</td>
+            <td class="der">5.00%</td>
+            <td class="der">6</td>
+            <td class="der">S/ 181.00</td>
+            <td class="der">6 / 6</td>
+            <td class="der">S/ 0.00</td>
+            <td><span class="badge-cancelado">Cancelado</span></td>
+          </tr>
+          <tr>
+            <td class="col-num">2</td>
+            <td>10/06/2025</td>
+            <td>Banquito Sumac Ayllu</td>
+            <td class="der">S/ 500.00</td>
+            <td class="der">3.00%</td>
+            <td class="der">4</td>
+            <td class="der">S/ 132.00</td>
+            <td class="der">2 / 4</td>
+            <td class="der">S/ 264.00</td>
+            <td><span class="badge-activo">Activo</span></td>
+          </tr>
+          <tr>
+            <td class="col-num">3</td>
+            <td>05/09/2025</td>
+            <td>Ahorros Cooperativos</td>
+            <td class="der">S/ 800.00</td>
+            <td class="der">4.00%</td>
+            <td class="der">5</td>
+            <td class="der">S/ 172.00</td>
+            <td class="der">3 / 5</td>
+            <td class="der">S/ 356.00</td>
+            <td><span class="badge-activo">Activo</span></td>
+          </tr>
+          <tr class="fila-total">
+            <td colspan="3" class="der">Total</td>
+            <td class="der">S/ 2,300.00</td>
+            <td class="der"></td>
+            <td class="der">15</td>
+            <td class="der"></td>
+            <td class="der">11 / 15</td>
+            <td class="der">S/ 620.00</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= FIRMAS ================= -->
+    <section class="seccion-firmas">
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Firma del Socio</p>
+      </div>
+
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Firma del Presidente</p>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

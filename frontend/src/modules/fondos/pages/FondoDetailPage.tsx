@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -13,15 +13,16 @@ import {
   Trash2,
   Search,
   HandCoins,
+  Printer,
 } from 'lucide-react'
 import { useFondo } from '../hooks/useFondos'
 import { useSocios } from '@/modules/socios/hooks/useSocios'
 import { useAportes } from '@/modules/aportes/hooks/useAportes'
 import { useCreditos } from '@/modules/creditos/hooks/useCreditos'
-import { Button, Card, Badge, LoadingSpinner, Modal, Input, ConfirmDialog } from '@/components/ui'
+import { Button, Card, Badge, LoadingSpinner, Modal, Input, ConfirmDialog, Select } from '@/components/ui'
 import { fondosApi } from '../api/fondosApi'
-import { getErrorMessage } from '@/lib/api'
-import { useQueryClient } from '@tanstack/react-query'
+import { getErrorMessage, openProtectedPdf, api } from '@/lib/api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 
 export default function FondoDetailPage() {
@@ -34,8 +35,31 @@ export default function FondoDetailPage() {
   const [socioSearch, setSocioSearch] = useState('')
   const [savingSocio, setSavingSocio] = useState(false)
   const [removeSocioId, setRemoveSocioId] = useState<number | null>(null)
+  const [printingPadron, setPrintingPadron] = useState(false)
+  const [printingResumen, setPrintingResumen] = useState(false)
+  const [printingAportes, setPrintingAportes] = useState(false)
+  const [anioAportes, setAnioAportes] = useState(new Date().getFullYear())
+
+  const { data: aniosAportesData } = useQuery({
+    queryKey: ['aportes-fondo-anios', fondo?.id],
+    queryFn: () =>
+      api.get('/reportes/aportes-fondo/anios', { params: { fondoId: fondo?.id } }).then((r) => r.data?.data as number[]),
+    enabled: !!fondo,
+  })
+
+  useEffect(() => {
+    if (aniosAportesData && aniosAportesData.length > 0 && !aniosAportesData.includes(anioAportes)) {
+      const primerAnio = aniosAportesData[0]
+      if (primerAnio !== undefined) setAnioAportes(primerAnio)
+    }
+  }, [aniosAportesData])
 
   const { data: sociosData } = useSocios({ search: socioSearch, limit: 20 })
+
+  const aniosOptions = useMemo(() => {
+    const anios = aniosAportesData && aniosAportesData.length > 0 ? aniosAportesData : [new Date().getFullYear()]
+    return anios.map((a) => ({ value: String(a), label: String(a) }))
+  }, [aniosAportesData])
 
   if (isLoading) {
     return (
@@ -96,6 +120,39 @@ export default function FondoDetailPage() {
     }
   }
 
+  const handleImprimirPadron = async () => {
+    try {
+      setPrintingPadron(true)
+      await openProtectedPdf(`/reportes/padron-fondo/pdf?fondoId=${fondo.id}`)
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al generar el padrón de socios'))
+    } finally {
+      setPrintingPadron(false)
+    }
+  }
+
+  const handleImprimirResumen = async () => {
+    try {
+      setPrintingResumen(true)
+      await openProtectedPdf(`/reportes/resumen-fondo/pdf?fondoId=${fondo.id}`)
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al generar el resumen del fondo'))
+    } finally {
+      setPrintingResumen(false)
+    }
+  }
+
+  const handleImprimirAportes = async () => {
+    try {
+      setPrintingAportes(true)
+      await openProtectedPdf(`/reportes/aportes-fondo/pdf?fondoId=${fondo.id}&anio=${anioAportes}`)
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al generar el historial de aportes del fondo'))
+    } finally {
+      setPrintingAportes(false)
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center gap-4 mb-8">
@@ -103,6 +160,14 @@ export default function FondoDetailPage() {
           Fondos
         </Button>
         <div className="flex-1" />
+        <Button
+          variant="secondary"
+          onClick={handleImprimirResumen}
+          disabled={printingResumen}
+          iconLeft={<Printer className="h-4 w-4" />}
+        >
+          {printingResumen ? 'Generando...' : 'Resumen PDF'}
+        </Button>
         <Button variant="secondary" as="link" to={`/fondos/${fondo.id}/editar`} iconLeft={<Pencil className="h-4 w-4" />}>
           Editar
         </Button>
@@ -211,9 +276,20 @@ export default function FondoDetailPage() {
             <Users className="h-5 w-5 text-[#2563EB]" />
             <h3 className="font-semibold text-[#111827]">Socios del Fondo</h3>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => setShowSocioModal(true)} iconLeft={<Plus className="h-4 w-4" />}>
-            Agregar Socio
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleImprimirPadron}
+              disabled={printingPadron}
+              iconLeft={<Printer className="h-4 w-4" />}
+            >
+              {printingPadron ? 'Generando...' : 'Padrón PDF'}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowSocioModal(true)} iconLeft={<Plus className="h-4 w-4" />}>
+              Agregar Socio
+            </Button>
+          </div>
         </div>
 
         {(!fondo.socios || fondo.socios.length === 0) ? (
@@ -272,9 +348,28 @@ export default function FondoDetailPage() {
             <HandCoins className="h-5 w-5 text-[#2563EB]" />
             <h3 className="font-semibold text-[#111827]">Aportes</h3>
           </div>
-          <Button variant="secondary" size="sm" as="link" to={`/aportes?fondoId=${fondo.id}`}>
-            Ver todos
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="w-28">
+              <Select
+                options={aniosOptions}
+                value={String(anioAportes)}
+                onChange={(e) => setAnioAportes(Number(e.target.value))}
+                aria-label="Año del reporte"
+              />
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleImprimirAportes}
+              disabled={printingAportes}
+              iconLeft={<Printer className="h-4 w-4" />}
+            >
+              {printingAportes ? 'Generando...' : 'Aportes PDF'}
+            </Button>
+            <Button variant="secondary" size="sm" as="link" to={`/aportes?fondoId=${fondo.id}`}>
+              Ver todos
+            </Button>
+          </div>
         </div>
         <AportesFondoSection fondoId={fondo.id} moneda={fondo.moneda} />
       </Card>

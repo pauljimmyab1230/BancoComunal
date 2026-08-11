@@ -13,7 +13,7 @@ import { useAportes } from '@/modules/aportes/hooks/useAportes'
 import { useCreditos } from '@/modules/creditos/hooks/useCreditos'
 import { Button, Card, Badge, LoadingSpinner, Modal, Input, Select, FormField, QRCode } from '@/components/ui'
 import { socioApi } from '../api/socioApi'
-import { getErrorMessage } from '@/lib/api'
+import { getErrorMessage, openProtectedPdf } from '@/lib/api'
 import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -57,6 +57,11 @@ export default function SocioDetailPage() {
 
   // QR modal
   const [showQr, setShowQr] = useState(false)
+  const [printingFicha, setPrintingFicha] = useState(false)
+  const [printingAportes, setPrintingAportes] = useState(false)
+  const [printingCreditos, setPrintingCreditos] = useState(false)
+  const [printingCuenta, setPrintingCuenta] = useState(false)
+  const [fondoSelectorFor, setFondoSelectorFor] = useState<'ficha' | 'aportes' | 'creditos' | 'cuenta' | null>(null)
 
   const {
     register,
@@ -151,6 +156,98 @@ export default function SocioDetailPage() {
     }
   }
 
+  const generarFicha = async (fondoId?: number) => {
+    if (!socio) return
+    try {
+      setPrintingFicha(true)
+      const params = fondoId ? `&fondoId=${fondoId}` : ''
+      await openProtectedPdf(`/reportes/ficha-socio/pdf?socioId=${socio.id}${params}`)
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al generar la ficha imprimible'))
+    } finally {
+      setPrintingFicha(false)
+    }
+  }
+
+  const generarAportes = async (fondoId?: number) => {
+    if (!socio) return
+    try {
+      setPrintingAportes(true)
+      const params = fondoId ? `&fondoId=${fondoId}` : ''
+      await openProtectedPdf(`/reportes/aportes-socio/pdf?socioId=${socio.id}${params}`)
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al generar el historial de aportes'))
+    } finally {
+      setPrintingAportes(false)
+    }
+  }
+
+  const generarCreditos = async (fondoId?: number) => {
+    if (!socio) return
+    try {
+      setPrintingCreditos(true)
+      const params = fondoId ? `&fondoId=${fondoId}` : ''
+      await openProtectedPdf(`/reportes/creditos-socio/pdf?socioId=${socio.id}${params}`)
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al generar el historial de créditos'))
+    } finally {
+      setPrintingCreditos(false)
+    }
+  }
+
+  const generarCuenta = async (fondoId?: number) => {
+    if (!socio) return
+    try {
+      setPrintingCuenta(true)
+      const params = fondoId ? `&fondoId=${fondoId}` : ''
+      await openProtectedPdf(`/reportes/estado-cuenta-socio/pdf?socioId=${socio.id}${params}`)
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al generar el estado de cuenta'))
+    } finally {
+      setPrintingCuenta(false)
+    }
+  }
+
+  const fondosActivos = (socio?.fondosSocios || [])
+    .filter((rel) => rel.fondo && rel.fondo.estado === 'ACTIVO')
+    .map((rel) => ({ id: rel.fondo!.id, nombre: rel.fondo!.nombre }))
+
+  const handleImprimirFicha = async () => {
+    if (!socio) return
+    if (fondosActivos.length > 1) {
+      setFondoSelectorFor('ficha')
+      return
+    }
+    await generarFicha(fondosActivos[0]?.id)
+  }
+
+  const handleImprimirAportes = async () => {
+    if (!socio) return
+    if (fondosActivos.length > 1) {
+      setFondoSelectorFor('aportes')
+      return
+    }
+    await generarAportes(fondosActivos[0]?.id)
+  }
+
+  const handleImprimirCreditos = async () => {
+    if (!socio) return
+    if (fondosActivos.length > 1) {
+      setFondoSelectorFor('creditos')
+      return
+    }
+    await generarCreditos(fondosActivos[0]?.id)
+  }
+
+  const handleImprimirCuenta = async () => {
+    if (!socio) return
+    if (fondosActivos.length > 1) {
+      setFondoSelectorFor('cuenta')
+      return
+    }
+    await generarCuenta(fondosActivos[0]?.id)
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -193,8 +290,21 @@ export default function SocioDetailPage() {
           Socios
         </Button>
         <div className="flex-1" />
-        <Button variant="ghost" as="link" to={`/socios/${socio.id}/ficha`} iconLeft={<Printer className="h-4 w-4" />}>
-          Ficha Imprimible
+        <Button
+          variant="secondary"
+          onClick={handleImprimirFicha}
+          disabled={printingFicha}
+          iconLeft={<Printer className="h-4 w-4" />}
+        >
+          {printingFicha ? 'Generando...' : 'Ficha Imprimible'}
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={handleImprimirCuenta}
+          disabled={printingCuenta}
+          iconLeft={<Printer className="h-4 w-4" />}
+        >
+          {printingCuenta ? 'Generando...' : 'Estado de Cuenta'}
         </Button>
         <Button variant="secondary" as="link" to={`/socios/${socio.id}/editar`} iconLeft={<Pencil className="h-4 w-4" />}>
           Editar
@@ -393,9 +503,20 @@ export default function SocioDetailPage() {
               <HandCoins className="h-5 w-5 text-[#2563EB]" />
               <h3 className="font-semibold text-[#111827]">Aportes</h3>
             </div>
-            <Button variant="secondary" size="sm" as="link" to={`/aportes?socioId=${socio.id}`}>
-              Ver todos
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleImprimirAportes}
+                disabled={printingAportes}
+                iconLeft={<Printer className="h-4 w-4" />}
+              >
+                {printingAportes ? 'Generando...' : 'Historial PDF'}
+              </Button>
+              <Button variant="secondary" size="sm" as="link" to={`/aportes?socioId=${socio.id}`}>
+                Ver todos
+              </Button>
+            </div>
           </div>
           <AportesSocioSection socioId={socio.id} />
         </Card>
@@ -407,9 +528,20 @@ export default function SocioDetailPage() {
               <HandCoins className="h-5 w-5 text-[#2563EB]" />
               <h3 className="font-semibold text-[#111827]">Créditos</h3>
             </div>
-            <Button variant="secondary" size="sm" as="link" to={`/creditos?socioId=${socio.id}`}>
-              Ver todos
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleImprimirCreditos}
+                disabled={printingCreditos}
+                iconLeft={<Printer className="h-4 w-4" />}
+              >
+                {printingCreditos ? 'Generando...' : 'Historial PDF'}
+              </Button>
+              <Button variant="secondary" size="sm" as="link" to={`/creditos?socioId=${socio.id}`}>
+                Ver todos
+              </Button>
+            </div>
           </div>
           <CreditosSocioSection socioId={socio.id} />
         </Card>
@@ -510,6 +642,43 @@ export default function SocioDetailPage() {
               Subir
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Modal selector de fondo para ficha / historiales */}
+      <Modal open={fondoSelectorFor !== null} onClose={() => setFondoSelectorFor(null)} title="Elegir Fondo" maxWidth="sm">
+        <p className="text-sm text-gray-500">
+          El socio pertenece a varios fondos. Selecciona para cuál generar
+          {fondoSelectorFor === 'aportes' && ' el historial de aportes'}
+          {fondoSelectorFor === 'creditos' && ' el historial de créditos'}
+          {fondoSelectorFor === 'ficha' && ' la ficha imprimible'}
+          {fondoSelectorFor === 'cuenta' && ' el estado de cuenta'}.
+        </p>
+        <div className="mt-4 flex flex-col gap-2">
+          {(socio.fondosSocios || [])
+            .filter((rel) => rel.fondo && rel.fondo.estado === 'ACTIVO')
+            .map((rel) => (
+              <button
+                key={rel.fondoId}
+                disabled={printingFicha || printingAportes || printingCreditos || printingCuenta}
+                onClick={() => {
+                  setFondoSelectorFor(null)
+                  if (fondoSelectorFor === 'aportes') {
+                    generarAportes(rel.fondoId)
+                  } else if (fondoSelectorFor === 'creditos') {
+                    generarCreditos(rel.fondoId)
+                  } else if (fondoSelectorFor === 'cuenta') {
+                    generarCuenta(rel.fondoId)
+                  } else {
+                    generarFicha(rel.fondoId)
+                  }
+                }}
+                className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 text-left transition-all hover:border-[#2563EB] hover:bg-[#2563EB]/5 disabled:opacity-50"
+              >
+                <span className="text-sm font-medium text-[#111827]">{rel.fondo?.nombre}</span>
+                <span className="text-xs text-gray-400">Imprimir →</span>
+              </button>
+            ))}
         </div>
       </Modal>
 

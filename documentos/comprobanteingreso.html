@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Comprobante de Ingreso</title>
+  <link rel="stylesheet" href="comprobanteingreso.css" />
+</head>
+<body>
+  <div class="hoja comprobante">
+
+    <!-- ================= ENCABEZADO ================= -->
+    <header class="cabecera">
+      <div class="emblema">
+        <div class="emblema-circulo">
+          <span class="emblema-mono">BC</span>
+        </div>
+      </div>
+
+      <div class="membrete">
+        <p class="organizacion">Banco Comunal</p>
+        <p class="lema">Registro solidario de ahorro y crédito</p>
+        <div class="regla-oro"></div>
+        <h1>Comprobante de Ingreso</h1>
+      </div>
+
+      <div class="numero-comprobante">
+        <span class="nc-etiqueta">N°</span>
+        <span class="nc-valor">000126</span>
+      </div>
+    </header>
+
+    <!-- ================= DATOS DEL RECIBO ================= -->
+    <section class="seccion-receptor">
+      <div class="bloque">
+        <span class="campo">Fecha</span>
+        <span class="valor">10/08/2026</span>
+      </div>
+      <div class="bloque">
+        <span class="campo">Recibimos de</span>
+        <span class="valor">PAUL JIMMY BENITES CHAMORRO</span>
+      </div>
+      <div class="bloque">
+        <span class="campo">DNI</span>
+        <span class="valor">70428001</span>
+      </div>
+      <div class="bloque">
+        <span class="campo">Caja</span>
+        <span class="valor">CAJA BANQUITO SUMAC AYLLU</span>
+      </div>
+    </section>
+
+    <!-- ================= CONCEPTO ================= -->
+    <section class="seccion-concepto">
+      <div class="bloque-concepto">
+        <span class="campo">Concepto de Ingreso</span>
+        <span class="valor">Aporte Obligatorio</span>
+      </div>
+      <div class="bloque-concepto">
+        <span class="campo">Período</span>
+        <span class="valor">2026-08</span>
+      </div>
+      <div class="bloque-concepto">
+        <span class="campo">Método de Pago</span>
+        <span class="valor">Efectivo</span>
+      </div>
+      <div class="bloque-concepto">
+        <span class="campo">Referencia</span>
+        <span class="valor">FONDO 5</span>
+      </div>
+    </section>
+
+    <section class="seccion-detalle">
+      <div class="bloque-detalle">
+        <span class="campo">Descripción</span>
+        <span class="valor">Aporte obligatorio del socio correspondiente al período agosto 2026.</span>
+      </div>
+    </section>
+
+    <!-- ================= MONTO ================= -->
+    <section class="seccion-monto">
+      <div class="bloque-monto">
+        <span class="campo">Monto en Letras</span>
+        <span class="valor-letras">SON: CINCUENTA Y 00/100 SOLES</span>
+      </div>
+      <div class="monto-numeral">
+        <span class="mn-etiqueta">Monto</span>
+        <span class="mn-valor">S/ 50.00</span>
+      </div>
+    </section>
+
+    <!-- ================= OBSERVACIONES ================= -->
+    <section class="seccion-notas">
+      <span class="campo">Observaciones</span>
+      <div class="caja-notas">Pago en efectivo recibido en caja.</div>
+    </section>
+
+    <!-- ================= FIRMAS ================= -->
+    <section class="seccion-firmas">
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Recibí Conforme</p>
+        <p class="detalle-firma">Firma del Socio</p>
+      </div>
+
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Cajero / Tesorero</p>
+        <p class="detalle-firma">Firma y sello</p>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

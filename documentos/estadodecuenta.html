@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Estado de Cuenta — Socio</title>
+  <link rel="stylesheet" href="estadodecuenta.css" />
+</head>
+<body>
+  <div class="hoja">
+
+    <!-- ================= ENCABEZADO ================= -->
+    <header class="cabecera">
+      <div class="emblema">
+        <div class="emblema-circulo">
+          <span class="emblema-mono">BC</span>
+        </div>
+      </div>
+
+      <div class="membrete">
+        <p class="organizacion">Banco Comunal</p>
+        <p class="lema">Registro solidario de ahorro y crédito</p>
+        <div class="regla-oro"></div>
+        <h1>Estado de Cuenta</h1>
+      </div>
+
+      <div class="ficha-numero">
+        <span class="ficha-etiqueta">Corte al</span>
+        <span class="ficha-valor">31/08/2026</span>
+      </div>
+    </header>
+
+    <!-- ================= DATOS DEL SOCIO Y FONDO ================= -->
+    <section class="seccion-datos">
+      <div class="bloque-dato">
+        <span class="campo">Socio</span>
+        <span class="valor">PAUL JIMMY BENITES CHAMORRO</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">DNI</span>
+        <span class="valor">70428001</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Fondo Rotatorio</span>
+        <span class="valor fondo">BANQUITO SUMAC AYLLU</span>
+      </div>
+      <div class="bloque-dato">
+        <span class="campo">Fecha de Corte</span>
+        <span class="valor">31/08/2026</span>
+      </div>
+    </section>
+
+    <!-- ================= RESUMEN GENERAL ================= -->
+    <section class="seccion-resumen">
+      <div class="tarjeta">
+        <span class="tarjeta-valor">S/ 700.00</span>
+        <span class="tarjeta-etiqueta">Capital Aportado</span>
+      </div>
+      <div class="tarjeta">
+        <span class="tarjeta-valor">S/ 264.00</span>
+        <span class="tarjeta-etiqueta">Saldo por Préstamos</span>
+      </div>
+      <div class="tarjeta">
+        <span class="tarjeta-valor">S/ 24.00</span>
+        <span class="tarjeta-etiqueta">Intereses por Pagar</span>
+      </div>
+      <div class="tarjeta">
+        <span class="tarjeta-valor">S/ 412.00</span>
+        <span class="tarjeta-etiqueta">Saldo Neto del Socio</span>
+      </div>
+    </section>
+
+    <p class="nota-saldo">
+      Saldo neto = Capital aportado − (saldo por préstamos + intereses por pagar).
+      Positivo: el socio tiene saldo a favor en el fondo.
+    </p>
+
+    <!-- ================= APORTES ================= -->
+    <section class="seccion-tabla">
+      <div class="encabezado-seccion">
+        <span class="numeracion">I</span>
+        <h2>Aportes en el Fondo</h2>
+      </div>
+
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Período</th>
+            <th>Concepto</th>
+            <th>N° Aportes</th>
+            <th class="der">Monto</th>
+            <th class="der">Multas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>2025</td>
+            <td>Aportes Obligatorios / Voluntarios</td>
+            <td>13</td>
+            <td class="der">S/ 700.00</td>
+            <td class="der">S/ 0.00</td>
+          </tr>
+          <tr>
+            <td>2026 (ene–ago)</td>
+            <td>Aportes Obligatorios</td>
+            <td>8</td>
+            <td class="der">S/ 400.00</td>
+            <td class="der">S/ 20.00</td>
+          </tr>
+          <tr class="fila-total">
+            <td colspan="2" class="der">Total Aportado en el Fondo</td>
+            <td>21</td>
+            <td class="der">S/ 1,100.00</td>
+            <td class="der">S/ 20.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= PRÉSTAMOS ================= -->
+    <section class="seccion-tabla">
+      <div class="encabezado-seccion">
+        <span class="numeracion">II</span>
+        <h2>Préstamos en el Fondo</h2>
+      </div>
+
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Fecha</th>
+            <th class="der">Monto</th>
+            <th class="der">Pagado</th>
+            <th class="der">Saldo</th>
+            <th>Cuotas</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-num">1</td>
+            <td>15/03/2024</td>
+            <td class="der">S/ 1,000.00</td>
+            <td class="der">S/ 1,000.00</td>
+            <td class="der">S/ 0.00</td>
+            <td>6 / 6</td>
+            <td><span class="badge-cancelado">Cancelado</span></td>
+          </tr>
+          <tr>
+            <td class="col-num">2</td>
+            <td>10/06/2025</td>
+            <td class="der">S/ 500.00</td>
+            <td class="der">S/ 236.00</td>
+            <td class="der">S/ 264.00</td>
+            <td>2 / 4</td>
+            <td><span class="badge-activo">Activo</span></td>
+          </tr>
+          <tr class="fila-total">
+            <td colspan="2" class="der">Total</td>
+            <td class="der">S/ 1,500.00</td>
+            <td class="der">S/ 1,236.00</td>
+            <td class="der">S/ 264.00</td>
+            <td>8 / 10</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= CUOTAS PRÓXIMAS ================= -->
+    <section class="seccion-tabla">
+      <div class="encabezado-seccion">
+        <span class="numeracion">III</span>
+        <h2>Próximas Cuotas por Pagar</h2>
+      </div>
+
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Préstamo</th>
+            <th>Cuota</th>
+            <th>Vencimiento</th>
+            <th class="der">Interés</th>
+            <th class="der">Capital</th>
+            <th class="der">Total</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-num">2</td>
+            <td>3</td>
+            <td>10/09/2025</td>
+            <td class="der">S/ 12.00</td>
+            <td class="der">S/ 120.00</td>
+            <td class="der">S/ 132.00</td>
+            <td><span class="badge-vencida">Vencida</span></td>
+          </tr>
+          <tr>
+            <td class="col-num">2</td>
+            <td>4</td>
+            <td>10/10/2025</td>
+            <td class="der">S/ 12.00</td>
+            <td class="der">S/ 120.00</td>
+            <td class="der">S/ 132.00</td>
+            <td><span class="badge-pendiente">Pendiente</span></td>
+          </tr>
+          <tr class="fila-total">
+            <td colspan="3" class="der">Total por Pagar</td>
+            <td class="der">S/ 24.00</td>
+            <td class="der">S/ 240.00</td>
+            <td class="der">S/ 264.00</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= MOVIMIENTOS ================= -->
+    <section class="seccion-tabla">
+      <div class="encabezado-seccion">
+        <span class="numeracion">IV</span>
+        <h2>Movimientos del Socio en el Fondo</h2>
+      </div>
+
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Descripción</th>
+            <th>Concepto</th>
+            <th class="der">Ingreso</th>
+            <th class="der">Egreso</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>10/06/2025</td>
+            <td>Desembolso préstamo N° 2</td>
+            <td>Préstamo</td>
+            <td class="der">—</td>
+            <td class="der">S/ 500.00</td>
+          </tr>
+          <tr>
+            <td>10/07/2025</td>
+            <td>Cuota 1 de préstamo N° 2</td>
+            <td>Pago de Cuota</td>
+            <td class="der">S/ 132.00</td>
+            <td class="der">—</td>
+          </tr>
+          <tr>
+            <td>10/08/2025</td>
+            <td>Cuota 2 de préstamo N° 2</td>
+            <td>Pago de Cuota</td>
+            <td class="der">S/ 132.00</td>
+            <td class="der">—</td>
+          </tr>
+          <tr>
+            <td>10/08/2026</td>
+            <td>Aporte obligatorio período 2026-08</td>
+            <td>Aporte</td>
+            <td class="der">S/ 50.00</td>
+            <td class="der">—</td>
+          </tr>
+          <tr class="fila-total">
+            <td colspan="3" class="der">Total</td>
+            <td class="der">S/ 314.00</td>
+            <td class="der">S/ 500.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= FIRMAS ================= -->
+    <section class="seccion-firmas">
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Firma del Socio</p>
+      </div>
+
+      <div class="bloque-firma">
+        <div class="linea-firma"></div>
+        <p class="nombre-firma">Firma del Tesorero</p>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>
