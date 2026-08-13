@@ -1,0 +1,10 @@
+flowchart LR
+    USR["Usuario"]
+    UI((("Solicitud de Reporte")))
+    CTRL["Generar Reporte PDF"]
+    CTRL2["Renderizar HTML a PDF"]
+    ENT_DATOS["Datos de Negocio"]
+    ENT_PDF["Documento PDF"]
+
+    USR --> UI --> CTRL --> ENT_DATOS
+    CTRL --> CTRL2 --> ENT_PDF

@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    actor U as Usuario
+    participant FE as Frontend (Socio)
+    participant S as EstadoCuentaService
+    participant DB as BD (Prisma/MySQL)
+
+    U->>FE: Abre estado de cuenta del socio
+    FE->>S: generate(socioId, fondoId)
+    S->>DB: socio + fondosSocios + fondo
+    S->>DB: aportes del FondoSocio
+    S->>DB: préstamos del FondoSocio + cuotas
+    DB-->>S: datos
+
+    Note over S: capitalAportado = Σ aportes (sin multas)
+    Note over S: saldoPrestamos = Σ saldoPendiente cuotas impagas
+    Note over S: interesesPagar = Σ interés cuotas impagas
+    Note over S: saldoNeto = capital − (saldoPrestamos + intereses)
+
+    S->>S: agrupa aportes por año (2026 ene–ago)
+    S->>S: lista préstamos con pagado/saldo/cuotas
+    S->>S: lista cuotas próximas (vencida/pendiente)
+    S->>S: concatena movimientos (aportes, desembolsos, pagos) y ordena por fecha
+    S-->>FE: HTML del estado de cuenta
+    FE-->>U: documento renderizado / PDF

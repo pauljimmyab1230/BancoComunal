@@ -1,7 +1,7 @@
-import { Users, Building2, DollarSign, Wallet, TrendingUp, TrendingDown, AlertTriangle, Clock, Activity, ArrowRight, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Users, Building2, DollarSign, Wallet, TrendingUp, TrendingDown, AlertTriangle, Clock, Activity, ArrowRight, Plus, Pencil, Trash2, Download } from 'lucide-react'
 import { useDashboard } from '../hooks/useDashboard'
-import { Card, Badge, LoadingSpinner, EmptyState } from '@/components/ui'
-import { formatCurrency, formatSaldosPorMoneda } from '@/lib/utils'
+import { Card, Badge, LoadingSpinner, EmptyState, Button } from '@/components/ui'
+import { formatCurrency, formatSaldosPorMoneda, exportCsv } from '@/lib/utils'
 import type { DashboardData } from '../types'
 
 const operacionIcon: Record<string, typeof Plus> = { CREATE: Plus, UPDATE: Pencil, DELETE: Trash2 }
@@ -21,7 +21,7 @@ function SummaryCards({ resumen, cajasCount }: { resumen: DashboardData['resumen
     { label: 'Saldo Total Cajas', value: formatSaldosPorMoneda(resumen.totalSaldoCajasPorMoneda), sub: `${cajasCount} cajas`, icon: Wallet, color: 'bg-green-50 text-green-600', border: 'border-green-100' },
     { label: 'Cartera Activa', value: formatCurrency(resumen.saldoPendienteCartera), sub: `${resumen.creditosActivos} préstamos`, icon: DollarSign, color: 'bg-indigo-50 text-indigo-600', border: 'border-indigo-100' },
     { label: 'Aportes del Mes', value: formatCurrency(resumen.aportesMes), sub: `${resumen.cantidadAportesMes} aportes`, icon: TrendingUp, color: 'bg-amber-50 text-amber-600', border: 'border-amber-100' },
-    { label: 'Cuotas Vencidas', value: resumen.cuotasVencidas, sub: 'requieren atención', icon: AlertTriangle, color: 'bg-red-50 text-red-600', border: 'border-red-100' },
+    { label: 'Cuotas Vencidas', value: resumen.cuotasVencidas, sub: `${resumen.tasaMorosidad.toFixed(1)}% morosidad`, icon: AlertTriangle, color: 'bg-red-50 text-red-600', border: 'border-red-100' },
     { label: 'Capital Recuperado', value: formatCurrency(resumen.capitalRecuperado), sub: `de ${formatCurrency(resumen.capitalPrestado)}`, icon: TrendingDown, color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-100' },
   ]
 
@@ -53,7 +53,12 @@ function CajasBar({ cajas }: { cajas: DashboardData['cajas'] }) {
     <Card className="mb-6">
       <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Wallet className="h-4 w-4" /> Estado de Cajas</h3>
-        <span className="text-xs text-gray-400">{cajas.length} cajas activas</span>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => exportCsv('cajas-dashboard.csv', ['Código', 'Nombre', 'Moneda', 'Saldo'], cajas.map(c => [c.codigo, c.nombre, c.moneda || 'PEN', c.saldoActual]))}>
+            <Download className="h-4 w-4 mr-1" /> CSV
+          </Button>
+          <span className="text-xs text-gray-400">{cajas.length} cajas activas</span>
+        </div>
       </div>
       <div className="p-5 space-y-3">
         {cajas.map((c) => {

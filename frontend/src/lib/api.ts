@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useAuthStore } from '@/stores/authStore'
 
 export const API_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -11,7 +12,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    const token = useAuthStore.getState().token
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
       sessionStorage.removeItem('authRedirecting')
@@ -19,6 +20,77 @@ api.interceptors.request.use(
     return config
   },
   (error) => Promise.reject(error)
+)
+
+let isRefreshing = false
+let failedQueue: { resolve: (token: string) => void; reject: (error: unknown) => void }[] = []
+
+function processQueue(error: unknown, token: string | null) {
+  failedQueue.forEach((prom) => {
+    if (error || !token) {
+      prom.reject(error)
+    } else {
+      prom.resolve(token)
+    }
+  })
+  failedQueue = []
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      const { refreshToken, setTokens, logout } = useAuthStore.getState()
+
+      if (!refreshToken) {
+        const hadToken = !!useAuthStore.getState().token
+        logout()
+        if (hadToken && !sessionStorage.getItem('authRedirecting')) {
+          sessionStorage.setItem('authRedirecting', '1')
+          window.location.replace('/login')
+        }
+        return Promise.reject(error)
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject })
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`
+          return api(originalRequest)
+        })
+      }
+
+      originalRequest._retry = true
+      isRefreshing = true
+
+      try {
+        const { data } = await axios.post(`${API_URL}/configuracion/refresh-token`, { refreshToken })
+        const newToken = data.data.token
+        const newRefreshToken = data.data.refreshToken
+        setTokens(newToken, newRefreshToken)
+        processQueue(null, newToken)
+        originalRequest.headers.Authorization = `Bearer ${newToken}`
+        return api(originalRequest)
+      } catch (refreshError) {
+        processQueue(refreshError, null)
+        logout()
+        if (!sessionStorage.getItem('authRedirecting')) {
+          sessionStorage.setItem('authRedirecting', '1')
+          window.location.replace('/login')
+        }
+        return Promise.reject(refreshError)
+      } finally {
+        isRefreshing = false
+      }
+    }
+
+    const message = getErrorMessage(error)
+    if (message) error.message = message
+    return Promise.reject(error)
+  }
 )
 
 export function extractServerMessage(error: unknown): string | null {
@@ -60,25 +132,6 @@ export function getErrorMessage(error: unknown, fallback?: string): string {
   return fallback || 'Ocurrió un error inesperado'
 }
 
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      const hadToken = !!localStorage.getItem('token')
-      localStorage.removeItem('token')
-      // Evitar bucle de recargas: solo redirigir si había sesión (expiró/inválida)
-      // y solo una vez por carga. Sin token no redirigimos para no recargar en loop.
-      if (hadToken && !sessionStorage.getItem('authRedirecting')) {
-        sessionStorage.setItem('authRedirecting', '1')
-        window.location.replace('/login')
-      }
-    }
-    const message = getErrorMessage(error)
-    if (message) error.message = message
-    return Promise.reject(error)
-  }
-)
-
 export { api }
 export default api
 
@@ -87,7 +140,7 @@ export default api
  * abre en una pestaña nueva. Devuelve true si el PDF se abrió correctamente.
  */
 export async function openProtectedPdf(url: string): Promise<boolean> {
-  const token = localStorage.getItem('token')
+  const token = useAuthStore.getState().token
   const response = await api.get(url, {
     responseType: 'blob',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,

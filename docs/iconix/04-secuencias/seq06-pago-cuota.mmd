@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    actor U as Tesorero
+    participant FE as Frontend (Detalle Crédito)
+    participant C as CreditoController
+    participant S as CreditoService
+    participant DB as BD (Prisma/MySQL)
+
+    U->>FE: Selecciona cuota y registra pago
+    FE->>C: POST /api/creditos/:id/cuotas/:num/pago
+    C->>S: pagarCuota(prestamoId, cuotaNum, data)
+    S->>DB: cuota.findFirst(prestamoId, numero)
+    DB-->>S: CuotaPrestamo
+    alt cuota no pagada
+        S->>DB: $transaction
+        DB->>DB: actualizar montoPagado, saldoPendiente, fechaPago, estado PAGADO
+        DB->>DB: crear MovimientoCaja (ingreso pago cuota)
+        DB->>DB: contar cuotas PAGADO del préstamo
+        alt todas pagadas
+            DB->>DB: actualizar Prestamo a PAGADO
+        end
+        DB-->>S: resultado
+        S-->>C: cuota + préstamo
+        C-->>FE: 200
+        FE-->>U: cronograma actualizado
+    else cuota ya pagada
+        S-->>C: HttpError(409)
+        C-->>FE: 409 "Cuota ya registrada"
+    end

@@ -18,6 +18,11 @@ export const usuarioPasswordSchema = z.object({
   password: z.string().min(6).max(255),
 })
 
+export const changeOwnPasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'La contraseña actual es requerida'),
+  newPassword: z.string().min(6, 'La nueva contraseña debe tener al menos 6 caracteres').max(255),
+})
+
 export const loginSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),

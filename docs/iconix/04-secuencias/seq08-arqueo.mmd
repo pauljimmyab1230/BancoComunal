@@ -1,0 +1,31 @@
+sequenceDiagram
+    autonumber
+    actor U as Tesorero
+    actor A as Administrador
+    participant FE as Frontend (Caja)
+    participant C as CajaController
+    participant S as CajaService
+    participant DB as BD (Prisma/MySQL)
+
+    U->>FE: Registra arqueo con saldo físico
+    FE->>C: POST /api/caja/arqueos
+    C->>S: registrarArqueo(data)
+    S->>DB: caja.findUnique(id)
+    S->>S: diferencia = saldoSistema - saldoFisico
+    DB->>DB: crear ArqueoCaja (PENDIENTE)
+    DB-->>S: arqueo
+
+    A->>FE: Aprueba el arqueo
+    FE->>C: PUT /api/caja/arqueos/:id/aprobar
+    C->>S: aprobarArqueo(id, data)
+    alt aprobado
+        DB->>DB: actualizar arqueo (APROBADO, fechaAprobacion)
+        DB->>DB: ajustar saldoActual de la Caja si hay diferencia
+        DB-->>S: arqueo aprobado
+        S-->>C: arqueo
+        C-->>FE: 200
+        FE-->>A: estado del arqueo
+    else rechazado
+        DB->>DB: actualizar arqueo (RECHAZADO, observación)
+        DB-->>S: arqueo rechazado
+    end

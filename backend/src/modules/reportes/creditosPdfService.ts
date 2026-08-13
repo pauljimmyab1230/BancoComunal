@@ -1,5 +1,5 @@
 import prisma from '../../config/prisma'
-import { HttpError } from '../../middeware/httpError'
+import { HttpError } from '../../middleware/httpError'
 import { renderHtmlToPdf } from './pdfService'
 import { buildCreditosSocioHtml, type CreditosSocioData, type CreditoGrupo, type CreditoItem } from './creditosSocioTemplate'
 

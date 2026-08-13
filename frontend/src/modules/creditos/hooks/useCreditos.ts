@@ -90,3 +90,22 @@ export function useAnularCredito() {
     },
   })
 }
+
+export function useLiquidarCredito() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: { prestamoId: number; metodoPago: string; fechaPago?: string; comprobante?: string }) =>
+      creditosApi.liquidar(data),
+    onSuccess: (res) => {
+      toast.success(res.message || 'Préstamo liquidado correctamente')
+      queryClient.invalidateQueries({ queryKey: ['creditos'] })
+      queryClient.invalidateQueries({ queryKey: ['credito'] })
+      queryClient.invalidateQueries({ queryKey: ['fondos'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al liquidar préstamo')
+    },
+  })
+}

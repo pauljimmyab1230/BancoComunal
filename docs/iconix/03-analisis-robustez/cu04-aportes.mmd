@@ -1,0 +1,16 @@
+flowchart LR
+    USR["Tesorero"]
+    UI((("Formulario de Aporte")))
+    CTRL["Registrar Aporte"]
+    ENT_FS["FondoSocio"]
+    ENT_APORTE["Aporte"]
+    ENT_CAJA["Caja"]
+    ENT_MOV["MovimientoCaja"]
+    ENT_CONC["ConceptoCaja"]
+
+    USR --> UI --> CTRL
+    CTRL --> ENT_FS
+    CTRL --> ENT_APORTE
+    CTRL --> ENT_MOV
+    ENT_CAJA --> ENT_MOV
+    ENT_CONC --> ENT_MOV

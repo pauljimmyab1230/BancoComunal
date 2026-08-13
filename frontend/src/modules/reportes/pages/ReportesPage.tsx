@@ -1,19 +1,34 @@
 import { useState } from 'react'
-import { Search, TrendingUp, Users, DollarSign, AlertTriangle, Wallet, HandCoins, BarChart3, Printer, Download } from 'lucide-react'
-import { useResumenEjecutivo, useCarteraCreditos, useEstadoResultados, useReporteAportes, useMorosos, useEstadoCuentasSocio } from '../hooks/useReportes'
+import { Search, TrendingUp, Users, DollarSign, AlertTriangle, Wallet, HandCoins, BarChart3, Printer, Download, FileText, ArrowDownCircle, ArrowUpCircle, Scale, Clock, BookOpen, Camera, WalletCards, ArrowLeft } from 'lucide-react'
+import { useResumenEjecutivo, useCarteraCreditos, useEstadoResultados, useReporteAportes, useMorosos, useEstadoCuentasSocio, useFlujoCaja, useBalanceGeneral, useAntiguedadCartera, useLibroDiario, useReporteArqueos, useMovimientosCaja } from '../hooks/useReportes'
 import { useFondos } from '@/modules/fondos/hooks/useFondos'
+import { useCajas } from '@/modules/caja/hooks/useCajas'
 import { Button, Card, FormField, Input, Select, SectionHeader, Badge, LoadingSpinner, EmptyState } from '@/components/ui'
-import { formatCurrency, formatSaldosPorMoneda, exportCsv } from '@/lib/utils'
+import { formatCurrency, formatSaldosPorMoneda, exportCsv, exportXlsx } from '@/lib/utils'
+import { openProtectedPdf, getErrorMessage } from '@/lib/api'
+import toast from 'react-hot-toast'
 import type { ResumenEjecutivo, CarteraCreditoPrestamo, EstadoResultadosFondo, ReporteAporte, Moroso, CarteraCreditosQuery, ReporteAportesQuery } from '../types'
 
-const tabs = [
-  { id: 'resumen', label: 'Resumen Ejecutivo', icon: BarChart3 },
-  { id: 'cartera', label: 'Cartera de Créditos', icon: DollarSign },
-  { id: 'resultados', label: 'Estado de Resultados', icon: TrendingUp },
-  { id: 'aportes', label: 'Aportes', icon: HandCoins },
-  { id: 'morosos', label: 'Morosos', icon: AlertTriangle },
-  { id: 'cuenta', label: 'Estado de Cuentas', icon: Users },
+const reportCards = [
+  { id: 'balance', label: 'Balance General', desc: 'Activos y patrimonio', icon: Scale, color: 'blue' },
+  { id: 'resultados', label: 'Estado de Resultados', desc: 'Ingresos vs egresos', icon: TrendingUp, color: 'green' },
+  { id: 'flujo', label: 'Flujo de Caja', desc: 'Movimientos de entrada y salida', icon: ArrowDownCircle, color: 'green' },
+  { id: 'cartera', label: 'Cartera de Créditos', desc: 'Préstamos activos y saldos', icon: DollarSign, color: 'purple' },
+  { id: 'aging', label: 'Antigüedad de Cartera', desc: 'Saldos por días de atraso', icon: Clock, color: 'purple' },
+  { id: 'morosos', label: 'Morosos', desc: 'Socios con cuotas vencidas', icon: AlertTriangle, color: 'red' },
+  { id: 'movimientos', label: 'Movimientos de Caja', desc: 'Detalle de transacciones', icon: WalletCards, color: 'green' },
+  { id: 'libro', label: 'Libro Diario', desc: 'Log cronológico de asientos', icon: BookOpen, color: 'blue' },
+  { id: 'cuenta', label: 'Estado de Cuentas', desc: 'Consulta por socio', icon: Users, color: 'orange' },
+  { id: 'docs', label: 'Documentos PDF', desc: 'Fichas, comprobantes, padrón', icon: FileText, color: 'red' },
 ]
+
+const colorMap: Record<string, { bg: string; icon: string; border: string }> = {
+  blue: { bg: 'bg-blue-50', icon: 'text-blue-600', border: 'hover:border-blue-300' },
+  purple: { bg: 'bg-purple-50', icon: 'text-purple-600', border: 'hover:border-purple-300' },
+  green: { bg: 'bg-green-50', icon: 'text-green-600', border: 'hover:border-green-300' },
+  orange: { bg: 'bg-orange-50', icon: 'text-orange-600', border: 'hover:border-orange-300' },
+  red: { bg: 'bg-red-50', icon: 'text-red-600', border: 'hover:border-red-300' },
+}
 
 function ResumenTab() {
   const { data, isLoading } = useResumenEjecutivo()
@@ -616,38 +631,478 @@ function EstadoCuentaTab() {
   )
 }
 
+function FlujoCajaTab() {
+  const getDefaultDate = (): { inicio: string; fin: string } => {
+    const now = new Date()
+    const first = new Date(now.getFullYear(), now.getMonth(), 1)
+    return { inicio: first.toISOString().split('T')[0] ?? '', fin: now.toISOString().split('T')[0] ?? '' }
+  }
+  const dates = getDefaultDate()
+  const [fechaInicio, setFechaInicio] = useState(dates.inicio)
+  const [fechaFin, setFechaFin] = useState(dates.fin)
+  const [cajaId, setCajaId] = useState('')
+  const { data: cajasData } = useCajas({ limit: 100 })
+  const { data, isLoading } = useFlujoCaja({ fechaInicio, fechaFin, cajaId: cajaId ? Number(cajaId) : undefined })
+
+  if (isLoading) return <div className="flex items-center justify-center py-20"><LoadingSpinner text="Cargando flujo de caja..." /></div>
+  if (!data) return <EmptyState title="Sin datos" />
+
+  const cajasOptions = (cajasData?.data || []).map((c: any) => ({ value: String(c.id), label: c.nombre }))
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-4">
+        <div className="flex items-end gap-4 flex-wrap">
+          <FormField label="Fecha Inicio"><Input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></FormField>
+          <FormField label="Fecha Fin"><Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} /></FormField>
+          <FormField label="Caja"><Select options={[{ value: '', label: 'Todas' }, ...cajasOptions]} value={cajaId} onChange={(e) => setCajaId(e.target.value)} /></FormField>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => exportCsv('flujo-caja.csv', ['Fecha', 'Código', 'Concepto', 'Tipo', 'Monto', 'Caja', 'Método'], data.movimientos.map(m => [m.fecha, m.codigo, m.concepto, m.tipo, m.monto, m.caja, m.metodoPago]))}><Download className="h-4 w-4 mr-1" /> CSV</Button>
+            <Button variant="secondary" size="sm" onClick={() => exportXlsx('flujo-caja.xlsx', ['Fecha', 'Código', 'Concepto', 'Tipo', 'Monto', 'Caja', 'Método'], data.movimientos.map(m => [m.fecha, m.codigo, m.concepto, m.tipo, m.monto, m.caja, m.metodoPago]))}><Download className="h-4 w-4 mr-1" /> Excel</Button>
+            <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir</Button>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="p-4"><p className="text-xs text-gray-500">Total Ingresos</p><p className="text-lg font-bold text-green-600">{formatCurrency(data.resumen.totalIngresos)}</p></Card>
+        <Card className="p-4"><p className="text-xs text-gray-500">Total Egresos</p><p className="text-lg font-bold text-red-600">{formatCurrency(data.resumen.totalEgresos)}</p></Card>
+        <Card className="p-4"><p className="text-xs text-gray-500">Flujo Neto</p><p className={`text-lg font-bold ${data.resumen.flujoNeto >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(data.resumen.flujoNeto)}</p></Card>
+      </div>
+
+      {data.porCaja.length > 0 && (
+        <Card>
+          <div className="px-5 py-3 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Por Caja</h3></div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm"><thead><tr className="border-b border-gray-100 bg-gray-50/50">
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Caja</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Ingresos</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Egresos</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Saldo</th>
+            </tr></thead><tbody className="divide-y divide-gray-50">
+              {data.porCaja.map((c, i) => (
+                <tr key={i} className="hover:bg-gray-50">
+                  <td className="px-5 py-3 font-medium">{c.caja}</td>
+                  <td className="px-5 py-3 text-right text-green-600">{formatCurrency(c.ingresos)}</td>
+                  <td className="px-5 py-3 text-right text-red-600">{formatCurrency(c.egresos)}</td>
+                  <td className={`px-5 py-3 text-right font-medium ${c.saldo >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(c.saldo)}</td>
+                </tr>
+              ))}
+            </tbody></table>
+          </div>
+        </Card>
+      )}
+
+      <Card>
+        <div className="px-5 py-3 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Detalle de Movimientos</h3></div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm"><thead><tr className="border-b border-gray-100 bg-gray-50/50">
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Fecha</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Código</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Concepto</th>
+            <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500">Tipo</th>
+            <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Monto</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Caja</th>
+          </tr></thead><tbody className="divide-y divide-gray-50">
+            {data.movimientos.map((m) => (
+              <tr key={m.id} className="hover:bg-gray-50">
+                <td className="px-5 py-3 text-sm">{new Date(m.fecha).toLocaleDateString('es-PE')}</td>
+                <td className="px-5 py-3 font-mono text-xs">{m.codigo}</td>
+                <td className="px-5 py-3">{m.concepto}</td>
+                <td className="px-5 py-3 text-center"><Badge variant={m.tipo === 'INGRESO' ? 'green' : 'red'}>{m.tipo}</Badge></td>
+                <td className={`px-5 py-3 text-right font-medium ${m.tipo === 'INGRESO' ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(m.monto)}</td>
+                <td className="px-5 py-3 text-sm text-gray-600">{m.caja}</td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function BalanceGeneralTab() {
+  const { data, isLoading } = useBalanceGeneral()
+  if (isLoading) return <div className="flex items-center justify-center py-20"><LoadingSpinner text="Cargando balance general..." /></div>
+  if (!data) return <EmptyState title="Sin datos" />
+
+  const cuadra = data.activos.total === data.patrimonio.total
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="p-4"><p className="text-xs text-gray-500">Total Activos</p><p className="text-lg font-bold text-blue-600">{formatCurrency(data.activos.total)}</p></Card>
+        <Card className="p-4"><p className="text-xs text-gray-500">Total Patrimonio</p><p className="text-lg font-bold text-green-600">{formatCurrency(data.patrimonio.total)}</p></Card>
+        <Card className="p-4">
+          <p className="text-xs text-gray-500">Ecuación Contable</p>
+          <div className="flex items-center gap-2 mt-1">
+            <Badge variant={cuadra ? 'green' : 'red'}>{cuadra ? 'CUADRA' : 'NO CUADRA'}</Badge>
+            <span className="text-xs text-gray-500">A = P</span>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <div className="px-5 py-3 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">ACTIVOS</h3></div>
+          <div className="p-5 space-y-3 text-sm">
+            <div className="flex justify-between"><span className="text-gray-500">Cajas (Efectivo)</span><span className="font-medium">{formatCurrency(data.activos.cajas)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Cartera de Créditos</span><span className="font-medium">{formatCurrency(data.activos.cartera)}</span></div>
+            <div className="flex justify-between border-t pt-2"><span className="font-semibold">Total Activos</span><span className="font-bold text-blue-600">{formatCurrency(data.activos.total)}</span></div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="px-5 py-3 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">PATRIMONIO</h3></div>
+          <div className="p-5 space-y-3 text-sm">
+            <div className="flex justify-between"><span className="text-gray-500">Capital Inicial</span><span className="font-medium">{formatCurrency(data.patrimonio.capitalInicial)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Aportes Acumulados</span><span className="font-medium text-green-600">{formatCurrency(data.patrimonio.aportes)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Interés Ganado</span><span className="font-medium text-green-600">{formatCurrency(data.patrimonio.interesGanado)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Gastos Operativos</span><span className="font-medium text-red-600">({formatCurrency(data.patrimonio.gastosOperativos)})</span></div>
+            <div className="flex justify-between border-t pt-2"><span className="text-gray-500">Resultado del Ejercicio</span><span className={`font-medium ${data.patrimonio.resultadoEjercicio >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(data.patrimonio.resultadoEjercicio)}</span></div>
+            <div className="flex justify-between border-t pt-2"><span className="font-semibold">Total Patrimonio</span><span className="font-bold text-green-600">{formatCurrency(data.patrimonio.total)}</span></div>
+          </div>
+        </Card>
+      </div>
+      <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir</Button>
+    </div>
+  )
+}
+
+function AntiguedadCarteraTab() {
+  const { data, isLoading } = useAntiguedadCartera()
+  if (isLoading) return <div className="flex items-center justify-center py-20"><LoadingSpinner text="Cargando antigüedad de cartera..." /></div>
+  if (!data) return <EmptyState title="Sin datos" />
+
+  const rangoColors: Record<string, string> = { '0-30': 'green', '31-60': 'blue', '61-90': 'yellow', '90+': 'red' }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card className="p-4"><p className="text-xs text-gray-500">Total Cuotas Pendientes</p><p className="text-lg font-bold">{data.total.cantidad}</p></Card>
+        <Card className="p-4"><p className="text-xs text-gray-500">Monto Total Pendiente</p><p className="text-lg font-bold text-red-600">{formatCurrency(data.total.monto)}</p></Card>
+      </div>
+      <Card>
+        <div className="px-5 py-3 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Antigüedad por Rango de Días</h3></div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm"><thead><tr className="border-b border-gray-100 bg-gray-50/50">
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Rango de Días</th>
+            <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500">Cantidad Cuotas</th>
+            <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Monto</th>
+            <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">% del Total</th>
+          </tr></thead><tbody className="divide-y divide-gray-50">
+            {data.rangos.map((r) => (
+              <tr key={r.rango} className="hover:bg-gray-50">
+                <td className="px-5 py-3"><Badge variant={(rangoColors[r.rango] as any) || 'gray'}>{r.rango} días</Badge></td>
+                <td className="px-5 py-3 text-center font-medium">{r.cantidad}</td>
+                <td className="px-5 py-3 text-right font-medium">{formatCurrency(r.monto)}</td>
+                <td className="px-5 py-3 text-right text-sm text-gray-600">{data.total.monto > 0 ? ((r.monto / data.total.monto) * 100).toFixed(1) : 0}%</td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+      </Card>
+      <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir</Button>
+    </div>
+  )
+}
+
+function LibroDiarioTab() {
+  const getDefaultDate = (): { inicio: string; fin: string } => {
+    const now = new Date()
+    const first = new Date(now.getFullYear(), now.getMonth(), 1)
+    return { inicio: first.toISOString().split('T')[0] ?? '', fin: now.toISOString().split('T')[0] ?? '' }
+  }
+  const dates = getDefaultDate()
+  const [fechaInicio, setFechaInicio] = useState(dates.inicio)
+  const [fechaFin, setFechaFin] = useState(dates.fin)
+  const { data, isLoading } = useLibroDiario({ fechaInicio, fechaFin })
+
+  if (isLoading) return <div className="flex items-center justify-center py-20"><LoadingSpinner text="Cargando libro diario..." /></div>
+  if (!data) return <EmptyState title="Sin datos" />
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-4">
+        <div className="flex items-end gap-4 flex-wrap">
+          <FormField label="Fecha Inicio"><Input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></FormField>
+          <FormField label="Fecha Fin"><Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} /></FormField>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => exportCsv('libro-diario.csv', ['Fecha', 'Código', 'Concepto', 'Tipo', 'Monto', 'Caja', 'Comprobante'], data.asientos.map(a => [a.fecha, a.codigo, a.concepto, a.tipo, a.monto, a.caja, a.comprobante || '']))}><Download className="h-4 w-4 mr-1" /> CSV</Button>
+            <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir</Button>
+          </div>
+        </div>
+      </Card>
+      <Card>
+        <div className="px-5 py-3 border-b border-gray-100 flex justify-between">
+          <h3 className="text-sm font-semibold text-gray-700">Asientos Contables</h3>
+          <Badge variant="gray">{data.total} registros</Badge>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm"><thead><tr className="border-b border-gray-100 bg-gray-50/50">
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Fecha</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Código</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Concepto</th>
+            <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500">Tipo</th>
+            <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Monto</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Caja</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Comprobante</th>
+          </tr></thead><tbody className="divide-y divide-gray-50">
+            {data.asientos.map((a) => (
+              <tr key={a.id} className="hover:bg-gray-50">
+                <td className="px-5 py-3 text-sm">{new Date(a.fecha).toLocaleDateString('es-PE')}</td>
+                <td className="px-5 py-3 font-mono text-xs">{a.codigo}</td>
+                <td className="px-5 py-3">{a.concepto}</td>
+                <td className="px-5 py-3 text-center"><Badge variant={a.tipo === 'INGRESO' ? 'green' : 'red'}>{a.tipo}</Badge></td>
+                <td className={`px-5 py-3 text-right font-medium ${a.tipo === 'INGRESO' ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(a.monto)}</td>
+                <td className="px-5 py-3 text-sm text-gray-600">{a.caja}</td>
+                <td className="px-5 py-3 text-sm text-gray-600">{a.comprobante || '—'}</td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function ArqueosTab() {
+  const { data, isLoading } = useReporteArqueos()
+  if (isLoading) return <div className="flex items-center justify-center py-20"><LoadingSpinner text="Cargando arqueos..." /></div>
+  if (!data) return <EmptyState title="Sin datos" />
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-4"><p className="text-xs text-gray-500">Total Arqueos</p><p className="text-lg font-bold">{data.resumen.total}</p></Card>
+        <Card className="p-4"><p className="text-xs text-gray-500">Aprobados</p><p className="text-lg font-bold text-green-600">{data.resumen.aprobados}</p></Card>
+        <Card className="p-4"><p className="text-xs text-gray-500">Pendientes</p><p className="text-lg font-bold text-yellow-600">{data.resumen.pendientes}</p></Card>
+        <Card className="p-4"><p className="text-xs text-gray-500">Con Diferencia</p><p className="text-lg font-bold text-red-600">{data.resumen.conDiferencia}</p></Card>
+      </div>
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm"><thead><tr className="border-b border-gray-100 bg-gray-50/50">
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Código</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Fecha</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Caja</th>
+            <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Saldo Sistema</th>
+            <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Saldo Físico</th>
+            <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Diferencia</th>
+            <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500">Estado</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Aprobado por</th>
+          </tr></thead><tbody className="divide-y divide-gray-50">
+            {data.arqueos.map((a) => (
+              <tr key={a.id} className="hover:bg-gray-50">
+                <td className="px-5 py-3 font-mono text-xs">{a.codigo}</td>
+                <td className="px-5 py-3 text-sm">{new Date(a.fecha).toLocaleDateString('es-PE')}</td>
+                <td className="px-5 py-3">{a.caja}</td>
+                <td className="px-5 py-3 text-right">{formatCurrency(a.saldoSistema)}</td>
+                <td className="px-5 py-3 text-right">{formatCurrency(a.saldoFisico)}</td>
+                <td className={`px-5 py-3 text-right font-medium ${a.diferencia === 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(a.diferencia)}</td>
+                <td className="px-5 py-3 text-center"><Badge variant={a.estado === 'APROBADO' ? 'green' : 'yellow'}>{a.estado}</Badge></td>
+                <td className="px-5 py-3 text-sm text-gray-600">{a.aprobadoPor || '—'}</td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+      </Card>
+      <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir</Button>
+    </div>
+  )
+}
+
+function MovimientosCajaTab() {
+  const [cajaId, setCajaId] = useState('')
+  const [tipo, setTipo] = useState('')
+  const { data: cajasData } = useCajas({ limit: 100 })
+  const { data, isLoading } = useMovimientosCaja({ cajaId: cajaId ? Number(cajaId) : undefined, tipo: tipo || undefined })
+  const cajasOptions = (cajasData?.data || []).map((c: any) => ({ value: String(c.id), label: c.nombre }))
+
+  if (isLoading) return <div className="flex items-center justify-center py-20"><LoadingSpinner text="Cargando movimientos..." /></div>
+  if (!data) return <EmptyState title="Sin datos" />
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-4">
+        <div className="flex items-end gap-4 flex-wrap">
+          <FormField label="Caja"><Select options={[{ value: '', label: 'Todas' }, ...cajasOptions]} value={cajaId} onChange={(e) => setCajaId(e.target.value)} /></FormField>
+          <FormField label="Tipo"><Select options={[{ value: '', label: 'Todos' }, { value: 'INGRESO', label: 'Ingresos' }, { value: 'EGRESO', label: 'Egresos' }]} value={tipo} onChange={(e) => setTipo(e.target.value)} /></FormField>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => exportCsv('movimientos-caja.csv', ['Fecha', 'Código', 'Concepto', 'Tipo', 'Monto', 'Caja', 'Método', 'Estado'], data.movimientos.map(m => [m.fecha, m.codigo, m.concepto, m.tipo, m.monto, m.caja, m.metodoPago, m.estado]))}><Download className="h-4 w-4 mr-1" /> CSV</Button>
+            <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir</Button>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="p-4"><p className="text-xs text-gray-500">Total Movimientos</p><p className="text-lg font-bold">{data.resumen.total}</p></Card>
+        <Card className="p-4"><p className="text-xs text-gray-500">Ingresos</p><p className="text-lg font-bold text-green-600">{formatCurrency(data.resumen.ingresos)}</p></Card>
+        <Card className="p-4"><p className="text-xs text-gray-500">Egresos</p><p className="text-lg font-bold text-red-600">{formatCurrency(data.resumen.egresos)}</p></Card>
+      </div>
+
+      {data.resumen.porConcepto.length > 0 && (
+        <Card>
+          <div className="px-5 py-3 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Por Concepto</h3></div>
+          <div className="p-5 flex flex-wrap gap-4 text-sm">
+            {data.resumen.porConcepto.map((c, i) => (
+              <div key={i} className="flex flex-col"><span className="text-xs text-gray-500">{c.concepto}</span><span className="font-semibold">{formatCurrency(c.monto)}</span></div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm"><thead><tr className="border-b border-gray-100 bg-gray-50/50">
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Fecha</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Código</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Concepto</th>
+            <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500">Tipo</th>
+            <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500">Monto</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Caja</th>
+            <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500">Estado</th>
+          </tr></thead><tbody className="divide-y divide-gray-50">
+            {data.movimientos.map((m) => (
+              <tr key={m.id} className="hover:bg-gray-50">
+                <td className="px-5 py-3 text-sm">{new Date(m.fecha).toLocaleDateString('es-PE')}</td>
+                <td className="px-5 py-3 font-mono text-xs">{m.codigo}</td>
+                <td className="px-5 py-3">{m.concepto}</td>
+                <td className="px-5 py-3 text-center"><Badge variant={m.tipo === 'INGRESO' ? 'green' : 'red'}>{m.tipo}</Badge></td>
+                <td className={`px-5 py-3 text-right font-medium ${m.tipo === 'INGRESO' ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(m.monto)}</td>
+                <td className="px-5 py-3 text-sm text-gray-600">{m.caja}</td>
+                <td className="px-5 py-3 text-center"><Badge variant={m.estado === 'REGISTRADO' ? 'blue' : 'gray'}>{m.estado}</Badge></td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function DocumentosTab() {
+  const [socioSearch, setSocioSearch] = useState('')
+  const [fondoId, setFondoId] = useState('')
+  const [anio, setAnio] = useState(String(new Date().getFullYear()))
+  const { data: fondosData } = useFondos({ limit: 1000 })
+  const fondosOptions = (fondosData?.data || []).map((f: any) => ({ value: String(f.id), label: f.nombre }))
+
+  const pdfs = [
+    { label: 'Ficha de Socio', desc: 'Perfil individual del socio', icon: Users, action: () => openPdf(`/reportes/ficha-socio/pdf?socioId=${socioSearch}`) },
+    { label: 'Historial de Aportes (Socio)', desc: 'Aportes de un socio', icon: HandCoins, action: () => openPdf(`/reportes/aportes-socio/pdf?socioId=${socioSearch}`) },
+    { label: 'Historial de Créditos (Socio)', desc: 'Créditos de un socio', icon: DollarSign, action: () => openPdf(`/reportes/creditos-socio/pdf?socioId=${socioSearch}`) },
+    { label: 'Estado de Cuenta (Socio)', desc: 'Estado de cuentas completo', icon: FileText, action: () => openPdf(`/reportes/estado-cuenta-socio/pdf?socioId=${socioSearch}`) },
+    { label: 'Comprobante de Aporte', desc: 'Comprobante de ingreso', icon: FileText, action: () => openPdf(`/reportes/comprobante-aporte/pdf?aporteId=${socioSearch}`) },
+    { label: 'Padrón de Fondo', desc: 'Listado de socios del fondo', icon: Users, action: () => fondoId && openPdf(`/reportes/padron-fondo/pdf?fondoId=${fondoId}`) },
+    { label: 'Resumen de Fondo', desc: 'Resumen anual del fondo', icon: BarChart3, action: () => fondoId && openPdf(`/reportes/resumen-fondo/pdf?fondoId=${fondoId}`) },
+    { label: 'Aportes por Fondo', desc: 'Historial de aportes del fondo', icon: HandCoins, action: () => fondoId && openPdf(`/reportes/aportes-fondo/pdf?fondoId=${fondoId}&anio=${anio}`) },
+  ]
+
+  const openPdf = async (url: string) => {
+    try { await openProtectedPdf(url) }
+    catch { toast.error('Error al generar el PDF') }
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-4">
+        <h3 className="text-sm font-semibold text-gray-700 mb-4">Parámetros</h3>
+        <div className="flex items-end gap-4 flex-wrap">
+          <FormField label="ID Socio / Aporte"><Input value={socioSearch} onChange={(e) => setSocioSearch(e.target.value)} placeholder="ID numérico" className="max-w-[160px]" /></FormField>
+          <FormField label="Fondo"><Select options={[{ value: '', label: 'Seleccione...' }, ...fondosOptions]} value={fondoId} onChange={(e) => setFondoId(e.target.value)} /></FormField>
+          <FormField label="Año"><Input type="number" value={anio} onChange={(e) => setAnio(e.target.value)} className="max-w-[100px]" /></FormField>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {pdfs.map((pdf) => (
+          <Card key={pdf.label} className="p-4 hover:border-[#2563EB]/30 transition-colors cursor-pointer" onClick={pdf.action}>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50"><pdf.icon className="h-5 w-5 text-red-600" /></div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">{pdf.label}</p>
+                <p className="text-xs text-gray-500">{pdf.desc}</p>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function ReportesPage() {
-  const [activeTab, setActiveTab] = useState('resumen')
+  const [activeReport, setActiveReport] = useState<string | null>(null)
+
+  const handleBack = () => setActiveReport(null)
+
+  const reportComponents: Record<string, () => JSX.Element> = {
+    cartera: CarteraTab,
+    resultados: ResultadosTab,
+    morosos: MorososTab,
+    cuenta: EstadoCuentaTab,
+    flujo: FlujoCajaTab,
+    balance: BalanceGeneralTab,
+    aging: AntiguedadCarteraTab,
+    libro: LibroDiarioTab,
+    movimientos: MovimientosCajaTab,
+    docs: DocumentosTab,
+  }
+
+  const reportTitles: Record<string, string> = {
+    cartera: 'Cartera de Créditos',
+    resultados: 'Estado de Resultados',
+    morosos: 'Morosos',
+    cuenta: 'Estado de Cuentas',
+    flujo: 'Flujo de Caja',
+    balance: 'Balance General',
+    aging: 'Antigüedad de Cartera',
+    libro: 'Libro Diario',
+    movimientos: 'Movimientos de Caja',
+    docs: 'Documentos PDF',
+  }
+
+  if (activeReport && reportComponents[activeReport]) {
+    const ReportComponent = reportComponents[activeReport]
+    return (
+      <div>
+        <div className="mb-6">
+          <Button variant="ghost" size="sm" onClick={handleBack} iconLeft={<ArrowLeft className="h-4 w-4" />}>
+            Volver a Reportes
+          </Button>
+        </div>
+        <SectionHeader title={reportTitles[activeReport] || ''} description="" />
+        <ReportComponent />
+      </div>
+    )
+  }
 
   return (
     <div>
-      <SectionHeader title="Reportes" description="Informes y análisis del sistema financiero" />
+      <SectionHeader title="Reportes" description="Selecciona un reporte para ver el detalle" />
 
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="flex gap-0 -mb-px overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'border-[#2563EB] text-[#2563EB]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {reportCards.map((item) => {
+          const colors = colorMap[item.color] || colorMap.blue
+          return (
+            <Card
+              key={item.id}
+              className={`p-5 cursor-pointer transition-all hover:shadow-md ${colors.border}`}
+              onClick={() => setActiveReport(item.id)}
             >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+              <div className="flex items-start gap-4">
+                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${colors.bg}`}>
+                  <item.icon className={`h-5 w-5 ${colors.icon}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{item.label}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+                </div>
+              </div>
+            </Card>
+          )
+        })}
       </div>
-
-      {activeTab === 'resumen' && <ResumenTab />}
-      {activeTab === 'cartera' && <CarteraTab />}
-      {activeTab === 'resultados' && <ResultadosTab />}
-      {activeTab === 'aportes' && <AportesTab />}
-      {activeTab === 'morosos' && <MorososTab />}
-      {activeTab === 'cuenta' && <EstadoCuentaTab />}
     </div>
   )
 }

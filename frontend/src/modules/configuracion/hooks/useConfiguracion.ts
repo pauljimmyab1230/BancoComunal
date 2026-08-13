@@ -72,6 +72,19 @@ export function useUpdatePassword() {
   })
 }
 
+export function useChangeOwnPassword() {
+  return useMutation({
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+      configuracionApi.changeOwnPassword(currentPassword, newPassword),
+    onSuccess: (res) => {
+      toast.success(res.message || 'Contraseña actualizada correctamente')
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al actualizar contraseña')
+    },
+  })
+}
+
 export function useDeleteUsuario() {
   const queryClient = useQueryClient()
 

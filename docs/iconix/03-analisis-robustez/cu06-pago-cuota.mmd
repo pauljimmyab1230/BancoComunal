@@ -1,0 +1,14 @@
+flowchart LR
+    USR["Tesorero"]
+    UI((("Registro de Pago de Cuota")))
+    CTRL["Registrar Pago de Cuota"]
+    ENT_PREST["Prestamo"]
+    ENT_CUOTA["CuotaPrestamo"]
+    ENT_MOV["MovimientoCaja"]
+    ENT_CONC["ConceptoCaja"]
+
+    USR --> UI --> CTRL
+    CTRL --> ENT_PREST
+    CTRL --> ENT_CUOTA
+    CTRL --> ENT_MOV
+    ENT_CONC --> ENT_MOV

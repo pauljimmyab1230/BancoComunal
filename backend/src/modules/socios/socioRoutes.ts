@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { socioController } from './socioController'
 import { upload } from '../../config/upload'
-import { authorize } from '../../middeware/auth'
+import { authorize } from '../../middleware/auth'
 
 const router = Router()
 

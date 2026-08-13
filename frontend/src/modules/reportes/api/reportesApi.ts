@@ -31,4 +31,34 @@ export const reportesApi = {
     const { data } = await api.get('/reportes/resumen-ejecutivo')
     return data.data
   },
+
+  getFlujoCaja: async (params: { cajaId?: number; fechaInicio: string; fechaFin: string }): Promise<import('../types').FlujoCajaData> => {
+    const { data } = await api.get('/reportes/flujo-caja', { params })
+    return data.data
+  },
+
+  getBalanceGeneral: async (params?: { fondoId?: number }): Promise<import('../types').BalanceGeneralData> => {
+    const { data } = await api.get('/reportes/balance-general', { params })
+    return data.data
+  },
+
+  getAntiguedadCartera: async (params?: { fondoId?: number }): Promise<import('../types').AntiguedadCarteraData> => {
+    const { data } = await api.get('/reportes/antiguedad-cartera', { params })
+    return data.data
+  },
+
+  getLibroDiario: async (params: { cajaId?: number; fechaInicio: string; fechaFin: string; limit?: number }): Promise<import('../types').LibroDiarioData> => {
+    const { data } = await api.get('/reportes/libro-diario', { params })
+    return data.data
+  },
+
+  getReporteArqueos: async (params?: { cajaId?: number; fechaInicio?: string; fechaFin?: string; limit?: number }): Promise<import('../types').ReporteArqueosData> => {
+    const { data } = await api.get('/reportes/reporte-arqueos', { params })
+    return data.data
+  },
+
+  getMovimientosCaja: async (params?: { cajaId?: number; fechaInicio?: string; fechaFin?: string; tipo?: string; limit?: number }): Promise<import('../types').MovimientosCajaData> => {
+    const { data } = await api.get('/reportes/movimientos-caja', { params })
+    return data.data
+  },
 }

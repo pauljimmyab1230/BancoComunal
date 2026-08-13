@@ -46,4 +46,9 @@ export const creditosApi = {
     const { data } = await api.put(`/creditos/${id}/anular`)
     return data
   },
+
+  liquidar: async (form: { prestamoId: number; metodoPago: string; fechaPago?: string; comprobante?: string }): Promise<ApiResponse<any>> => {
+    const { data } = await api.post('/creditos/liquidar', form)
+    return data
+  },
 }

@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { creditoController } from './creditoController'
-import { authorize } from '../../middeware/auth'
+import { authorize } from '../../middleware/auth'
 
 const router = Router()
 

@@ -1,0 +1,59 @@
+flowchart LR
+    subgraph Actores["ACTORES"]
+        ADM(["Administrador"])
+        TES(["Tesorero / Cajero"])
+        SOC(["Socio"])
+        SIS(["Sistema"])
+    end
+
+    CU01["CU-01 Autenticarse"]
+    CU02["CU-02 Gestionar Socios"]
+    CU03["CU-03 Gestionar Fondos"]
+    CU04["CU-04 Registrar Aportes"]
+    CU05["CU-05 Otorgar Préstamo"]
+    CU06["CU-06 Registrar Pago de Cuota"]
+    CU07["CU-07 Gestionar Caja"]
+    CU08["CU-08 Realizar Arqueo de Caja"]
+    CU09["CU-09 Proyecciones de Flujo de Caja"]
+    CU10["CU-10 Generar Reportes PDF"]
+    CU11["CU-11 Consultar Estado de Cuenta"]
+    CU12["CU-12 Consultar Auditoría"]
+    CU13["CU-13 Gestionar Configuración"]
+    CU14["CU-14 Ver Dashboard"]
+    CU15["CU-15 Cerrar Sesión"]
+    CUMOV["Registrar Movimiento de Caja"]
+
+    ADM --- CU01
+    TES --- CU01
+    ADM --- CU02
+    TES --- CU02
+    ADM --- CU03
+    TES --- CU04
+    TES --- CU05
+    TES --- CU06
+    TES --- CU07
+    TES --- CU08
+    ADM --- CU08
+    TES --- CU09
+    ADM --- CU10
+    TES --- CU10
+    SOC --- CU11
+    ADM --- CU11
+    ADM --- CU12
+    ADM --- CU13
+    ADM --- CU14
+    TES --- CU14
+    ADM --- CU15
+    TES --- CU15
+
+    CU04 -. include .-> CUMOV
+    CU06 -. include .-> CUMOV
+    SIS -.-> CU08
+    SIS -.-> CU11
+
+    classDef actor fill:#dbeafe,stroke:#1e3a8a,color:#1e3a8a,stroke-width:2px
+    classDef cu fill:#ffffff,stroke:#2563eb,color:#111827
+    classDef inc fill:#fff7ed,stroke:#c2410c,color:#7c2d12
+    class ADM,TES,SOC,SIS actor
+    class CU01,CU02,CU03,CU04,CU05,CU06,CU07,CU08,CU09,CU10,CU11,CU12,CU13,CU14,CU15 cu
+    class CUMOV inc

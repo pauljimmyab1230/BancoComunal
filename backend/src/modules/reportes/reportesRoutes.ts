@@ -19,5 +19,11 @@ router.get('/cronograma-cuotas/pdf', reportesController.cronogramaCuotasPdf)
 router.get('/comprobante-aporte/pdf', reportesController.comprobanteAportePdf)
 router.get('/aportes-fondo/pdf', reportesController.aportesFondoPdf)
 router.get('/aportes-fondo/anios', reportesController.aportesFondoAnios)
+router.get('/flujo-caja', reportesController.flujoCaja)
+router.get('/balance-general', reportesController.balanceGeneral)
+router.get('/antiguedad-cartera', reportesController.antiguedadCartera)
+router.get('/libro-diario', reportesController.libroDiario)
+router.get('/reporte-arqueos', reportesController.reporteArqueos)
+router.get('/movimientos-caja', reportesController.movimientosCaja)
 
 export default router

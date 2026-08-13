@@ -1,0 +1,22 @@
+sequenceDiagram
+    autonumber
+    actor U as Tesorero
+    participant FE as Frontend (Caja)
+    participant C as CajaController
+    participant S as CajaService
+    participant DB as BD (Prisma/MySQL)
+
+    U->>FE: Registra ingreso/egreso con concepto
+    FE->>C: POST /api/caja/movimientos
+    C->>S: registrarMovimiento(data)
+    S->>DB: caja.findUnique(id)
+    S->>DB: concepto.findUnique(id)
+    DB-->>S: Caja y Concepto
+    S->>S: valida tipo y afectaSaldo
+    S->>DB: $transaction
+    DB->>DB: crear MovimientoCaja
+    DB->>DB: actualizar saldoActual de la Caja
+    DB-->>S: movimiento
+    S-->>C: movimiento
+    C-->>FE: 201
+    FE-->>U: detalle actualizado de la caja

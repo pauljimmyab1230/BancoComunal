@@ -2,7 +2,7 @@ import prisma from '../../config/prisma'
 import path from 'path'
 import fs from 'fs'
 import { env } from '../../config/env'
-import { HttpError } from '../../middeware/httpError'
+import { HttpError } from '../../middleware/httpError'
 import { createAuditLog } from '../../config/auditLog'
 
 const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR)

@@ -23,7 +23,8 @@ export default function LoginPage() {
       useAuthStore.getState().login(result.data.token, {
         name: result.data.user?.nombres || username,
         email: result.data.user?.correo || '',
-      })
+        role: result.data.user?.rol,
+      }, result.data.refreshToken)
       navigate(from, { replace: true })
     }
   }

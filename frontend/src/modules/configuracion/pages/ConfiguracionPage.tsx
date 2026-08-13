@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Users, Key, BookOpen, Building2, Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
 import {
   useUsuarios,
@@ -558,15 +558,15 @@ function OrganizacionTab() {
 
   const [orgName, setOrgName] = useState('')
   const [moneda, setMoneda] = useState('')
-  const [initialized, setInitialized] = useState(false)
+
+  useEffect(() => {
+    if (organizacion) {
+      setOrgName(organizacion.organizacion || '')
+      setMoneda(organizacion.monedaDefault || 'PEN')
+    }
+  }, [organizacion])
 
   if (isLoading) return <div className="flex justify-center py-20"><LoadingSpinner text="Cargando organización..." /></div>
-
-  if (organizacion && !initialized) {
-    setOrgName(organizacion.organizacion || '')
-    setMoneda(organizacion.monedaDefault || 'PEN')
-    setInitialized(true)
-  }
 
   const handleSave = async () => {
     await updateMutation.mutateAsync({ organizacion: orgName, monedaDefault: moneda })

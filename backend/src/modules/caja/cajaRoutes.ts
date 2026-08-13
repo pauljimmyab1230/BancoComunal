@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { cajaController } from './cajaController'
-import { authorize } from '../../middeware/auth'
+import { authorize } from '../../middleware/auth'
 
 const router = Router()
 
@@ -11,12 +11,6 @@ router.get('/resumen/:cajaId', cajaController.getResumen)
 
 // Transferencias entre cajas
 router.post('/transferencias', authorize('ADMIN', 'TESORERO'), cajaController.transferir)
-
-// Conceptos de Caja
-router.get('/conceptos', cajaController.listConceptos)
-router.post('/conceptos', authorize('ADMIN'), cajaController.createConcepto)
-router.put('/conceptos/:id', authorize('ADMIN'), cajaController.updateConcepto)
-router.delete('/conceptos/:id', authorize('ADMIN'), cajaController.deleteConcepto)
 
 // Movimientos
 router.get('/movimientos', cajaController.listMovimientos)

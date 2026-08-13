@@ -1,0 +1,23 @@
+sequenceDiagram
+    autonumber
+    actor U as Usuario
+    participant FE as Frontend (Reportes)
+    participant C as ReportesController
+    participant S as ReportesPdfService
+    participant DB as BD (Prisma/MySQL)
+    participant CH as Chromium (Playwright)
+
+    U->>FE: Solicita reporte (ej. estado de cuenta)
+    FE->>C: GET /api/reportes/estado-cuenta-socio/pdf?socioId=&fondoId=
+    C->>S: generate(socioId, fondoId)
+    S->>DB: socio.findUnique + fondosSocios + fondo
+    S->>DB: aporte.findMany(fondoSocio)
+    S->>DB: prestamo.findMany(fondoSocio) + cuotas
+    DB-->>S: datos
+    S->>S: calcula resumen, agrupa aportes, lista préstamos/cuotas/movimientos
+    S->>S: buildEstadoCuentaHtml(data)
+    S->>CH: renderHtmlToPdf(html)
+    CH-->>S: Buffer PDF
+    S-->>C: pdf
+    C->>FE: 200 application/pdf
+    FE-->>U: abre PDF en pestaña nueva

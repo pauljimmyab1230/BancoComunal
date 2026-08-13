@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { aporteController } from './aporteController'
-import { authorize } from '../../middeware/auth'
+import { authorize } from '../../middleware/auth'
 
 const router = Router()
 

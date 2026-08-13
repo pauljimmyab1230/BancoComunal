@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    actor U as Usuario
+    participant FE as Frontend (Login)
+    participant C as ConfiguracionController
+    participant S as ConfiguracionService
+    participant DB as BD (Prisma/MySQL)
+
+    U->>FE: Ingresa usuario y contraseña
+    FE->>C: POST /api/configuracion/login
+    C->>S: login(username, password)
+    S->>DB: findUnique(usuario by username)
+    DB-->>S: usuario (o null)
+    alt credenciales válidas y ACTIVO
+        S->>S: bcrypt.compare(password)
+        S->>S: firma JWT (JWT_SECRET)
+        S-->>C: { user, token }
+        C-->>FE: 200 { user, token }
+        FE->>FE: guarda token en localStorage
+        FE-->>U: redirige a /dashboard
+    else credenciales incorrectas
+        S-->>C: HttpError(401)
+        C-->>FE: 401 "Usuario o contraseña incorrectos"
+    else usuario desactivado
+        S-->>C: HttpError(403)
+        C-->>FE: 403 motivo
+    end

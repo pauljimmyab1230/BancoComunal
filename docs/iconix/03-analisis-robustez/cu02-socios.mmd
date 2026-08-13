@@ -1,0 +1,14 @@
+flowchart LR
+    USR["Tesorero"]
+    UI((("Formulario / Lista de Socios")))
+    CTRL["Gestionar Socio"]
+    ENT_SOCIO["Socio"]
+    ENT_BEN["Beneficiario"]
+    ENT_DOC["DocumentoSocio"]
+    ENT_AUDIT["AuditLog"]
+
+    USR --> UI --> CTRL
+    CTRL --> ENT_SOCIO
+    CTRL --> ENT_BEN
+    CTRL --> ENT_DOC
+    CTRL --> ENT_AUDIT

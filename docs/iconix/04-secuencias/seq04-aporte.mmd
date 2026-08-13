@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    actor U as Tesorero
+    participant FE as Frontend (Aporte)
+    participant C as AporteController
+    participant S as AporteService
+    participant DB as BD (Prisma/MySQL)
+
+    U->>FE: Selecciona socio, fondo, tipo y monto
+    FE->>C: POST /api/aportes
+    C->>S: crear(data)
+    S->>DB: fondoSocio.findFirst(fondoId, socioId, activo)
+    DB-->>S: FondoSocio
+    S->>DB: aporte.findFirst(tipo OBLIGATORIO, periodo, fondoSocioId)
+    DB-->>S: duplicado (o null)
+    alt sin duplicado y monto válido
+        S->>DB: $transaction
+        DB->>DB: crear Aporte
+        DB->>DB: crear MovimientoCaja (ingreso)
+        DB->>DB: actualizar saldo Caja
+        DB-->>S: Aporte creado
+        S-->>C: aporte
+        C-->>FE: 201 { aporte }
+        FE-->>U: notificación + opción de comprobante PDF
+    else aporte duplicado
+        S-->>C: HttpError(409)
+        C-->>FE: 409 mensaje claro
+    end

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, User, Building2, Calendar, CheckCircle, DollarSign, Pencil, Trash2, Printer } from 'lucide-react'
-import { useCredito, usePagarCuota, useAnularCredito } from '../hooks/useCreditos'
+import { useCredito, usePagarCuota, useAnularCredito, useLiquidarCredito } from '../hooks/useCreditos'
 import { Button, SectionHeader, Card, Badge, LoadingSpinner, Modal, ConfirmDialog, FormField, Input, Select } from '@/components/ui'
 import { openProtectedPdf, getErrorMessage } from '@/lib/api'
 import toast from 'react-hot-toast'
@@ -43,6 +43,7 @@ export default function CreditoDetailPage() {
   const { data, isLoading } = useCredito(Number(id))
   const pagarCuota = usePagarCuota()
   const anularMutation = useAnularCredito()
+  const liquidarMutation = useLiquidarCredito()
 
   const [pagoModal, setPagoModal] = useState(false)
   const [selectedCuota, setSelectedCuota] = useState<CuotaPrestamo | null>(null)
@@ -50,6 +51,9 @@ export default function CreditoDetailPage() {
   const [pagoMetodo, setPagoMetodo] = useState('EFECTIVO')
   const [pagoComprobante, setPagoComprobante] = useState('')
   const [anularModal, setAnularModal] = useState(false)
+  const [liquidarModal, setLiquidarModal] = useState(false)
+  const [liquidarMetodo, setLiquidarMetodo] = useState('EFECTIVO')
+  const [liquidarComprobante, setLiquidarComprobante] = useState('')
   const [printingCronograma, setPrintingCronograma] = useState(false)
 
   if (isLoading) {
@@ -133,13 +137,26 @@ export default function CreditoDetailPage() {
             </Button>
           )}
           {prestamo.estado === 'ACTIVO' && (
-            <Button
-              variant="danger"
-              iconLeft={<Trash2 className="h-4 w-4" />}
-              onClick={() => setAnularModal(true)}
-            >
-              Anular
-            </Button>
+            <>
+              <Button
+                variant="primary"
+                iconLeft={<DollarSign className="h-4 w-4" />}
+                onClick={() => {
+                  setLiquidarMetodo('EFECTIVO')
+                  setLiquidarComprobante('')
+                  setLiquidarModal(true)
+                }}
+              >
+                Liquidar
+              </Button>
+              <Button
+                variant="danger"
+                iconLeft={<Trash2 className="h-4 w-4" />}
+                onClick={() => setAnularModal(true)}
+              >
+                Anular
+              </Button>
+            </>
           )}
           <Button as="link" to="/creditos" variant="secondary" iconLeft={<ArrowLeft className="h-4 w-4" />}>
             Volver
@@ -384,6 +401,59 @@ export default function CreditoDetailPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal Liquidar */}
+      <Modal open={liquidarModal} onClose={() => setLiquidarModal(false)} title="Liquidar Préstamo" maxWidth="sm">
+        <div className="space-y-4">
+          <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
+            <p className="font-medium">Atención</p>
+            <p className="mt-1">Se pagará el saldo total pendiente del préstamo y se marcará como <strong>PAGADO</strong>.</p>
+            <p className="mt-1 font-semibold">Saldo total: {formatMonto(totalPendiente, prestamo.fondo.moneda)}</p>
+          </div>
+
+          <FormField label="Método de Pago" required>
+            <Select
+              value={liquidarMetodo}
+              onChange={(e) => setLiquidarMetodo(e.target.value)}
+              options={[
+                { value: 'EFECTIVO', label: 'Efectivo' },
+                { value: 'TRANSFERENCIA', label: 'Transferencia' },
+                { value: 'DEPOSITO', label: 'Depósito' },
+              ]}
+            />
+          </FormField>
+
+          <FormField label="N° Comprobante">
+            <Input
+              value={liquidarComprobante}
+              onChange={(e) => setLiquidarComprobante(e.target.value)}
+              placeholder="Opcional"
+            />
+          </FormField>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={() => setLiquidarModal(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                liquidarMutation.mutate(
+                  {
+                    prestamoId: prestamo.id,
+                    metodoPago: liquidarMetodo,
+                    comprobante: liquidarComprobante || undefined,
+                  },
+                  { onSuccess: () => setLiquidarModal(false) }
+                )
+              }}
+              loading={liquidarMutation.isPending}
+              iconLeft={<CheckCircle className="h-4 w-4" />}
+            >
+              Confirmar Liquidación
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       <ConfirmDialog

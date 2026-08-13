@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Eye, Trash2, Banknote, Wallet, Calendar, Receipt } from 'lucide-react'
+import { Plus, Eye, Trash2, Banknote, Wallet, Calendar, Receipt, HandCoins, AlertTriangle } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAportes, useDeleteAporte } from '../hooks/useAportes'
 import { Button, DataTable, SearchInput, Badge, SectionHeader, Card, ConfirmDialog, Select, Input } from '@/components/ui'

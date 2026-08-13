@@ -1,0 +1,173 @@
+classDiagram
+    direction LR
+
+    class Socio {
+        +String codigo
+        +String dni
+        +String nombres
+        +String apellidoPaterno
+        +String apellidoMaterno
+        +String genero
+        +String estadoCivil
+        +String telefono
+        +String direccion
+        +String email
+        +DateTime fechaIngreso
+        +String estado
+        +crear()
+        +actualizar()
+        +listar(search, paginación)
+        +desactivar()
+    }
+
+    class Beneficiario {
+        +String dni
+        +String nombres
+        +String parentesco
+        +agregar()
+        +eliminar()
+    }
+
+    class DocumentoSocio {
+        +String tipoDocumento
+        +String nombreArchivo
+        +String rutaArchivo
+        +subir()
+        +eliminar()
+    }
+
+    class Usuario {
+        +String username
+        +String password
+        +String rol
+        +String estado
+        +login()
+        +crear()
+        +cambiarPassword()
+        +desactivar()
+    }
+
+    class FondoRotatorio {
+        +String nombre
+        +String organizacion
+        +Decimal capitalInicial
+        +Decimal capitalDisponible
+        +String moneda
+        +String estado
+        +crear()
+        +actualizar()
+        +afiliarSocio()
+        +desafiliarSocio()
+    }
+
+    class FondoSocio {
+        +DateTime fechaIngreso
+        +Int numeroSocio
+        +String cargo
+        +String nivel
+    }
+
+    class Aporte {
+        +String tipo
+        +Decimal monto
+        +String periodo
+        +DateTime fechaAporte
+        +String metodoPago
+        +crear(validar duplicado)
+        +anular()
+    }
+
+    class Prestamo {
+        +Decimal monto
+        +Decimal tasaInteres
+        +Int numeroCuotas
+        +Decimal montoCuota
+        +Decimal totalInteres
+        +String estado
+        +crear(generar cronograma)
+        +anular()
+    }
+
+    class CuotaPrestamo {
+        +Int numero
+        +DateTime fechaVencimiento
+        +Decimal interes
+        +Decimal amortizacion
+        +Decimal saldoPendiente
+        +String estado
+        +pagar()
+        +marcarVencidas()
+    }
+
+    class Caja {
+        +String codigo
+        +String nombre
+        +Decimal saldoActual
+        +String estado
+        +crear()
+        +registrarMovimiento()
+        +transferir()
+    }
+
+    class ConceptoCaja {
+        +String codigo
+        +String nombre
+        +String tipo
+        +String afectaSaldo
+        +crearPorDefecto()
+    }
+
+    class MovimientoCaja {
+        +String codigo
+        +String tipo
+        +Decimal monto
+        +String descripcion
+        +String metodoPago
+        +DateTime fechaMovimiento
+        +registrar()
+        +anular()
+    }
+
+    class ArqueoCaja {
+        +DateTime fechaArqueo
+        +Decimal saldoSistema
+        +Decimal saldoFisico
+        +Decimal diferencia
+        +String estado
+        +registrar()
+        +aprobar()
+        +rechazar()
+    }
+
+    class FlujoCajaProyectado {
+        +DateTime fecha
+        +String tipo
+        +Decimal montoProyectado
+        +Decimal montoReal
+        +String estado
+        +crear()
+        +marcarRealizado()
+    }
+
+    class AuditLog {
+        +String tabla
+        +Int registroId
+        +String operacion
+        +Json datosAnteriores
+        +Json datosNuevos
+        +registrar()
+    }
+
+    Socio "1" --> "*" Beneficiario
+    Socio "1" --> "*" DocumentoSocio
+    Socio "1" --> "*" FondoSocio
+    FondoRotatorio "1" --> "*" FondoSocio
+    FondoSocio "1" --> "*" Aporte
+    FondoSocio "1" --> "*" Prestamo
+    Usuario "1" --> "*" FondoSocio
+    Prestamo "1" --> "*" CuotaPrestamo
+    FondoRotatorio "1" --> "*" Caja
+    Caja "1" --> "*" MovimientoCaja
+    Caja "1" --> "*" ArqueoCaja
+    Caja "1" --> "*" FlujoCajaProyectado
+    ConceptoCaja "1" --> "*" MovimientoCaja

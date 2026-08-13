@@ -1,5 +1,5 @@
 import prisma from '../../config/prisma'
-import { HttpError } from '../../middeware/httpError'
+import { HttpError } from '../../middleware/httpError'
 import { createAuditLog } from '../../config/auditLog'
 import {
   registrarMovimientoFondo,
@@ -109,7 +109,20 @@ export const aporteService = {
     const totalAgregadoPromise = prisma.aporte.aggregate({ where: sumWhere, _sum: { monto: true } })
     const totalActivosPromise = prisma.aporte.count({ where: activoWhere })
 
-    const [data, total, porMonedaRows, totalAgregado, totalActivos] = await Promise.all([
+    const porTipoPromise = prisma.aporte.groupBy({
+      by: ['tipo'],
+      where: activoWhere,
+      _sum: { monto: true },
+      _count: true,
+    })
+
+    const porMetodoPromise = prisma.aporte.groupBy({
+      by: ['metodoPago'],
+      where: activoWhere,
+      _sum: { monto: true },
+    })
+
+    const [data, total, porMonedaRows, totalAgregado, totalActivos, porTipoRows, porMetodoRows] = await Promise.all([
       prisma.aporte.findMany({
         where,
         skip,
@@ -133,6 +146,8 @@ export const aporteService = {
       porMonedaSQL,
       totalAgregadoPromise,
       totalActivosPromise,
+      porTipoPromise,
+      porMetodoPromise,
     ])
 
     const totalAportadoPorMoneda: Record<string, number> = {}
@@ -140,6 +155,16 @@ export const aporteService = {
       totalAportadoPorMoneda[r.moneda] = Number(r.total)
     }
     const totalAportado = Number(totalAgregado._sum?.monto || 0)
+
+    const porTipo: Record<string, { cantidad: number; monto: number }> = {}
+    for (const r of porTipoRows) {
+      porTipo[r.tipo] = { cantidad: r._count, monto: Number(r._sum.monto || 0) }
+    }
+
+    const porMetodo: Record<string, number> = {}
+    for (const r of porMetodoRows) {
+      porMetodo[r.metodoPago] = Number(r._sum.monto || 0)
+    }
 
     return {
       data: data.map((a) => {
@@ -155,6 +180,8 @@ export const aporteService = {
       totalAportado,
       totalAportadoPorMoneda,
       totalActivos,
+      porTipo,
+      porMetodo,
       page,
       limit,
       totalPages: Math.ceil(total / limit),

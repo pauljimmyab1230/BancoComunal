@@ -80,3 +80,39 @@ export const aportesFondoPdfSchema = z.object({
 export const aportesFondoAniosSchema = z.object({
   fondoId: z.coerce.number().int().positive(),
 })
+
+export const flujoCajaSchema = z.object({
+  cajaId: z.coerce.number().int().positive().optional(),
+  fechaInicio: z.string().min(1),
+  fechaFin: z.string().min(1),
+})
+
+export const balanceGeneralSchema = z.object({
+  fondoId: z.coerce.number().int().positive().optional(),
+})
+
+export const antiguedadCarteraSchema = z.object({
+  fondoId: z.coerce.number().int().positive().optional(),
+})
+
+export const libroDiarioSchema = z.object({
+  cajaId: z.coerce.number().int().positive().optional(),
+  fechaInicio: z.string().min(1),
+  fechaFin: z.string().min(1),
+  limit: z.coerce.number().int().positive().max(5000).default(1000),
+})
+
+export const reporteArqueosSchema = z.object({
+  cajaId: z.coerce.number().int().positive().optional(),
+  fechaInicio: z.string().optional(),
+  fechaFin: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(5000).default(1000),
+})
+
+export const movimientosCajaSchema = z.object({
+  cajaId: z.coerce.number().int().positive().optional(),
+  fechaInicio: z.string().optional(),
+  fechaFin: z.string().optional(),
+  tipo: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(5000).default(1000),
+})

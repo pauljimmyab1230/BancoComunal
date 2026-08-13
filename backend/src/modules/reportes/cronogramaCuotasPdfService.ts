@@ -1,5 +1,5 @@
 import prisma from '../../config/prisma'
-import { HttpError } from '../../middeware/httpError'
+import { HttpError } from '../../middleware/httpError'
 import { renderHtmlToPdf } from './pdfService'
 import {
   buildCronogramaCuotasHtml,

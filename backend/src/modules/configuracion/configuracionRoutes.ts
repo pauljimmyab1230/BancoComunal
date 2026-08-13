@@ -1,14 +1,18 @@
 import { Router } from 'express'
-import { authenticate, authorize } from '../../middeware/auth'
+import { authenticate, authorize } from '../../middleware/auth'
 import { configuracionController } from './configuracionController'
 
 const router = Router()
 
 // Login (público)
 router.post('/login', configuracionController.login)
+router.post('/refresh-token', configuracionController.refreshToken)
 
 // Proteger el resto de rutas
 router.use(authenticate)
+
+// Cambio de contraseña propio (cualquier usuario autenticado)
+router.post('/change-password', configuracionController.changeOwnPassword)
 
 // Usuarios (solo ADMIN)
 router.get('/usuarios', authorize('ADMIN'), configuracionController.listUsuarios)

@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import prisma from '../../config/prisma'
 import { env } from '../../config/env'
-import { HttpError } from '../../middeware/httpError'
+import { HttpError } from '../../middleware/httpError'
 import { renderHtmlToPdf } from './pdfService'
 import { buildFichaSocioHtml, type FichaSocioData } from './fichaSocioTemplate'
 

@@ -1,0 +1,12 @@
+flowchart LR
+    USR["Tesorero"]
+    UI((("Detalle / Movimiento de Caja")))
+    CTRL["Registrar Movimiento"]
+    ENT_CAJA["Caja"]
+    ENT_MOV["MovimientoCaja"]
+    ENT_CONC["ConceptoCaja"]
+
+    USR --> UI --> CTRL
+    CTRL --> ENT_CAJA
+    CTRL --> ENT_MOV
+    CTRL --> ENT_CONC

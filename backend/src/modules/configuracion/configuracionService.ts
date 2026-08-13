@@ -2,7 +2,7 @@ import prisma from '../../config/prisma'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { env } from '../../config/env'
-import { HttpError } from '../../middeware/httpError'
+import { HttpError } from '../../middleware/httpError'
 import { cajaService } from '../caja/cajaService'
 
 export const configuracionService = {
@@ -114,6 +114,21 @@ export const configuracionService = {
     })
   },
 
+  async changeOwnPassword(userId: number, currentPassword: string, newPassword: string) {
+    const usuario = await prisma.usuario.findUnique({ where: { id: userId } })
+    if (!usuario) throw new HttpError(404, 'Usuario no encontrado')
+
+    const validPassword = await bcrypt.compare(currentPassword, usuario.password)
+    if (!validPassword) throw new HttpError(400, 'La contraseña actual es incorrecta')
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12)
+    await prisma.usuario.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    })
+    return { id: usuario.id, username: usuario.username }
+  },
+
   async deleteUsuario(id: number) {
     const existing = await prisma.usuario.findUnique({ where: { id } })
     if (!existing) return false
@@ -139,9 +154,44 @@ export const configuracionService = {
       { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] },
     )
 
+    const refreshToken = jwt.sign(
+      { userId: usuario.id, type: 'refresh' },
+      env.JWT_REFRESH_SECRET,
+      { expiresIn: '7d' },
+    )
+
     return {
       token,
+      refreshToken,
       user: { id: usuario.id, nombres: usuario.nombres, apellidoPaterno: usuario.apellidoPaterno, username: usuario.username, correo: usuario.correo, rol: usuario.rol },
+    }
+  },
+
+  async refreshToken(refreshToken: string) {
+    try {
+      const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as { userId: number; type: string }
+      if (decoded.type !== 'refresh') throw new HttpError(401, 'Token inválido')
+
+      const usuario = await prisma.usuario.findUnique({ where: { id: decoded.userId } })
+      if (!usuario) throw new HttpError(401, 'Usuario no encontrado')
+      if (usuario.estado !== 'ACTIVO') throw new HttpError(401, 'Cuenta desactivada')
+
+      const token = jwt.sign(
+        { userId: usuario.id, username: usuario.username, rol: usuario.rol },
+        env.JWT_SECRET,
+        { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] },
+      )
+
+      const newRefreshToken = jwt.sign(
+        { userId: usuario.id, type: 'refresh' },
+        env.JWT_REFRESH_SECRET,
+        { expiresIn: '7d' },
+      )
+
+      return { token, refreshToken: newRefreshToken }
+    } catch (error) {
+      if (error instanceof HttpError) throw error
+      throw new HttpError(401, 'Refresh token inválido o expirado')
     }
   },
 

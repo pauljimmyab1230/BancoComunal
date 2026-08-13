@@ -1,6 +1,6 @@
 import prisma from '../../config/prisma'
 import { createAuditLog } from '../../config/auditLog'
-import { HttpError } from '../../middeware/httpError'
+import { HttpError } from '../../middleware/httpError'
 
 export const fondoService = {
   async list(params: { search?: string; page?: number; limit?: number; estado?: string }) {

@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard,
@@ -14,6 +14,7 @@ import {
   ChevronRight,
   LogOut,
 } from 'lucide-react'
+import { useAuthStore } from '@/stores/authStore'
 
 interface AdminSidebarProps {
   collapsed: boolean
@@ -25,19 +26,29 @@ interface AdminSidebarProps {
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { section: 'Gestión' },
-  { to: '/socios', icon: Users, label: 'Socios' },
-  { to: '/fondos', icon: Building2, label: 'Fondos Rotatorios' },
-  { to: '/aportes', icon: HandCoins, label: 'Aportes' },
-  { to: '/creditos', icon: DollarSign, label: 'Créditos' },
+  { to: '/socios', icon: Users, label: 'Socios', roles: ['ADMIN', 'CONTADOR', 'PRESIDENTE', 'TESORERO'] },
+  { to: '/fondos', icon: Building2, label: 'Fondos Rotatorios', roles: ['ADMIN', 'CONTADOR', 'PRESIDENTE', 'TESORERO'] },
+  { to: '/aportes', icon: HandCoins, label: 'Aportes', roles: ['ADMIN', 'CAJERO', 'CONTADOR', 'TESORERO'] },
+  { to: '/creditos', icon: DollarSign, label: 'Créditos', roles: ['ADMIN', 'CONTADOR', 'TESORERO'] },
   { section: 'Operaciones' },
-  { to: '/caja', icon: Wallet, label: 'Caja' },
-  { to: '/reportes', icon: ScrollText, label: 'Reportes' },
+  { to: '/caja', icon: Wallet, label: 'Caja', roles: ['ADMIN', 'CAJERO', 'TESORERO'] },
+  { to: '/reportes', icon: ScrollText, label: 'Reportes', roles: ['ADMIN', 'CONTADOR', 'PRESIDENTE'] },
   { section: 'Administración' },
-  { to: '/configuracion', icon: Settings, label: 'Configuración' },
-  { to: '/auditoria', icon: ShieldCheck, label: 'Auditoría' },
+  { to: '/configuracion', icon: Settings, label: 'Configuración', roles: ['ADMIN'] },
+  { to: '/auditoria', icon: ShieldCheck, label: 'Auditoría', roles: ['ADMIN'] },
 ]
 
 export default function AdminSidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: AdminSidebarProps) {
+  const navigate = useNavigate()
+  const logout = useAuthStore((s) => s.logout)
+  const user = useAuthStore((s) => s.user)
+  const userRole = user?.role
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   const sidebarContent = (
     <div className="flex h-full flex-col bg-[#0F172A]">
       <div className={`flex h-16 items-center border-b border-white/10 ${collapsed ? 'justify-center px-2' : 'justify-between px-5'}`}>
@@ -61,7 +72,12 @@ export default function AdminSidebar({ collapsed, mobileOpen, onToggle, onMobile
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
-          {navItems.map((item) => {
+          {navItems.filter((item) => {
+            if ('section' in item) return true
+            if (!item.roles) return true
+            if (!userRole) return false
+            return item.roles.includes(userRole)
+          }).map((item) => {
             if ('section' in item) {
               return !collapsed ? (
                 <li key={item.section} className="px-3 pt-4 pb-1.5">
@@ -111,6 +127,7 @@ export default function AdminSidebar({ collapsed, mobileOpen, onToggle, onMobile
               type="button"
               className="flex items-center justify-center rounded-lg p-2 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
               aria-label="Cerrar sesión"
+              onClick={handleLogout}
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -120,6 +137,7 @@ export default function AdminSidebar({ collapsed, mobileOpen, onToggle, onMobile
             type="button"
             className="flex w-full items-center justify-center rounded-lg p-2 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
             aria-label="Cerrar sesión"
+            onClick={handleLogout}
           >
             <LogOut className="h-5 w-5" />
           </button>

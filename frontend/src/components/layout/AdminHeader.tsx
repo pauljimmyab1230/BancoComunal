@@ -8,8 +8,13 @@ import {
   User,
   Settings,
   LogOut,
+  Key,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
+import { useChangeOwnPassword } from '@/modules/configuracion/hooks/useConfiguracion'
+import { Button, FormField, Input, Modal } from '@/components/ui'
 
 interface AdminHeaderProps {
   onToggleSidebar: () => void
@@ -18,6 +23,7 @@ interface AdminHeaderProps {
 
 export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
@@ -109,6 +115,14 @@ export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps
                       <User className="h-4 w-4" />
                       Perfil
                     </Link>
+                    <button
+                      type="button"
+                      onClick={() => { setPasswordModalOpen(true); setUserMenuOpen(false) }}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+                    >
+                      <Key className="h-4 w-4" />
+                      Cambiar Contraseña
+                    </button>
                     <Link
                       to="/configuracion"
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-50"
@@ -131,6 +145,104 @@ export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps
           </div>
         </div>
       </div>
+
+      <ChangePasswordModal open={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} />
     </header>
+  )
+}
+
+function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const changePassword = useChangeOwnPassword()
+
+  const handleSubmit = () => {
+    if (!currentPassword || !newPassword) return
+    if (newPassword !== confirmPassword) {
+      return
+    }
+    if (newPassword.length < 6) return
+
+    changePassword.mutate(
+      { currentPassword, newPassword },
+      {
+        onSuccess: () => {
+          setCurrentPassword('')
+          setNewPassword('')
+          setConfirmPassword('')
+          onClose()
+        },
+      }
+    )
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Cambiar Contraseña" maxWidth="sm">
+      <div className="space-y-4">
+        <FormField label="Contraseña Actual" required>
+          <div className="relative">
+            <Input
+              type={showCurrent ? 'text' : 'password'}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Ingrese su contraseña actual"
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              onClick={() => setShowCurrent(!showCurrent)}
+            >
+              {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </FormField>
+
+        <FormField label="Nueva Contraseña" required>
+          <div className="relative">
+            <Input
+              type={showNew ? 'text' : 'password'}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Mínimo 6 caracteres"
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              onClick={() => setShowNew(!showNew)}
+            >
+              {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </FormField>
+
+        <FormField label="Confirmar Nueva Contraseña" required>
+          <Input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Repita la nueva contraseña"
+          />
+          {confirmPassword && newPassword !== confirmPassword && (
+            <p className="mt-1 text-xs text-red-500">Las contraseñas no coinciden</p>
+          )}
+        </FormField>
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            loading={changePassword.isPending}
+            disabled={!currentPassword || !newPassword || newPassword !== confirmPassword || newPassword.length < 6}
+          >
+            Guardar
+          </Button>
+        </div>
+      </div>
+    </Modal>
   )
 }

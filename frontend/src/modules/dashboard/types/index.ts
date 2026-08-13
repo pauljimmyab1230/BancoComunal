@@ -8,6 +8,7 @@ export interface DashboardResumen {
   capitalRecuperado: number
   saldoPendienteCartera: number
   cuotasVencidas: number
+  tasaMorosidad: number
   totalSaldoCajas: number
   totalSaldoCajasPorMoneda: Record<string, number>
   aportesMes: number

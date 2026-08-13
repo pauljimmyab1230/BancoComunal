@@ -1,0 +1,14 @@
+flowchart LR
+    USR["Tesorero"]
+    UI((("Formulario de Préstamo")))
+    CTRL["Otorgar Préstamo"]
+    ENT_FS["FondoSocio"]
+    ENT_PREST["Prestamo"]
+    ENT_CUOTA["CuotaPrestamo"]
+    ENT_MOV["MovimientoCaja"]
+
+    USR --> UI --> CTRL
+    CTRL --> ENT_FS
+    CTRL --> ENT_PREST
+    CTRL --> ENT_CUOTA
+    CTRL --> ENT_MOV

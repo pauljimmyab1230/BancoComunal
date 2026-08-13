@@ -88,3 +88,98 @@ export interface EstadoCuentasQuery {
   search?: string
   fondoId?: number
 }
+
+export interface FlujoCajaMovimiento {
+  id: number
+  fecha: string
+  codigo: string
+  concepto: string
+  tipo: string
+  monto: number
+  caja: string
+  metodoPago: string
+  comprobante?: string
+  estado: string
+  descripcion?: string
+}
+
+export interface FlujoCajaData {
+  movimientos: FlujoCajaMovimiento[]
+  resumen: { totalIngresos: number; totalEgresos: number; flujoNeto: number }
+  porCaja: Array<{ caja: string; ingresos: number; egresos: number; saldo: number }>
+}
+
+export interface BalanceGeneralData {
+  activos: { cajas: number; cartera: number; total: number }
+  patrimonio: {
+    capitalInicial: number
+    aportes: number
+    interesGanado: number
+    gastosOperativos: number
+    resultadoEjercicio: number
+    total: number
+  }
+}
+
+export interface AntiguedadRango {
+  rango: string
+  cantidad: number
+  monto: number
+}
+
+export interface AntiguedadCarteraData {
+  rangos: AntiguedadRango[]
+  total: { cantidad: number; monto: number }
+}
+
+export interface LibroDiarioAsiento {
+  id: number
+  fecha: string
+  codigo: string
+  concepto: string
+  tipo: string
+  monto: number
+  caja: string
+  comprobante?: string
+}
+
+export interface LibroDiarioData {
+  asientos: LibroDiarioAsiento[]
+  total: number
+}
+
+export interface ReporteArqueo {
+  id: number
+  codigo: string
+  fecha: string
+  caja: string
+  saldoSistema: number
+  saldoFisico: number
+  diferencia: number
+  estado: string
+  aprobadoPor?: string
+}
+
+export interface ReporteArqueosData {
+  arqueos: ReporteArqueo[]
+  resumen: { total: number; aprobados: number; pendientes: number; conDiferencia: number }
+}
+
+export interface MovimientoCajaItem {
+  id: number
+  codigo: string
+  fecha: string
+  caja: string
+  concepto: string
+  tipo: string
+  monto: number
+  metodoPago: string
+  comprobante?: string
+  estado: string
+  descripcion?: string
+}
+
+export interface MovimientosCajaData {
+  movimientos: MovimientoCajaItem[]
+  resumen: { total: number; ingresos: number; egresos: number; porConcepto: Array<{ concepto: string; monto: number }> }
+}

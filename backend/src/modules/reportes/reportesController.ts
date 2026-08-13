@@ -25,6 +25,12 @@ import {
   comprobanteAportePdfSchema,
   aportesFondoPdfSchema,
   aportesFondoAniosSchema,
+  flujoCajaSchema,
+  balanceGeneralSchema,
+  antiguedadCarteraSchema,
+  libroDiarioSchema,
+  reporteArqueosSchema,
+  movimientosCajaSchema,
 } from './reportesValidation'
 
 export const reportesController = {
@@ -180,6 +186,54 @@ export const reportesController = {
       const { fondoId } = aportesFondoAniosSchema.parse(req.query)
       const anios = await aportesFondoPdfService.anios(fondoId)
       res.json({ success: true, data: anios })
+    } catch (error) { next(error) }
+  },
+
+  async flujoCaja(req: Request, res: Response, next: NextFunction) {
+    try {
+      const params = flujoCajaSchema.parse(req.query)
+      const data = await reportesService.flujoCaja(params)
+      res.json({ success: true, data })
+    } catch (error) { next(error) }
+  },
+
+  async balanceGeneral(req: Request, res: Response, next: NextFunction) {
+    try {
+      const params = balanceGeneralSchema.parse(req.query)
+      const data = await reportesService.balanceGeneral(params)
+      res.json({ success: true, data })
+    } catch (error) { next(error) }
+  },
+
+  async antiguedadCartera(req: Request, res: Response, next: NextFunction) {
+    try {
+      const params = antiguedadCarteraSchema.parse(req.query)
+      const data = await reportesService.antiguedadCartera(params)
+      res.json({ success: true, data })
+    } catch (error) { next(error) }
+  },
+
+  async libroDiario(req: Request, res: Response, next: NextFunction) {
+    try {
+      const params = libroDiarioSchema.parse(req.query)
+      const data = await reportesService.libroDiario(params)
+      res.json({ success: true, data })
+    } catch (error) { next(error) }
+  },
+
+  async reporteArqueos(req: Request, res: Response, next: NextFunction) {
+    try {
+      const params = reporteArqueosSchema.parse(req.query)
+      const data = await reportesService.reporteArqueos(params)
+      res.json({ success: true, data })
+    } catch (error) { next(error) }
+  },
+
+  async movimientosCaja(req: Request, res: Response, next: NextFunction) {
+    try {
+      const params = movimientosCajaSchema.parse(req.query)
+      const data = await reportesService.movimientosCaja(params)
+      res.json({ success: true, data })
     } catch (error) { next(error) }
   },
 }

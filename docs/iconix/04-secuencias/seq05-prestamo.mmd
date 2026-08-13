@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    actor U as Tesorero
+    participant FE as Frontend (Crédito)
+    participant C as CreditoController
+    participant S as CreditoService
+    participant DB as BD (Prisma/MySQL)
+
+    U->>FE: Ingresa monto, tasa, cuotas y vencimiento
+    FE->>C: POST /api/creditos
+    C->>S: crear(data)
+    S->>DB: fondoSocio.findFirst(fondoId, socioId)
+    S->>DB: fondo.capitalDisponible
+    alt monto <= capital disponible
+        S->>S: calcula montoCuota y totalInteres
+        S->>DB: $transaction
+        DB->>DB: crear Prestamo (ACTIVO)
+        DB->>DB: crear CuotaPrestamo × N (interés + amortización)
+        DB->>DB: crear MovimientoCaja (egreso desembolso)
+        DB->>DB: actualizar capitalDisponible del fondo
+        DB-->>S: Prestamo con cuotas
+        S-->>C: prestamo
+        C-->>FE: 201 { prestamo, cronograma }
+        FE-->>U: detalle del crédito con cronograma
+    else monto > capital disponible
+        S-->>C: HttpError(400)
+        C-->>FE: 400 sin capital suficiente
+    end

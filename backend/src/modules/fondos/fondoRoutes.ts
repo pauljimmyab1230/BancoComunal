@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { fondoController } from './fondoController'
-import { authorize } from '../../middeware/auth'
+import { authorize } from '../../middleware/auth'
 
 const router = Router()
 

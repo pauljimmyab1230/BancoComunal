@@ -8,6 +8,12 @@ export const configuracionApi = {
     return data
   },
 
+  // Cambio de contraseña propio
+  changeOwnPassword: async (currentPassword: string, newPassword: string) => {
+    const { data } = await api.post('/configuracion/change-password', { currentPassword, newPassword })
+    return data
+  },
+
   // Usuarios
   listUsuarios: async (params?: PaginationParams): Promise<PaginatedResponse<Usuario>> => {
     const { data } = await api.get('/configuracion/usuarios', { params })

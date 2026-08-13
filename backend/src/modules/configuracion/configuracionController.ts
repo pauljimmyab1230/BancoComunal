@@ -4,6 +4,7 @@ import {
   usuarioCreateSchema,
   usuarioUpdateSchema,
   usuarioPasswordSchema,
+  changeOwnPasswordSchema,
   loginSchema,
   conceptoCajaCreateSchema,
   conceptoCajaUpdateSchema,
@@ -63,6 +64,16 @@ export const configuracionController = {
     } catch (error) { next(error) }
   },
 
+  async changeOwnPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user?.userId
+      if (!userId) return res.status(401).json({ success: false, message: 'No autenticado' })
+      const { currentPassword, newPassword } = changeOwnPasswordSchema.parse(req.body)
+      const result = await configuracionService.changeOwnPassword(userId, currentPassword, newPassword)
+      res.json({ success: true, data: result, message: 'Contraseña actualizada correctamente' })
+    } catch (error) { next(error) }
+  },
+
   async deleteUsuario(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id)
@@ -78,6 +89,15 @@ export const configuracionController = {
       const { username, password } = loginSchema.parse(req.body)
       const result = await configuracionService.login(username, password)
       res.json({ success: true, data: result, message: 'Inicio de sesión exitoso' })
+    } catch (error) { next(error) }
+  },
+
+  async refreshToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { refreshToken } = req.body
+      if (!refreshToken) return res.status(400).json({ success: false, message: 'Refresh token requerido' })
+      const result = await configuracionService.refreshToken(refreshToken)
+      res.json({ success: true, data: result })
     } catch (error) { next(error) }
   },
 

@@ -7,12 +7,26 @@ const titles: Record<string, string> = {
   '/socios': 'Socios',
   '/socios/nuevo': 'Nuevo Socio',
   '/fondos': 'Fondos Rotatorios',
+  '/fondos/nuevo': 'Nuevo Fondo',
   '/aportes': 'Aportes',
+  '/aportes/nuevo': 'Nuevo Aporte',
   '/creditos': 'Créditos',
+  '/creditos/nuevo': 'Nuevo Crédito',
   '/caja': 'Caja',
+  '/caja/nueva': 'Nueva Caja',
   '/reportes': 'Reportes',
   '/configuracion': 'Configuración',
   '/auditoria': 'Auditoría',
+}
+
+function getTitle(pathname: string): string | undefined {
+  if (titles[pathname]) return titles[pathname]
+  const segments = pathname.split('/')
+  if (segments.length >= 3) {
+    const base = '/' + segments[1]
+    return titles[base]
+  }
+  return undefined
 }
 
 export default function AdminLayout() {
@@ -20,7 +34,7 @@ export default function AdminLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
-  const title = titles[location.pathname]
+  const title = getTitle(location.pathname)
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">

@@ -113,6 +113,8 @@ export const dashboardService = {
     }, 0), 0) * 100) / 100
     const saldoPendiente = prestamos.reduce((a, p) => a + p.cuotas.reduce((b, c) => b + Number(c.saldoPendiente), 0), 0)
     const cuotasVencidas = prestamos.reduce((a, p) => a + p.cuotas.filter(c => c.estado === 'VENCIDO' || c.estado === 'PARCIAL').length, 0)
+    const totalCuotasActivas = prestamos.reduce((a, p) => a + p.cuotas.filter(c => c.estado !== 'PAGADO' && c.estado !== 'ANULADO').length, 0)
+    const tasaMorosidad = totalCuotasActivas > 0 ? (cuotasVencidas / totalCuotasActivas) * 100 : 0
     const totalSaldoCajas = cajas.reduce((a, c) => a + Number(c.saldoActual), 0)
     const totalSaldoCajasPorMoneda = cajas.reduce((acc, c) => {
       const moneda = c.moneda || 'PEN'
@@ -156,6 +158,7 @@ export const dashboardService = {
         capitalRecuperado,
         saldoPendienteCartera: saldoPendiente,
         cuotasVencidas,
+        tasaMorosidad,
         totalSaldoCajas,
         totalSaldoCajasPorMoneda,
         aportesMes: aportesMesMonto,

@@ -424,4 +424,264 @@ export const reportesService = {
       })),
     }
   },
+
+  async flujoCaja(params: { cajaId?: number; fechaInicio: string; fechaFin: string }) {
+    const { cajaId, fechaInicio, fechaFin } = params
+    const whereFecha = { gte: new Date(fechaInicio), lte: new Date(fechaFin) }
+
+    const where: any = { estado: { not: 'ANULADO' }, fechaMovimiento: whereFecha }
+    if (cajaId) where.cajaId = cajaId
+
+    const movimientos = await prisma.movimientoCaja.findMany({
+      where,
+      include: {
+        concepto: { select: { id: true, codigo: true, nombre: true, tipo: true } },
+        caja: { select: { id: true, codigo: true, nombre: true } },
+      },
+      orderBy: { fechaMovimiento: 'asc' },
+    })
+
+    const totalIngresos = movimientos.filter(m => m.concepto?.tipo === 'INGRESO').reduce((a, m) => a + Number(m.monto), 0)
+    const totalEgresos = movimientos.filter(m => m.concepto?.tipo === 'EGRESO').reduce((a, m) => a + Number(m.monto), 0)
+
+    const porCajaMap = new Map<number, { id: number; codigo: string; nombre: string; ingresos: number; egresos: number }>()
+    for (const m of movimientos) {
+      if (!m.caja) continue
+      const key = m.caja.id
+      if (!porCajaMap.has(key)) porCajaMap.set(key, { id: m.caja.id, codigo: m.caja.codigo, nombre: m.caja.nombre, ingresos: 0, egresos: 0 })
+      const entry = porCajaMap.get(key)!
+      if (m.concepto?.tipo === 'INGRESO') entry.ingresos += Number(m.monto)
+      else entry.egresos += Number(m.monto)
+    }
+
+    return {
+      movimientos: movimientos.map(m => ({
+        id: m.id, fecha: m.fechaMovimiento, concepto: m.concepto?.nombre ?? null,
+        tipo: m.concepto?.tipo ?? null, monto: Number(m.monto), caja: m.caja?.nombre ?? null,
+        comprobante: m.comprobante, descripcion: m.descripcion,
+      })),
+      resumen: { totalIngresos, totalEgresos, flujoNeto: totalIngresos - totalEgresos },
+      porCaja: Array.from(porCajaMap.values()),
+    }
+  },
+
+  async balanceGeneral(params: { fondoId?: number }) {
+    const { fondoId } = params
+
+    const fondosWhere: any = {}
+    if (fondoId) fondosWhere.id = fondoId
+
+    const fondos = await prisma.fondoRotatorio.findMany({
+      where: fondosWhere,
+      select: { id: true, nombre: true, capitalDisponible: true, capitalInicial: true },
+    })
+
+    const fondoIds = fondos.map(f => f.id)
+
+    // ACTIVOS
+    const cajas = await prisma.caja.findMany({
+      where: { fondoId: { in: fondoIds }, estado: 'ACTIVA' },
+      select: { saldoActual: true },
+    })
+    const totalCajas = cajas.reduce((a, c) => a + Number(c.saldoActual), 0)
+
+    const prestamos = await prisma.prestamo.findMany({
+      where: { estado: 'ACTIVO', fondoSocio: fondoIds.length > 0 ? { fondoId: { in: fondoIds } } : undefined },
+      select: { cuotas: { select: { saldoPendiente: true, estado: true } } },
+    })
+    const cartera = prestamos.reduce((a, p) =>
+      a + p.cuotas.filter(c => c.estado !== 'PAGADO' && c.estado !== 'ANULADO').reduce((b, c) => b + Number(c.saldoPendiente), 0), 0)
+
+    // PATRIMONIO
+    const capitalInicial = fondos.reduce((a, f) => a + Number(f.capitalInicial), 0)
+
+    const aportes = await prisma.aporte.findMany({
+      where: { estado: 'ACTIVO', ...(fondoIds.length > 0 ? { fondoSocio: { fondoId: { in: fondoIds } } } : {}) },
+      select: { monto: true },
+    })
+    const totalAportes = aportes.reduce((a, ap) => a + Number(ap.monto), 0)
+
+    // Intereses ganados (cuotas pagadas - amortización = interés)
+    const whereCuotasPagadas: any = { estado: 'PAGADO' }
+    if (fondoIds.length > 0) {
+      whereCuotasPagadas.prestamo = { fondoSocio: { fondoId: { in: fondoIds } } }
+    }
+    const cuotasPagadas = await prisma.cuotaPrestamo.findMany({
+      where: whereCuotasPagadas,
+      select: { monto: true, amortizacion: true },
+    })
+    const interesGanado = cuotasPagadas.reduce((a, c) => a + (Number(c.monto) - Number(c.amortizacion)), 0)
+
+    // Gastos operativos (EGRESO movements)
+    const gastosMovimientos = await prisma.movimientoCaja.findMany({
+      where: {
+        estado: 'REGISTRADO',
+        concepto: { tipo: 'EGRESO' },
+        ...(fondoIds.length > 0 ? { caja: { fondoId: { in: fondoIds } } } : {}),
+      },
+      select: { monto: true },
+    })
+    const gastosOperativos = gastosMovimientos.reduce((a, m) => a + Number(m.monto), 0)
+
+    const resultadoEjercicio = interesGanado - gastosOperativos
+    const totalActivos = totalCajas + cartera
+    const totalPatrimonio = capitalInicial + totalAportes + resultadoEjercicio
+
+    return {
+      activos: { cajas: totalCajas, cartera, total: totalActivos },
+      patrimonio: {
+        capitalInicial,
+        aportes: totalAportes,
+        interesGanado,
+        gastosOperativos,
+        resultadoEjercicio,
+        total: totalPatrimonio,
+      },
+    }
+  },
+
+  async antiguedadCartera(params: { fondoId?: number }) {
+    const { fondoId } = params
+    const hoy = new Date()
+
+    const where: any = { estado: { in: ['PENDIENTE', 'VENCIDO', 'PARCIAL'] } }
+    if (fondoId) where.prestamo = { fondoSocio: { fondoId: Number(fondoId) } }
+
+    const cuotas = await prisma.cuotaPrestamo.findMany({
+      where,
+      include: { prestamo: { select: { id: true, monto: true } } },
+    })
+
+    const rangos = [
+      { rango: '0-30', min: 0, max: 30, cantidad: 0, monto: 0 },
+      { rango: '31-60', min: 31, max: 60, cantidad: 0, monto: 0 },
+      { rango: '61-90', min: 61, max: 90, cantidad: 0, monto: 0 },
+      { rango: '90+', min: 91, max: Infinity, cantidad: 0, monto: 0 },
+    ]
+
+    for (const c of cuotas) {
+      const dias = Math.floor((hoy.getTime() - new Date(c.fechaVencimiento).getTime()) / (1000 * 60 * 60 * 24))
+      if (dias < 0) continue
+      const rango = rangos.find(r => dias >= r.min && dias <= r.max)
+      if (rango) {
+        rango.cantidad++
+        rango.monto += Number(c.saldoPendiente)
+      }
+    }
+
+    return {
+      rangos: rangos.map(r => ({ rango: r.rango, cantidad: r.cantidad, monto: r.monto })),
+      total: { cantidad: rangos.reduce((a, r) => a + r.cantidad, 0), monto: rangos.reduce((a, r) => a + r.monto, 0) },
+    }
+  },
+
+  async libroDiario(params: { cajaId?: number; fechaInicio: string; fechaFin: string; limit?: number }) {
+    const { cajaId, fechaInicio, fechaFin, limit = 1000 } = params
+    const whereFecha = { gte: new Date(fechaInicio), lte: new Date(fechaFin) }
+
+    const where: any = { estado: { not: 'ANULADO' }, fechaMovimiento: whereFecha }
+    if (cajaId) where.cajaId = cajaId
+
+    const movimientos = await prisma.movimientoCaja.findMany({
+      where,
+      include: {
+        concepto: { select: { id: true, codigo: true, nombre: true, tipo: true } },
+        caja: { select: { id: true, codigo: true, nombre: true } },
+      },
+      orderBy: { fechaMovimiento: 'asc' },
+      take: limit,
+    })
+
+    return {
+      asientos: movimientos.map(m => ({
+        id: m.id, fecha: m.fechaMovimiento, codigo: m.concepto?.codigo ?? null,
+        concepto: m.concepto?.nombre ?? null, tipo: m.concepto?.tipo ?? null,
+        monto: Number(m.monto), caja: m.caja?.nombre ?? null, comprobante: m.comprobante,
+      })),
+      total: movimientos.length,
+    }
+  },
+
+  async reporteArqueos(params: { cajaId?: number; fechaInicio?: string; fechaFin?: string; limit?: number }) {
+    const { cajaId, fechaInicio, fechaFin, limit = 1000 } = params
+
+    const where: any = {}
+    if (cajaId) where.cajaId = cajaId
+    if (fechaInicio || fechaFin) {
+      where.fechaArqueo = {}
+      if (fechaInicio) where.fechaArqueo.gte = new Date(fechaInicio)
+      if (fechaFin) where.fechaArqueo.lte = new Date(fechaFin)
+    }
+
+    const arqueos = await prisma.arqueoCaja.findMany({
+      where,
+      include: {
+        caja: { select: { id: true, codigo: true, nombre: true } },
+      },
+      orderBy: { fechaArqueo: 'desc' },
+      take: limit,
+    })
+
+    const aprobados = arqueos.filter(a => a.estado === 'APROBADO').length
+    const pendientes = arqueos.filter(a => a.estado === 'PENDIENTE').length
+    const conDiferencia = arqueos.filter(a => Number(a.saldoSistema) !== Number(a.saldoFisico)).length
+
+    return {
+      arqueos: arqueos.map(a => ({
+        id: a.id, codigo: a.codigo, fecha: a.fechaArqueo,
+        caja: a.caja?.nombre ?? null, saldoSistema: Number(a.saldoSistema),
+        saldoFisico: Number(a.saldoFisico), diferencia: Number(a.saldoFisico) - Number(a.saldoSistema),
+        estado: a.estado, aprobadoPor: a.aprobadoPor,
+      })),
+      resumen: { total: arqueos.length, aprobados, pendientes, conDiferencia },
+    }
+  },
+
+  async movimientosCaja(params: { cajaId?: number; fechaInicio?: string; fechaFin?: string; tipo?: string; limit?: number }) {
+    const { cajaId, fechaInicio, fechaFin, tipo, limit = 1000 } = params
+
+    const where: any = { estado: { not: 'ANULADO' } }
+    if (cajaId) where.cajaId = cajaId
+    if (fechaInicio || fechaFin) {
+      where.fechaMovimiento = {}
+      if (fechaInicio) where.fechaMovimiento.gte = new Date(fechaInicio)
+      if (fechaFin) where.fechaMovimiento.lte = new Date(fechaFin)
+    }
+    if (tipo) where.concepto = { tipo }
+
+    const movimientos = await prisma.movimientoCaja.findMany({
+      where,
+      include: {
+        concepto: { select: { id: true, codigo: true, nombre: true, tipo: true } },
+        caja: { select: { id: true, codigo: true, nombre: true } },
+      },
+      orderBy: { fechaMovimiento: 'desc' },
+      take: limit,
+    })
+
+    const totalIngresos = movimientos.filter(m => m.concepto?.tipo === 'INGRESO').reduce((a, m) => a + Number(m.monto), 0)
+    const totalEgresos = movimientos.filter(m => m.concepto?.tipo === 'EGRESO').reduce((a, m) => a + Number(m.monto), 0)
+
+    const porConceptoMap = new Map<string, { concepto: string; tipo: string; cantidad: number; monto: number }>()
+    for (const m of movimientos) {
+      const key = m.concepto?.codigo ?? 'SIN_CONCEPTO'
+      if (!porConceptoMap.has(key)) porConceptoMap.set(key, { concepto: m.concepto?.nombre ?? 'Sin concepto', tipo: m.concepto?.tipo ?? 'SIN_TIPO', cantidad: 0, monto: 0 })
+      const entry = porConceptoMap.get(key)!
+      entry.cantidad++
+      entry.monto += Number(m.monto)
+    }
+
+    return {
+      movimientos: movimientos.map(m => ({
+        id: m.id, codigo: m.concepto?.codigo ?? null, fecha: m.fechaMovimiento,
+        caja: m.caja?.nombre ?? null, concepto: m.concepto?.nombre ?? null,
+        tipo: m.concepto?.tipo ?? null, monto: Number(m.monto), metodoPago: m.metodoPago,
+        comprobante: m.comprobante, estado: m.estado, descripcion: m.descripcion,
+      })),
+      resumen: {
+        total: movimientos.length, ingresos: totalIngresos, egresos: totalEgresos,
+        porConcepto: Array.from(porConceptoMap.values()),
+      },
+    }
+  },
 }

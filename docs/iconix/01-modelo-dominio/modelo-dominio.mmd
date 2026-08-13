@@ -1,0 +1,158 @@
+classDiagram
+    direction TB
+
+    class Socio {
+        +String codigo
+        +String dni
+        +String nombres
+        +String apellidoPaterno
+        +String apellidoMaterno
+        +String genero
+        +DateTime fechaNacimiento
+        +String estadoCivil
+        +String telefono
+        +String direccion
+        +String email
+        +DateTime fechaIngreso
+        +String estado
+        +String fotoUrl
+    }
+
+    class Beneficiario {
+        +String dni
+        +String nombres
+        +String parentesco
+        +DateTime fechaNacimiento
+    }
+
+    class DocumentoSocio {
+        +String tipoDocumento
+        +String nombreArchivo
+        +String rutaArchivo
+        +String mimeType
+        +Int tamaño
+    }
+
+    class Usuario {
+        +String nombres
+        +String username
+        +String password
+        +String rol
+        +String estado
+    }
+
+    class FondoRotatorio {
+        +String nombre
+        +String organizacion
+        +Decimal capitalInicial
+        +Decimal capitalDisponible
+        +String moneda
+        +String estado
+        +DateTime fechaCierre
+    }
+
+    class FondoSocio {
+        +DateTime fechaIngreso
+        +DateTime fechaSalida
+        +Int numeroSocio
+        +String cargo
+        +String nivel
+    }
+
+    class Aporte {
+        +String tipo
+        +Decimal monto
+        +String periodo
+        +DateTime fechaAporte
+        +String metodoPago
+        +String comprobante
+    }
+
+    class Prestamo {
+        +Decimal monto
+        +Decimal tasaInteres
+        +Int numeroCuotas
+        +Decimal montoCuota
+        +Decimal totalInteres
+        +DateTime fechaDesembolso
+        +String estado
+    }
+
+    class CuotaPrestamo {
+        +Int numero
+        +DateTime fechaVencimiento
+        +Decimal monto
+        +Decimal interes
+        +Decimal amortizacion
+        +Decimal saldoPendiente
+        +DateTime fechaPago
+        +String estado
+    }
+
+    class Caja {
+        +String codigo
+        +String nombre
+        +String tipo
+        +String moneda
+        +Decimal saldoInicial
+        +Decimal saldoActual
+        +String estado
+    }
+
+    class ConceptoCaja {
+        +String codigo
+        +String nombre
+        +String tipo
+        +String afectaSaldo
+    }
+
+    class MovimientoCaja {
+        +String codigo
+        +String tipo
+        +Decimal monto
+        +String descripcion
+        +String metodoPago
+        +DateTime fechaMovimiento
+        +String estado
+    }
+
+    class ArqueoCaja {
+        +String codigo
+        +DateTime fechaArqueo
+        +Decimal saldoSistema
+        +Decimal saldoFisico
+        +Decimal diferencia
+        +String estado
+    }
+
+    class FlujoCajaProyectado {
+        +DateTime fecha
+        +String tipo
+        +String concepto
+        +Decimal montoProyectado
+        +Decimal montoReal
+        +String estado
+    }
+
+    class AuditLog {
+        +String tabla
+        +Int registroId
+        +String operacion
+        +Json datosAnteriores
+        +Json datosNuevos
+        +String ip
+    }
+
+    Socio "1" --> "*" Beneficiario : tiene
+    Socio "1" --> "*" DocumentoSocio : adjunta
+    Socio "1" --> "*" FondoSocio : pertenece
+    FondoRotatorio "1" --> "*" FondoSocio : integra
+    FondoSocio "1" --> "*" Aporte : recibe
+    FondoSocio "1" --> "*" Prestamo : solicita
+    Usuario "1" --> "*" FondoSocio : registra
+    Prestamo "1" --> "*" CuotaPrestamo : genera
+    FondoRotatorio "1" --> "*" Caja : administra
+    Caja "1" --> "*" MovimientoCaja : registra
+    Caja "1" --> "*" ArqueoCaja : verifica
+    Caja "1" --> "*" FlujoCajaProyectado : proyecta
+    ConceptoCaja "1" --> "*" MovimientoCaja : clasifica

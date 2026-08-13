@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { HttpError } from '../../middeware/httpError'
+import { HttpError } from '../../middleware/httpError'
 
 export function generateCodigo(prefix: string): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'

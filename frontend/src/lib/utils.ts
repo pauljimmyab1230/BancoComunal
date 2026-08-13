@@ -66,3 +66,52 @@ export function exportCsv(filename: string, headers: string[], rows: (string | n
   a.click()
   URL.revokeObjectURL(url)
 }
+
+export function exportXlsx(filename: string, headers: string[], rows: (string | number | null | undefined)[][]): void {
+  const html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office"
+          xmlns:x="urn:schemas-microsoft-com:office:excel"
+          xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta charset="utf-8">
+      <!--[if gte mso 9]>
+      <xml>
+        <x:ExcelWorkbook>
+          <x:ExcelWorksheets>
+            <x:ExcelWorksheet>
+              <x:Name>Sheet1</x:Name>
+              <x:WorksheetOptions>
+                <x:DisplayGridlines/>
+              </x:WorksheetOptions>
+            </x:ExcelWorksheet>
+          </x:ExcelWorksheets>
+        </x:ExcelWorkbook>
+      </xml>
+      <![endif]-->
+      <style>
+        table { border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 6px 12px; text-align: left; }
+        th { background-color: #2563EB; color: white; font-weight: bold; }
+        td { mso-number-format: \\@; }
+      </style>
+    </head>
+    <body>
+      <table>
+        <thead>
+          <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `<tr>${r.map(c => `<td>${String(c ?? '')}</td>`).join('')}</tr>`).join('')}
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `
+  const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename.replace(/\.xlsx?$/i, '.xls')
+  a.click()
+  URL.revokeObjectURL(url)
+}

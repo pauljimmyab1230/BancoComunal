@@ -1,0 +1,12 @@
+flowchart LR
+    USR["Tesorero"]
+    USR2["Administrador"]
+    UI((("Registro y Aprobación de Arqueo")))
+    CTRL["Registrar Arqueo"]
+    CTRL2["Aprobar Arqueo"]
+    ENT_CAJA["Caja"]
+    ENT_ARQ["ArqueoCaja"]
+
+    USR --> UI --> CTRL --> ENT_ARQ
+    USR2 --> UI --> CTRL2 --> ENT_ARQ
+    ENT_CAJA --> CTRL2

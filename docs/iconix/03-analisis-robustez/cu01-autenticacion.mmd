@@ -1,0 +1,9 @@
+flowchart LR
+    USR["Usuario"]
+    UI((("Interfaz de Login")))
+    CTRL["Autenticar Usuario"]
+    ENT_USER["Usuario"]
+    ENT_JWT["Token JWT"]
+
+    USR --> UI --> CTRL --> ENT_USER
+    CTRL --> ENT_JWT

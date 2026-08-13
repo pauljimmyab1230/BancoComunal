@@ -1,0 +1,18 @@
+flowchart LR
+    USR["Socio / Administrador"]
+    UI((("Estado de Cuenta del Socio")))
+    CTRL["Calcular Estado de Cuenta"]
+    ENT_SOCIO["Socio"]
+    ENT_FS["FondoSocio"]
+    ENT_APORTE["Aporte"]
+    ENT_PREST["Prestamo"]
+    ENT_CUOTA["CuotaPrestamo"]
+    ENT_RESUMEN["Resumen del Estado de Cuenta"]
+
+    USR --> UI --> CTRL
+    CTRL --> ENT_SOCIO
+    CTRL --> ENT_FS
+    CTRL --> ENT_APORTE
+    CTRL --> ENT_PREST
+    CTRL --> ENT_CUOTA
+    CTRL --> ENT_RESUMEN
