@@ -278,7 +278,7 @@ function ResultadosTab() {
           <FormField label="Fecha Fin">
             <Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
           </FormField>
-          <Button variant="secondary" size="sm" onClick={() => exportCsv('estado-resultados.csv', ['Fondo', 'Moneda', 'Ingresos - Cuotas', 'Ingresos - Intereses', 'Ingresos - Reintegros', 'Ingresos - Otros', 'Total Ingresos', 'Egresos - Desembolsos', 'Egresos - Gastos', 'Egresos - Faltantes', 'Total Egresos', 'Resultado Neto'], data.fondos.map(f => [f.fondo.nombre, f.fondo.moneda, f.ingresos.cuotas, f.ingresos.intereses, f.ingresos.reintegros, f.ingresos.otros, f.ingresos.total, f.egresos.desembolsos, f.egresos.gastos, f.egresos.faltantes, f.egresos.total, f.resultadoNeto]))}>
+          <Button variant="secondary" size="sm" onClick={() => exportCsv('estado-resultados.csv', ['Fondo', 'Moneda', 'Ingresos - Cuotas', 'Ingresos - Intereses', 'Ingresos - Reintegros', 'Ingresos - Otros', 'Total Ingresos', 'Egresos - Gastos', 'Egresos - Faltantes', 'Total Egresos', 'Resultado Neto'], data.fondos.map(f => [f.fondo.nombre, f.fondo.moneda, f.ingresos.cuotas, f.ingresos.intereses, f.ingresos.reintegros, f.ingresos.otros, f.ingresos.total, f.egresos.gastos, f.egresos.faltantes, f.egresos.total, f.resultadoNeto]))}>
             <Download className="h-4 w-4 mr-1" /> CSV
           </Button>
           <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir</Button>
@@ -329,7 +329,6 @@ function ResultadosTab() {
                 if (existing) existing[1] = (existing[1] as number) + value
                 else rows.push([label, value])
               }
-              push('Desembolsos de préstamos', f.egresos.desembolsos)
               push('Gastos operativos', f.egresos.gastos)
               push('Faltantes de arqueo', f.egresos.faltantes)
               return rows
@@ -759,6 +758,9 @@ function BalanceGeneralTab() {
             <div className="flex justify-between"><span className="text-gray-500">Aportes Acumulados</span><span className="font-medium text-green-600">{formatCurrency(data.patrimonio.aportes)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Interés Ganado</span><span className="font-medium text-green-600">{formatCurrency(data.patrimonio.interesGanado)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Gastos Operativos</span><span className="font-medium text-red-600">({formatCurrency(data.patrimonio.gastosOperativos)})</span></div>
+            {data.patrimonio.capitalPrestadoActivo > 0 && (
+              <div className="flex justify-between"><span className="text-gray-500">Capital Prestado Activo</span><span className="font-medium text-amber-600">({formatCurrency(data.patrimonio.capitalPrestadoActivo)})</span></div>
+            )}
             <div className="flex justify-between border-t pt-2"><span className="text-gray-500">Resultado del Ejercicio</span><span className={`font-medium ${data.patrimonio.resultadoEjercicio >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(data.patrimonio.resultadoEjercicio)}</span></div>
             <div className="flex justify-between border-t pt-2"><span className="font-semibold">Total Patrimonio</span><span className="font-bold text-green-600">{formatCurrency(data.patrimonio.total)}</span></div>
           </div>

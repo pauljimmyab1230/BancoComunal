@@ -31,7 +31,7 @@ export interface CarteraCreditoPrestamo {
 export interface EstadoResultadosFondo {
   fondo: { id: number; nombre: string; capitalInicial: number; capitalDisponible: number; moneda: string }
   ingresos: { cuotas: number; intereses: number; reintegros: number; otros: number; total: number }
-  egresos: { desembolsos: number; gastos: number; faltantes: number; total: number }
+  egresos: { gastos: number; faltantes: number; total: number }
   resultadoNeto: number
 }
 
@@ -116,6 +116,7 @@ export interface BalanceGeneralData {
     aportes: number
     interesGanado: number
     gastosOperativos: number
+    capitalPrestadoActivo: number
     resultadoEjercicio: number
     total: number
   }

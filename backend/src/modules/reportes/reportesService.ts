@@ -204,12 +204,11 @@ export const reportesService = {
       ingresos.total = ingresos.cuotas + ingresos.intereses + ingresos.reintegros + ingresos.otros
 
       const egresos = {
-        desembolsos: sum('ING-PRESTAMO'),
         gastos: sum('EGR-GASTO') + sum('EGR-OTRO') + sum('EGR-PROVISION'),
         faltantes: sum('AJU-DIF-FALTANTE'),
         total: 0,
       }
-      egresos.total = egresos.desembolsos + egresos.gastos + egresos.faltantes
+      egresos.total = egresos.gastos + egresos.faltantes
 
       const resultadoNeto = ingresos.total - egresos.total
 
@@ -487,10 +486,13 @@ export const reportesService = {
 
     const prestamos = await prisma.prestamo.findMany({
       where: { estado: 'ACTIVO', fondoSocio: fondoIds.length > 0 ? { fondoId: { in: fondoIds } } : undefined },
-      select: { cuotas: { select: { saldoPendiente: true, estado: true } } },
+      select: { monto: true, cuotas: { select: { saldoPendiente: true, estado: true } } },
     })
     const cartera = prestamos.reduce((a, p) =>
       a + p.cuotas.filter(c => c.estado !== 'PAGADO' && c.estado !== 'ANULADO').reduce((b, c) => b + Number(c.saldoPendiente), 0), 0)
+
+    // Capital prestado activo (se resta del patrimonio porque es dinero que salió del fondo)
+    const capitalPrestadoActivo = prestamos.reduce((a, p) => a + Number(p.monto), 0)
 
     // PATRIMONIO
     const capitalInicial = fondos.reduce((a, f) => a + Number(f.capitalInicial), 0)
@@ -512,11 +514,12 @@ export const reportesService = {
     })
     const interesGanado = cuotasPagadas.reduce((a, c) => a + (Number(c.monto) - Number(c.amortizacion)), 0)
 
-    // Gastos operativos (EGRESO movements)
+    // Gastos operativos (EGRESO movements EXCEPTO desembolsos de préstamos)
+    // Los desembolsos (ING-PRESTAMO) son movimientos de capital, no gastos operativos
     const gastosMovimientos = await prisma.movimientoCaja.findMany({
       where: {
         estado: 'REGISTRADO',
-        concepto: { tipo: 'EGRESO' },
+        concepto: { tipo: 'EGRESO', codigo: { not: 'ING-PRESTAMO' } },
         ...(fondoIds.length > 0 ? { caja: { fondoId: { in: fondoIds } } } : {}),
       },
       select: { monto: true },
@@ -525,7 +528,9 @@ export const reportesService = {
 
     const resultadoEjercicio = interesGanado - gastosOperativos
     const totalActivos = totalCajas + cartera
-    const totalPatrimonio = capitalInicial + totalAportes + resultadoEjercicio
+    // Ecuación contable: Activos = Patrimonio
+    // El capital prestado activo se resta porque es dinero que ya no está disponible en el fondo
+    const totalPatrimonio = capitalInicial + totalAportes + resultadoEjercicio - capitalPrestadoActivo
 
     return {
       activos: { cajas: totalCajas, cartera, total: totalActivos },
@@ -534,6 +539,7 @@ export const reportesService = {
         aportes: totalAportes,
         interesGanado,
         gastosOperativos,
+        capitalPrestadoActivo,
         resultadoEjercicio,
         total: totalPatrimonio,
       },
