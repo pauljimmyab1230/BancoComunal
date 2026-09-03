@@ -172,8 +172,8 @@ export const reportesController = {
 
   async aportesFondoPdf(req: Request, res: Response, next: NextFunction) {
     try {
-      const { fondoId, anio } = aportesFondoPdfSchema.parse(req.query)
-      const pdf = await aportesFondoPdfService.generate(fondoId, anio)
+      const { fondoId, anio, periodo } = aportesFondoPdfSchema.parse(req.query)
+      const pdf = await aportesFondoPdfService.generate(fondoId, anio, periodo)
       res.setHeader('Content-Type', 'application/pdf')
       res.setHeader('Content-Disposition', `inline; filename="historial-aportes-fondo-${fondoId}.pdf"`)
       res.setHeader('Content-Length', pdf.length)

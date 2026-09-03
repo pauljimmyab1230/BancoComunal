@@ -213,6 +213,8 @@ export const aporteService = {
       monto: Number(aporte.monto),
       socio: fondoSocio.socio,
       fondo: fondoSocio.fondo,
+      fondoId: fondoSocio.fondo.id,
+      socioId: fondoSocio.socio.id,
     }
   },
 

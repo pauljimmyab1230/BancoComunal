@@ -1,16 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { fondoService } from './fondoService'
 import { createFondoSchema, updateFondoSchema, addSocioSchema } from './fondoValidation'
-
-function safeParseInt(val: unknown): number | null {
-  const n = parseInt(String(val))
-  return isNaN(n) ? null : n
-}
-
-function parseId(val: unknown): number | null {
-  const n = parseInt(String(val), 10)
-  return Number.isInteger(n) && n > 0 ? n : null
-}
+import { toInt } from '../../middleware/parseHelpers'
 
 export const fondoController = {
   async list(req: Request, res: Response, next: NextFunction) {
@@ -18,8 +9,8 @@ export const fondoController = {
       const { search, page, limit, estado } = req.query
       const result = await fondoService.list({
         search: search as string,
-        page: safeParseInt(page) ?? undefined,
-        limit: safeParseInt(limit) ?? undefined,
+        page: toInt(page) ?? undefined,
+        limit: toInt(limit) ?? undefined,
         estado: estado as string,
       })
       res.json(result)
@@ -30,7 +21,7 @@ export const fondoController = {
 
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = parseId(req.params.id)
+      const id = toInt(req.params.id)
       if (!id) {
         res.status(400).json({ success: false, message: 'Id de fondo inválido' })
         return
@@ -65,7 +56,7 @@ export const fondoController = {
 
   async update(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = parseId(req.params.id)
+      const id = toInt(req.params.id)
       if (!id) {
         res.status(400).json({ success: false, message: 'Id de fondo inválido' })
         return
@@ -90,7 +81,7 @@ export const fondoController = {
 
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = parseId(req.params.id)
+      const id = toInt(req.params.id)
       if (!id) {
         res.status(400).json({ success: false, message: 'Id de fondo inválido' })
         return
@@ -137,8 +128,8 @@ export const fondoController = {
 
   async removeSocio(req: Request, res: Response, next: NextFunction) {
     try {
-      const fondoId = parseId(req.params.id)
-      const socioId = parseId(req.params.socioId)
+      const fondoId = toInt(req.params.id)
+      const socioId = toInt(req.params.socioId)
       if (!fondoId || !socioId) {
         res.status(400).json({ success: false, message: 'Id de fondo o socio inválido' })
         return
@@ -158,7 +149,7 @@ export const fondoController = {
 
   async getSocios(req: Request, res: Response, next: NextFunction) {
     try {
-      const fondoId = parseId(req.params.id)
+      const fondoId = toInt(req.params.id)
       if (!fondoId) {
         res.status(400).json({ success: false, message: 'Id de fondo inválido' })
         return

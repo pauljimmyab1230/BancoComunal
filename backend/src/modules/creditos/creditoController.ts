@@ -1,11 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { creditoService } from './creditoService'
 import { createPrestamoSchema, updatePrestamoSchema, pagoCuotaSchema, liquidarSchema } from './creditoValidation'
-
-function safeParseInt(value: unknown): number | null {
-  const parsed = parseInt(String(value), 10)
-  return isNaN(parsed) ? null : parsed
-}
+import { toInt } from '../../middleware/parseHelpers'
 
 export const creditoController = {
   async list(req: Request, res: Response, next: NextFunction) {
@@ -13,10 +9,10 @@ export const creditoController = {
       const { search, page, limit, fondoId, socioId, estado } = req.query
       const result = await creditoService.list({
         search: search as string,
-        page: safeParseInt(page) ?? undefined,
-        limit: safeParseInt(limit) ?? undefined,
-        fondoId: safeParseInt(fondoId) ?? undefined,
-        socioId: safeParseInt(socioId) ?? undefined,
+        page: toInt(page) ?? undefined,
+        limit: toInt(limit) ?? undefined,
+        fondoId: toInt(fondoId) ?? undefined,
+        socioId: toInt(socioId) ?? undefined,
         estado: estado as string,
       })
       res.json(result)
@@ -27,8 +23,8 @@ export const creditoController = {
 
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
 
       const prestamo = await creditoService.getById(id)
       if (!prestamo) {
@@ -43,9 +39,9 @@ export const creditoController = {
 
   async getByFondoSocio(req: Request, res: Response, next: NextFunction) {
     try {
-      const fondoId = safeParseInt(req.params.fondoId)
-      const socioId = safeParseInt(req.params.socioId)
-      if (fondoId === null || socioId === null) {
+      const fondoId = toInt(req.params.fondoId)
+      const socioId = toInt(req.params.socioId)
+      if (fondoId === undefined || socioId === undefined) {
         res.status(400).json({ success: false, message: 'Parámetros inválidos' })
         return
       }
@@ -68,8 +64,8 @@ export const creditoController = {
 
   async actualizar(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
 
       const data = updatePrestamoSchema.parse(req.body)
       const prestamo = await creditoService.actualizar(id, data)
@@ -101,8 +97,8 @@ export const creditoController = {
 
   async anular(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
 
       const result = await creditoService.anular(id)
       res.json({ success: true, message: 'Préstamo anulado correctamente' })

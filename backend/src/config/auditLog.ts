@@ -9,5 +9,7 @@ export async function createAuditLog(data: {
 }) {
   try {
     await prisma.auditLog.create({ data })
-  } catch { /* tabla puede no existir */ }
+  } catch (error) {
+    console.error('[AuditLog] Error al crear registro de auditoría:', error)
+  }
 }

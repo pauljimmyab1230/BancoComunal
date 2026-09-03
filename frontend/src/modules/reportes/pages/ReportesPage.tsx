@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Search, TrendingUp, Users, DollarSign, AlertTriangle, Wallet, HandCoins, BarChart3, Printer, Download, FileText, ArrowDownCircle, ArrowUpCircle, Scale, Clock, BookOpen, Camera, WalletCards, ArrowLeft } from 'lucide-react'
 import { useResumenEjecutivo, useCarteraCreditos, useEstadoResultados, useReporteAportes, useMorosos, useEstadoCuentasSocio, useFlujoCaja, useBalanceGeneral, useAntiguedadCartera, useLibroDiario, useReporteArqueos, useMovimientosCaja } from '../hooks/useReportes'
-import { useFondos } from '@/modules/fondos/hooks/useFondos'
 import { useCajas } from '@/modules/caja/hooks/useCajas'
 import { Button, Card, FormField, Input, Select, SectionHeader, Badge, LoadingSpinner, EmptyState } from '@/components/ui'
 import { formatCurrency, formatSaldosPorMoneda, exportCsv, exportXlsx } from '@/lib/utils'
@@ -19,7 +18,6 @@ const reportCards = [
   { id: 'movimientos', label: 'Movimientos de Caja', desc: 'Detalle de transacciones', icon: WalletCards, color: 'green' },
   { id: 'libro', label: 'Libro Diario', desc: 'Log cronológico de asientos', icon: BookOpen, color: 'blue' },
   { id: 'cuenta', label: 'Estado de Cuentas', desc: 'Consulta por socio', icon: Users, color: 'orange' },
-  { id: 'docs', label: 'Documentos PDF', desc: 'Fichas, comprobantes, padrón', icon: FileText, color: 'red' },
 ]
 
 const colorMap: Record<string, { bg: string; icon: string; border: string }> = {
@@ -982,57 +980,6 @@ function MovimientosCajaTab() {
   )
 }
 
-function DocumentosTab() {
-  const [socioSearch, setSocioSearch] = useState('')
-  const [fondoId, setFondoId] = useState('')
-  const [anio, setAnio] = useState(String(new Date().getFullYear()))
-  const { data: fondosData } = useFondos({ limit: 1000 })
-  const fondosOptions = (fondosData?.data || []).map((f: any) => ({ value: String(f.id), label: f.nombre }))
-
-  const pdfs = [
-    { label: 'Ficha de Socio', desc: 'Perfil individual del socio', icon: Users, action: () => openPdf(`/reportes/ficha-socio/pdf?socioId=${socioSearch}`) },
-    { label: 'Historial de Aportes (Socio)', desc: 'Aportes de un socio', icon: HandCoins, action: () => openPdf(`/reportes/aportes-socio/pdf?socioId=${socioSearch}`) },
-    { label: 'Historial de Créditos (Socio)', desc: 'Créditos de un socio', icon: DollarSign, action: () => openPdf(`/reportes/creditos-socio/pdf?socioId=${socioSearch}`) },
-    { label: 'Estado de Cuenta (Socio)', desc: 'Estado de cuentas completo', icon: FileText, action: () => openPdf(`/reportes/estado-cuenta-socio/pdf?socioId=${socioSearch}`) },
-    { label: 'Comprobante de Aporte', desc: 'Comprobante de ingreso', icon: FileText, action: () => openPdf(`/reportes/comprobante-aporte/pdf?aporteId=${socioSearch}`) },
-    { label: 'Padrón de Fondo', desc: 'Listado de socios del fondo', icon: Users, action: () => fondoId && openPdf(`/reportes/padron-fondo/pdf?fondoId=${fondoId}`) },
-    { label: 'Resumen de Fondo', desc: 'Resumen anual del fondo', icon: BarChart3, action: () => fondoId && openPdf(`/reportes/resumen-fondo/pdf?fondoId=${fondoId}`) },
-    { label: 'Aportes por Fondo', desc: 'Historial de aportes del fondo', icon: HandCoins, action: () => fondoId && openPdf(`/reportes/aportes-fondo/pdf?fondoId=${fondoId}&anio=${anio}`) },
-  ]
-
-  const openPdf = async (url: string) => {
-    try { await openProtectedPdf(url) }
-    catch { toast.error('Error al generar el PDF') }
-  }
-
-  return (
-    <div className="space-y-6">
-      <Card className="p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Parámetros</h3>
-        <div className="flex items-end gap-4 flex-wrap">
-          <FormField label="ID Socio / Aporte"><Input value={socioSearch} onChange={(e) => setSocioSearch(e.target.value)} placeholder="ID numérico" className="max-w-[160px]" /></FormField>
-          <FormField label="Fondo"><Select options={[{ value: '', label: 'Seleccione...' }, ...fondosOptions]} value={fondoId} onChange={(e) => setFondoId(e.target.value)} /></FormField>
-          <FormField label="Año"><Input type="number" value={anio} onChange={(e) => setAnio(e.target.value)} className="max-w-[100px]" /></FormField>
-        </div>
-      </Card>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {pdfs.map((pdf) => (
-          <Card key={pdf.label} className="p-4 hover:border-[#2563EB]/30 transition-colors cursor-pointer" onClick={pdf.action}>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50"><pdf.icon className="h-5 w-5 text-red-600" /></div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">{pdf.label}</p>
-                <p className="text-xs text-gray-500">{pdf.desc}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export default function ReportesPage() {
   const [activeReport, setActiveReport] = useState<string | null>(null)
 
@@ -1048,7 +995,6 @@ export default function ReportesPage() {
     aging: AntiguedadCarteraTab,
     libro: LibroDiarioTab,
     movimientos: MovimientosCajaTab,
-    docs: DocumentosTab,
   }
 
   const reportTitles: Record<string, string> = {
@@ -1061,7 +1007,6 @@ export default function ReportesPage() {
     aging: 'Antigüedad de Cartera',
     libro: 'Libro Diario',
     movimientos: 'Movimientos de Caja',
-    docs: 'Documentos PDF',
   }
 
   if (activeReport && reportComponents[activeReport]) {

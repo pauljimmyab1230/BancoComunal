@@ -24,8 +24,13 @@ export default function LoginPage() {
         name: result.data.user?.nombres || username,
         email: result.data.user?.correo || '',
         role: result.data.user?.rol,
+        cambiarPassword: result.data.user?.cambiarPassword,
       }, result.data.refreshToken)
-      navigate(from, { replace: true })
+      if (result.data.user?.cambiarPassword) {
+        navigate('/cambiar-password', { replace: true })
+      } else {
+        navigate(from, { replace: true })
+      }
     }
   }
 

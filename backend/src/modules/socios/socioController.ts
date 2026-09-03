@@ -2,11 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { socioService } from './socioService'
 import { createSocioSchema, updateSocioSchema, createBeneficiarioSchema, tipoDocumentoEnum } from './socioValidation'
 import { getFullUrl } from '../../config/urlHelper'
-
-function safeParseInt(val: unknown): number | null {
-  const n = parseInt(String(val))
-  return isNaN(n) ? null : n
-}
+import { toInt } from '../../middleware/parseHelpers'
 
 function extractToken(req: Request): string | null {
   const authHeader = req.headers.authorization
@@ -22,8 +18,8 @@ export const socioController = {
       const { search, page, limit, estado } = req.query
       const result = await socioService.list({
         search: search as string,
-        page: safeParseInt(page) ?? undefined,
-        limit: safeParseInt(limit) ?? undefined,
+        page: toInt(page) ?? undefined,
+        limit: toInt(limit) ?? undefined,
         estado: estado as string,
       })
       res.json({
@@ -40,7 +36,7 @@ export const socioController = {
 
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
+      const id = toInt(req.params.id)
       if (!id) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const socio = await socioService.getById(id)
 
@@ -87,7 +83,7 @@ export const socioController = {
 
   async update(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
+      const id = toInt(req.params.id)
       if (!id) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const data = updateSocioSchema.parse(req.body)
       const fotoFile = req.file
@@ -114,7 +110,7 @@ export const socioController = {
 
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
+      const id = toInt(req.params.id)
       if (!id) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const result = await socioService.delete(id)
 
@@ -132,7 +128,7 @@ export const socioController = {
   // Beneficiarios
   async getBeneficiarios(req: Request, res: Response, next: NextFunction) {
     try {
-      const socioId = safeParseInt(req.params.socioId)
+      const socioId = toInt(req.params.socioId)
       if (!socioId) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const beneficiarios = await socioService.getBeneficiarios(socioId)
       res.json({ success: true, data: beneficiarios })
@@ -143,7 +139,7 @@ export const socioController = {
 
   async addBeneficiario(req: Request, res: Response, next: NextFunction) {
     try {
-      const socioId = safeParseInt(req.params.socioId)
+      const socioId = toInt(req.params.socioId)
       if (!socioId) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const data = createBeneficiarioSchema.parse(req.body)
       const beneficiario = await socioService.addBeneficiario(socioId, data)
@@ -161,9 +157,9 @@ export const socioController = {
 
   async updateBeneficiario(req: Request, res: Response, next: NextFunction) {
     try {
-      const socioId = safeParseInt(req.params.socioId)
+      const socioId = toInt(req.params.socioId)
       if (!socioId) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
-      const beneficiarioId = safeParseInt(req.params.beneficiarioId)
+      const beneficiarioId = toInt(req.params.beneficiarioId)
       if (!beneficiarioId) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const data = createBeneficiarioSchema.partial().parse(req.body)
       const beneficiario = await socioService.updateBeneficiario(socioId, beneficiarioId, data)
@@ -181,9 +177,9 @@ export const socioController = {
 
   async deleteBeneficiario(req: Request, res: Response, next: NextFunction) {
     try {
-      const socioId = safeParseInt(req.params.socioId)
+      const socioId = toInt(req.params.socioId)
       if (!socioId) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
-      const beneficiarioId = safeParseInt(req.params.beneficiarioId)
+      const beneficiarioId = toInt(req.params.beneficiarioId)
       if (!beneficiarioId) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const deleted = await socioService.deleteBeneficiario(socioId, beneficiarioId)
 
@@ -201,7 +197,7 @@ export const socioController = {
   // Documentos
   async getDocumentos(req: Request, res: Response, next: NextFunction) {
     try {
-      const socioId = safeParseInt(req.params.socioId)
+      const socioId = toInt(req.params.socioId)
       if (!socioId) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const documentos = await socioService.getDocumentos(socioId)
       res.json({ success: true, data: documentos })
@@ -212,7 +208,7 @@ export const socioController = {
 
   async uploadDocumento(req: Request, res: Response, next: NextFunction) {
     try {
-      const socioId = safeParseInt(req.params.socioId)
+      const socioId = toInt(req.params.socioId)
       if (!socioId) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const file = req.file
       const tipoDocumentoResult = tipoDocumentoEnum.safeParse(req.body.tipoDocumento || 'OTRO')
@@ -238,9 +234,9 @@ export const socioController = {
 
   async deleteDocumento(req: Request, res: Response, next: NextFunction) {
     try {
-      const socioId = safeParseInt(req.params.socioId)
+      const socioId = toInt(req.params.socioId)
       if (!socioId) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
-      const documentoId = safeParseInt(req.params.documentoId)
+      const documentoId = toInt(req.params.documentoId)
       if (!documentoId) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const deleted = await socioService.deleteDocumento(socioId, documentoId)
 

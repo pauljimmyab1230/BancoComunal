@@ -36,14 +36,9 @@ export async function registrarMovimientoCaja(
   if (!concepto) throw new HttpError(400, 'Concepto de caja no encontrado')
   if (concepto.estado !== 'ACTIVO') throw new HttpError(400, 'El concepto de caja no está activo')
 
-  const saldoActual = Number(caja.saldoActual)
   let delta = 0
   if (concepto.afectaSaldo === 'AUMENTA') delta = data.monto
   else if (concepto.afectaSaldo === 'DISMINUYE') delta = -data.monto
-
-  if (delta < 0 && saldoActual + delta < 0) {
-    throw new HttpError(400, 'Saldo insuficiente en caja para realizar el movimiento')
-  }
 
   const mov = await tx.movimientoCaja.create({
     data: {
@@ -61,10 +56,19 @@ export async function registrarMovimientoCaja(
     },
   })
 
-  await tx.caja.update({
-    where: { id: data.cajaId },
-    data: { saldoActual: { increment: delta } },
-  })
+  if (delta !== 0) {
+    const updated = await tx.caja.updateMany({
+      where: {
+        id: data.cajaId,
+        saldoActual: { gte: delta < 0 ? -delta : 0 },
+      },
+      data: { saldoActual: { increment: delta } },
+    })
+    if (updated.count === 0) {
+      await tx.movimientoCaja.delete({ where: { id: mov.id } })
+      throw new HttpError(400, 'Saldo insuficiente en caja para realizar el movimiento')
+    }
+  }
 
   return mov
 }
@@ -145,14 +149,16 @@ export async function actualizarMovimientoCajaVinculado(
   }
 
   if (p.deltaMonto !== undefined && p.deltaMonto !== 0) {
-    const caja = await tx.caja.findUnique({ where: { id: mov.cajaId } })
-    if (caja && Number(caja.saldoActual) + p.deltaMonto < 0) {
-      throw new HttpError(400, 'Saldo insuficiente en caja para el ajuste del movimiento')
-    }
-    await tx.caja.update({
-      where: { id: mov.cajaId },
+    const updated = await tx.caja.updateMany({
+      where: {
+        id: mov.cajaId,
+        saldoActual: { gte: p.deltaMonto < 0 ? -p.deltaMonto : 0 },
+      },
       data: { saldoActual: { increment: p.deltaMonto } },
     })
+    if (updated.count === 0) {
+      throw new HttpError(400, 'Saldo insuficiente en caja para el ajuste del movimiento')
+    }
   }
 
   return mov
@@ -177,10 +183,19 @@ export async function anularMovimientoCajaVinculado(
   else if (mov.concepto?.afectaSaldo === 'DISMINUYE') delta = Number(mov.monto)
 
   await tx.movimientoCaja.update({ where: { id: mov.id }, data: { estado: 'ANULADO' } })
-  await tx.caja.update({
-    where: { id: mov.cajaId },
-    data: { saldoActual: { increment: delta } },
-  })
+
+  if (delta !== 0) {
+    const updated = await tx.caja.updateMany({
+      where: {
+        id: mov.cajaId,
+        saldoActual: { gte: delta < 0 ? -delta : 0 },
+      },
+      data: { saldoActual: { increment: delta } },
+    })
+    if (updated.count === 0) {
+      throw new HttpError(400, 'Saldo insuficiente en caja para anular el movimiento')
+    }
+  }
 
   return mov
 }

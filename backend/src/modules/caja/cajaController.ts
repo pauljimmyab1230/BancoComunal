@@ -8,11 +8,7 @@ import {
   createFlujoProyectadoSchema, updateFlujoProyectadoSchema,
   queryCajaSchema, queryArqueoSchema, queryFlujoSchema
 } from './cajaValidation'
-
-function safeParseInt(value: unknown): number | null {
-  const parsed = parseInt(String(value), 10)
-  return isNaN(parsed) ? null : parsed
-}
+import { toInt } from '../../middleware/parseHelpers'
 
 export const cajaController = {
   async list(req: Request, res: Response, next: NextFunction) {
@@ -25,8 +21,8 @@ export const cajaController = {
 
   async getResumen(req: Request, res: Response, next: NextFunction) {
     try {
-      const cajaId = safeParseInt(req.params.cajaId)
-      if (cajaId === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const cajaId = toInt(req.params.cajaId)
+      if (cajaId === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const resumen = await cajaService.getResumenCaja(cajaId)
       if (!resumen) { res.status(404).json({ success: false, message: 'Caja no encontrada' }); return }
       res.json({ success: true, data: resumen })
@@ -35,8 +31,8 @@ export const cajaController = {
 
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const caja = await cajaService.getById(id)
       if (!caja) { res.status(404).json({ success: false, message: 'Caja no encontrada' }); return }
       res.json({ success: true, data: caja })
@@ -53,8 +49,8 @@ export const cajaController = {
 
   async update(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const data = updateCajaSchema.parse(req.body)
       const caja = await cajaService.update(id, data)
       if (!caja) { res.status(404).json({ success: false, message: 'Caja no encontrada' }); return }
@@ -64,8 +60,8 @@ export const cajaController = {
 
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const result = await cajaService.delete(id)
       if (result === false) { res.status(404).json({ success: false, message: 'Caja no encontrada' }); return }
       if (typeof result === 'string') { res.status(400).json({ success: false, message: result }); return }
@@ -92,8 +88,8 @@ export const cajaController = {
 
   async updateConcepto(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const data = updateConceptoCajaSchema.parse(req.body)
       const concepto = await cajaService.updateConcepto(id, data)
       if (!concepto) { res.status(404).json({ success: false, message: 'Concepto no encontrado' }); return }
@@ -103,8 +99,8 @@ export const cajaController = {
 
   async deleteConcepto(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const result = await cajaService.deleteConcepto(id)
       if (result === false) { res.status(404).json({ success: false, message: 'Concepto no encontrado' }); return }
       res.json({ success: true, message: 'Concepto eliminado correctamente' })
@@ -115,14 +111,14 @@ export const cajaController = {
   async listMovimientos(req: Request, res: Response, next: NextFunction) {
     try {
       const params = {
-        cajaId: req.query.cajaId ? safeParseInt(req.query.cajaId) ?? undefined : undefined,
-        conceptoId: req.query.conceptoId ? safeParseInt(req.query.conceptoId) ?? undefined : undefined,
+        cajaId: req.query.cajaId ? toInt(req.query.cajaId) ?? undefined : undefined,
+        conceptoId: req.query.conceptoId ? toInt(req.query.conceptoId) ?? undefined : undefined,
         tipo: req.query.tipo as string,
         estado: req.query.estado as string,
         fechaInicio: req.query.fechaInicio as string,
         fechaFin: req.query.fechaFin as string,
-        page: safeParseInt(req.query.page) ?? 1,
-        limit: safeParseInt(req.query.limit) ?? 20,
+        page: toInt(req.query.page) ?? 1,
+        limit: toInt(req.query.limit) ?? 20,
       }
       const result = await cajaService.listMovimientos(params)
       res.json({ success: true, ...result })
@@ -131,8 +127,8 @@ export const cajaController = {
 
   async getMovimientoById(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const movimiento = await cajaService.getMovimientoById(id)
       if (!movimiento) { res.status(404).json({ success: false, message: 'Movimiento no encontrado' }); return }
       res.json({ success: true, data: movimiento })
@@ -149,8 +145,8 @@ export const cajaController = {
 
   async anularMovimiento(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       await cajaService.anularMovimiento(id)
       res.json({ success: true, message: 'Movimiento anulado correctamente' })
     } catch (error) { next(error) }
@@ -167,8 +163,8 @@ export const cajaController = {
 
   async getArqueoById(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const arqueo = await cajaService.getArqueoById(id)
       if (!arqueo) { res.status(404).json({ success: false, message: 'Arqueo no encontrado' }); return }
       res.json({ success: true, data: arqueo })
@@ -185,8 +181,8 @@ export const cajaController = {
 
   async aprobarArqueo(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const data = aprobarArqueoSchema.parse(req.body)
       const arqueo = await cajaService.aprobarArqueo(id, data, req.user?.username ?? null)
       res.json({ success: true, data: arqueo, message: `Arqueo ${data.estado.toLowerCase()} correctamente` })
@@ -220,8 +216,8 @@ export const cajaController = {
 
   async updateFlujoProyectado(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const data = updateFlujoProyectadoSchema.parse(req.body)
       const flujo = await cajaService.updateFlujoProyectado(id, data)
       if (!flujo) { res.status(404).json({ success: false, message: 'Flujo proyectado no encontrado' }); return }
@@ -231,8 +227,8 @@ export const cajaController = {
 
   async deleteFlujoProyectado(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = safeParseInt(req.params.id)
-      if (id === null) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      const id = toInt(req.params.id)
+      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
       const result = await cajaService.deleteFlujoProyectado(id)
       if (result === false) { res.status(404).json({ success: false, message: 'Flujo proyectado no encontrado' }); return }
       res.json({ success: true, message: 'Flujo proyectado eliminado correctamente' })

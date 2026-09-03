@@ -124,7 +124,7 @@ export const configuracionService = {
     const hashedPassword = await bcrypt.hash(newPassword, 12)
     await prisma.usuario.update({
       where: { id: userId },
-      data: { password: hashedPassword },
+      data: { password: hashedPassword, cambiarPassword: false },
     })
     return { id: usuario.id, username: usuario.username }
   },
@@ -163,7 +163,7 @@ export const configuracionService = {
     return {
       token,
       refreshToken,
-      user: { id: usuario.id, nombres: usuario.nombres, apellidoPaterno: usuario.apellidoPaterno, username: usuario.username, correo: usuario.correo, rol: usuario.rol },
+      user: { id: usuario.id, nombres: usuario.nombres, apellidoPaterno: usuario.apellidoPaterno, username: usuario.username, correo: usuario.correo, rol: usuario.rol, cambiarPassword: usuario.cambiarPassword },
     }
   },
 

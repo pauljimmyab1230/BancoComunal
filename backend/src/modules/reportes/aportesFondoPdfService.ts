@@ -50,20 +50,24 @@ export const aportesFondoPdfService = {
     return [...anios].sort((a, b) => b - a)
   },
 
-  async generate(fondoId: number, anio?: number): Promise<Buffer> {
+  async generate(fondoId: number, anio?: number, periodo?: string): Promise<Buffer> {
     const fondo = await prisma.fondoRotatorio.findUnique({ where: { id: fondoId } })
 
     if (!fondo) throw new HttpError(404, 'Fondo no encontrado')
 
-    const anioReporte = anio ?? new Date().getFullYear()
-    const desde = new Date(anioReporte, 0, 1)
-    const hasta = new Date(anioReporte, 11, 31, 23, 59, 59, 999)
+    const where: any = { fondoSocio: { fondoId } }
+
+    if (periodo) {
+      where.periodo = periodo
+    } else {
+      const anioReporte = anio ?? new Date().getFullYear()
+      const desde = new Date(anioReporte, 0, 1)
+      const hasta = new Date(anioReporte, 11, 31, 23, 59, 59, 999)
+      where.fechaAporte = { gte: desde, lte: hasta }
+    }
 
     const aportes = await prisma.aporte.findMany({
-      where: {
-        fondoSocio: { fondoId },
-        fechaAporte: { gte: desde, lte: hasta },
-      },
+      where,
       include: { fondoSocio: { include: { socio: true } } },
       orderBy: [{ fechaAporte: 'desc' }, { id: 'desc' }],
     })
@@ -100,13 +104,21 @@ export const aportesFondoPdfService = {
       }
     })
 
+    const periodoLabel = periodo
+      ? (() => {
+          const [anio, mes] = periodo.split('-')
+          const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+          return `${meses[Number(mes) - 1]} ${anio}`
+        })()
+      : String(anio ?? new Date().getFullYear())
+
     const data: AportesFondoData = {
       organizacion: fondo.nombre,
       lema: fondo.organizacion?.trim() || 'Registro solidario de ahorro y crédito',
       fechaEmision: formatFecha(new Date()),
       nombreFondo: fondo.nombre.toUpperCase(),
       monedaLabel: moneda === 'USD' ? 'DÓLARES (USD)' : 'SOLES (PEN)',
-      periodo: String(anioReporte),
+      periodo: periodoLabel,
       estadoFondo,
       totalAportado: formatMonto(totalAportado, moneda),
       numeroAportes: aportes.length,

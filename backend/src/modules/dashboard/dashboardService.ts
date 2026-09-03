@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client'
+import prisma from '../../config/prisma'
 import { marcarCuotasVencidas } from '../creditos/creditoService'
-
-const prisma = new PrismaClient()
 
 export const dashboardService = {
   async getSummary() {
@@ -85,7 +83,9 @@ export const dashboardService = {
         orderBy: { fechaMovimiento: 'desc' },
         take: 10,
       })
-    } catch { /* tabla puede no existir */ }
+    } catch (error) {
+      console.error('[Dashboard] Error al obtener movimientos del día:', error)
+    }
 
     try {
       arqueosPendientes = await prisma.arqueoCaja.findMany({
@@ -93,14 +93,18 @@ export const dashboardService = {
         include: { caja: { select: { nombre: true } } },
         orderBy: { fechaArqueo: 'desc' },
       })
-    } catch { /* tabla puede no existir */ }
+    } catch (error) {
+      console.error('[Dashboard] Error al obtener arqueos pendientes:', error)
+    }
 
     try {
       actividadReciente = await prisma.auditLog.findMany({
         take: 8,
         orderBy: { createdAt: 'desc' },
       })
-    } catch { /* tabla AuditLog puede no existir aún */ }
+    } catch (error) {
+      console.error('[Dashboard] Error al obtener actividad reciente:', error)
+    }
 
     const capitalPrestado = prestamos.reduce((a, p) => a + Number(p.monto), 0)
     // Solo la parte de amortización (capital) recuperada; el interés no es capital.

@@ -75,6 +75,7 @@ export const comprobanteAportePdfSchema = z.object({
 export const aportesFondoPdfSchema = z.object({
   fondoId: z.coerce.number().int().positive(),
   anio: z.coerce.number().int().positive().optional(),
+  periodo: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Formato de período inválido (YYYY-MM)').optional(),
 })
 
 export const aportesFondoAniosSchema = z.object({

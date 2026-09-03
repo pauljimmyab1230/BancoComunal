@@ -3,14 +3,14 @@ import { create } from 'zustand'
 interface AuthState {
   token: string | null
   refreshToken: string | null
-  user: { name: string; email: string; role?: string } | null
+  user: { name: string; email: string; role?: string; cambiarPassword?: boolean } | null
   isAuthenticated: boolean
-  login: (token: string, user: { name: string; email: string; role?: string }, refreshToken?: string) => void
+  login: (token: string, user: { name: string; email: string; role?: string; cambiarPassword?: boolean }, refreshToken?: string) => void
   setTokens: (token: string, refreshToken?: string) => void
   logout: () => void
 }
 
-function loadUser(): { name: string; email: string; role?: string } | null {
+function loadUser(): { name: string; email: string; role?: string; cambiarPassword?: boolean } | null {
   try {
     const raw = localStorage.getItem('user')
     return raw ? JSON.parse(raw) : null

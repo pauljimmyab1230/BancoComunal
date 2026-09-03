@@ -74,6 +74,7 @@ model Usuario {
   telefono        String?  @db.VarChar(20)
   rol             String   @db.VarChar(45)
   estado          String   @default("ACTIVO") @db.VarChar(45)
+  cambiarPassword Boolean  @default(false)
   ultimoAcceso    DateTime?
   createdAt       DateTime @default(now())
 

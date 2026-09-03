@@ -39,6 +39,7 @@ export default function FondoDetailPage() {
   const [printingResumen, setPrintingResumen] = useState(false)
   const [printingAportes, setPrintingAportes] = useState(false)
   const [anioAportes, setAnioAportes] = useState(new Date().getFullYear())
+  const [periodoAportes, setPeriodoAportes] = useState('')
 
   const { data: aniosAportesData } = useQuery({
     queryKey: ['aportes-fondo-anios', fondo?.id],
@@ -145,7 +146,10 @@ export default function FondoDetailPage() {
   const handleImprimirAportes = async () => {
     try {
       setPrintingAportes(true)
-      await openProtectedPdf(`/reportes/aportes-fondo/pdf?fondoId=${fondo.id}&anio=${anioAportes}`)
+      const params = periodoAportes
+        ? `fondoId=${fondo.id}&periodo=${periodoAportes}`
+        : `fondoId=${fondo.id}&anio=${anioAportes}`
+      await openProtectedPdf(`/reportes/aportes-fondo/pdf?${params}`)
     } catch (error) {
       toast.error(getErrorMessage(error, 'Error al generar el historial de aportes del fondo'))
     } finally {
@@ -349,14 +353,25 @@ export default function FondoDetailPage() {
             <h3 className="font-semibold text-[#111827]">Aportes</h3>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-28">
-              <Select
-                options={aniosOptions}
-                value={String(anioAportes)}
-                onChange={(e) => setAnioAportes(Number(e.target.value))}
-                aria-label="Año del reporte"
+            <div className="w-40">
+              <Input
+                type="month"
+                value={periodoAportes}
+                onChange={(e) => setPeriodoAportes(e.target.value)}
+                placeholder="Período"
+                aria-label="Período del reporte"
               />
             </div>
+            {!periodoAportes && (
+              <div className="w-28">
+                <Select
+                  options={aniosOptions}
+                  value={String(anioAportes)}
+                  onChange={(e) => setAnioAportes(Number(e.target.value))}
+                  aria-label="Año del reporte"
+                />
+              </div>
+            )}
             <Button
               variant="secondary"
               size="sm"

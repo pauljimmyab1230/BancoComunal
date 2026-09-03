@@ -17,10 +17,11 @@ export async function seedDatabase() {
         correo: 'admin@banquito.com',
         rol: 'ADMIN',
         estado: 'ACTIVO',
+        cambiarPassword: true,
       },
     })
 
-    console.log('✓ Usuario admin creado (admin / admin123)')
+    console.log('✓ Usuario admin creado (admin / admin123) - Debe cambiar contraseña en primer login')
   } else {
     console.log('• Usuario admin ya existe')
   }

@@ -1,12 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { aporteService } from './aporteService'
 import { createAporteSchema, updateAporteSchema } from './aporteValidation'
-
-function toInt(v: unknown): number | undefined {
-  if (v === undefined || v === null || v === '') return undefined
-  const n = Number(v)
-  return Number.isFinite(n) ? Math.trunc(n) : undefined
-}
+import { toInt } from '../../middleware/parseHelpers'
 
 function parseId(req: Request, res: Response): number | undefined {
   const id = toInt(req.params.id)
