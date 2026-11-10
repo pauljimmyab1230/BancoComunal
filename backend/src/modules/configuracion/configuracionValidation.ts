@@ -1,12 +1,11 @@
-import { z } from 'zod'
+﻿import { z } from 'zod'
 
 const passwordValidation = z
   .string()
-  .min(8, 'La contraseña debe tener al menos 8 caracteres')
+  .min(8, 'La contraseÃ±a debe tener al menos 8 caracteres')
   .max(255)
-  .regex(/[A-Z]/, 'La contraseña debe contener al menos una mayúscula')
-  .regex(/[a-z]/, 'La contraseña debe contener al menos una minúscula')
-  .regex(/[0-9]/, 'La contraseña debe contener al menos un número')
+  .regex(/[a-zA-Z]/, 'La contraseña debe contener al menos una letra')
+  .regex(/[0-9]/, 'La contraseÃ±a debe contener al menos un nÃºmero')
 
 export const usuarioCreateSchema = z.object({
   nombres: z.string().min(1).max(100),
@@ -16,7 +15,7 @@ export const usuarioCreateSchema = z.object({
   password: passwordValidation,
   correo: z.string().email().max(150).optional().or(z.literal('')),
   telefono: z.string().max(20).optional().or(z.literal('')),
-  rol: z.string().min(1).max(45),
+  rol: z.enum(['ADMIN', 'TESORERO', 'VOCAL']),
   estado: z.enum(['ACTIVO', 'INACTIVO']).default('ACTIVO'),
 })
 
@@ -27,13 +26,17 @@ export const usuarioPasswordSchema = z.object({
 })
 
 export const changeOwnPasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'La contraseña actual es requerida'),
+  currentPassword: z.string().min(1, 'La contraseÃ±a actual es requerida'),
   newPassword: passwordValidation,
 })
 
 export const loginSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
+})
+
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(1, 'Refresh token requerido'),
 })
 
 export const conceptoCajaCreateSchema = z.object({

@@ -6,6 +6,9 @@ import {
   actualizarMovimientoCajaVinculado,
   anularMovimientoCajaVinculado,
 } from '../caja/movimientoHelper'
+import { z } from 'zod'
+import { createAporteSchema, updateAporteSchema } from './aporteValidation'
+import type { Prisma } from '@prisma/client'
 
 const ESTADOS_APORTE = ['ACTIVO', 'ANULADO']
 const TIPOS_APORTE = ['OBLIGATORIO', 'EXTRAORDINARIO', 'VOLUNTARIO', 'MULTA']
@@ -39,7 +42,7 @@ export const aporteService = {
     }
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: Prisma.AporteWhereInput = {}
     if (estado) {
       if (!ESTADOS_APORTE.includes(estado)) {
         throw new HttpError(400, 'Estado inválido. Debe ser ACTIVO o ANULADO')
@@ -59,7 +62,7 @@ export const aporteService = {
       where.periodo = periodo
     }
 
-    const fondoSocioWhere: any = {}
+    const fondoSocioWhere: Prisma.FondoSocioWhereInput = {}
     if (fondoId) fondoSocioWhere.fondoId = fondoId
     if (socioId) fondoSocioWhere.socioId = socioId
     if (Object.keys(fondoSocioWhere).length > 0) where.fondoSocio = fondoSocioWhere
@@ -77,34 +80,52 @@ export const aporteService = {
       }))
     }
 
-    const activoWhere: any = { ...where }
+    const activoWhere: Prisma.AporteWhereInput = { ...where }
     delete activoWhere.estado
     activoWhere.estado = 'ACTIVO'
 
     // Suma por moneda respetando todos los filtros (estado por defecto ACTIVO).
     const condMoneda: string[] = []
-    const paramsMoneda: any[] = []
-    if (estado) { condMoneda.push('a.estado = ?'); paramsMoneda.push(estado) }
-    else { condMoneda.push("a.estado = 'ACTIVO'") }
-    if (tipo) { condMoneda.push('a.tipo = ?'); paramsMoneda.push(tipo) }
-    if (periodo) { condMoneda.push('a.periodo = ?'); paramsMoneda.push(periodo) }
-    if (fondoId) { condMoneda.push('fs.fondorotatorio_id = ?'); paramsMoneda.push(fondoId) }
-    if (socioId) { condMoneda.push('fs.socio_id = ?'); paramsMoneda.push(socioId) }
+    const paramsMoneda: unknown[] = []
+    if (estado) {
+      condMoneda.push('a.estado = ?')
+      paramsMoneda.push(estado)
+    } else {
+      condMoneda.push("a.estado = 'ACTIVO'")
+    }
+    if (tipo) {
+      condMoneda.push('a.tipo = ?')
+      paramsMoneda.push(tipo)
+    }
+    if (periodo) {
+      condMoneda.push('a.periodo = ?')
+      paramsMoneda.push(periodo)
+    }
+    if (fondoId) {
+      condMoneda.push('fs.fondorotatorio_id = ?')
+      paramsMoneda.push(fondoId)
+    }
+    if (socioId) {
+      condMoneda.push('fs.socio_id = ?')
+      paramsMoneda.push(socioId)
+    }
     if (search) {
       const terms = search.split(/\s+/).filter(Boolean)
       for (const term of terms) {
         const like = `%${term}%`
-        condMoneda.push('(a.comprobante LIKE ? OR a.periodo LIKE ? OR s.nombres LIKE ? OR s.apellidoPaterno LIKE ? OR s.apellidoMaterno LIKE ?)')
+        condMoneda.push(
+          '(a.comprobante LIKE ? OR a.periodo LIKE ? OR s.nombres LIKE ? OR s.apellidoPaterno LIKE ? OR s.apellidoMaterno LIKE ?)'
+        )
         paramsMoneda.push(like, like, like, like, like)
       }
     }
 
     const porMonedaSQL = prisma.$queryRawUnsafe<Array<{ moneda: string; total: string | number }>>(
       `SELECT f.moneda AS moneda, SUM(a.monto) AS total FROM aporte a JOIN FondoSocio fs ON a.FondoSocio_Id = fs.id JOIN fondorotatorio f ON fs.fondorotatorio_id = f.id JOIN socio s ON fs.socio_id = s.id WHERE ${condMoneda.join(' AND ')} GROUP BY f.moneda`,
-      ...paramsMoneda,
+      ...paramsMoneda
     )
 
-    const sumWhere: any = { ...where }
+    const sumWhere: Prisma.AporteWhereInput = { ...where }
     if (!estado) sumWhere.estado = 'ACTIVO'
     const totalAgregadoPromise = prisma.aporte.aggregate({ where: sumWhere, _sum: { monto: true } })
     const totalActivosPromise = prisma.aporte.count({ where: activoWhere })
@@ -122,33 +143,41 @@ export const aporteService = {
       _sum: { monto: true },
     })
 
-    const [data, total, porMonedaRows, totalAgregado, totalActivos, porTipoRows, porMetodoRows] = await Promise.all([
-      prisma.aporte.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { fechaAporte: 'desc' },
-        include: {
-          fondoSocio: {
-            select: {
-              fechaIngreso: true,
-              socio: {
-                select: { id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true },
-              },
-              fondo: {
-                select: { id: true, nombre: true, moneda: true },
+    const [data, total, porMonedaRows, totalAgregado, totalActivos, porTipoRows, porMetodoRows] =
+      await Promise.all([
+        prisma.aporte.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { fechaAporte: 'desc' },
+          include: {
+            fondoSocio: {
+              select: {
+                fechaIngreso: true,
+                socio: {
+                  select: {
+                    id: true,
+                    codigo: true,
+                    nombres: true,
+                    apellidoPaterno: true,
+                    apellidoMaterno: true,
+                    dni: true,
+                  },
+                },
+                fondo: {
+                  select: { id: true, nombre: true, moneda: true },
+                },
               },
             },
           },
-        },
-      }),
-      prisma.aporte.count({ where }),
-      porMonedaSQL,
-      totalAgregadoPromise,
-      totalActivosPromise,
-      porTipoPromise,
-      porMetodoPromise,
-    ])
+        }),
+        prisma.aporte.count({ where }),
+        porMonedaSQL,
+        totalAgregadoPromise,
+        totalActivosPromise,
+        porTipoPromise,
+        porMetodoPromise,
+      ])
 
     const totalAportadoPorMoneda: Record<string, number> = {}
     for (const r of porMonedaRows) {
@@ -196,7 +225,14 @@ export const aporteService = {
           select: {
             fechaIngreso: true,
             socio: {
-              select: { id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true },
+              select: {
+                id: true,
+                codigo: true,
+                nombres: true,
+                apellidoPaterno: true,
+                apellidoMaterno: true,
+                dni: true,
+              },
             },
             fondo: {
               select: { id: true, nombre: true, moneda: true, capitalDisponible: true },
@@ -218,17 +254,19 @@ export const aporteService = {
     }
   },
 
-  async create(data: any) {
+  async create(data: z.infer<typeof createAporteSchema>, usuarioId?: number) {
     const socioEnFondo = await prisma.fondoSocio.findUnique({
       where: { fondoId_socioId: { fondoId: data.fondoId, socioId: data.socioId } },
       include: {
         fondo: true,
-        socio: { select: { nombres: true, apellidoPaterno: true } },
+        socio: { select: { nombres: true, apellidoPaterno: true, estado: true } },
       },
     })
     if (!socioEnFondo) throw new HttpError(400, 'El socio no pertenece a este fondo')
     if (socioEnFondo.fechaSalida) throw new HttpError(400, 'El socio no está activo en este fondo')
     if (socioEnFondo.fondo.estado !== 'ACTIVO') throw new HttpError(400, 'El fondo no está activo')
+    if (socioEnFondo.socio.estado !== 'A')
+      throw new HttpError(400, 'El socio est\u00e1 inactivo y no puede registrar aportes')
 
     const aporte = await prisma.$transaction(async (tx) => {
       if (data.tipo === 'OBLIGATORIO') {
@@ -240,7 +278,11 @@ export const aporteService = {
             estado: 'ACTIVO',
           },
         })
-        if (existe) throw new HttpError(400, 'El socio ya tiene un aporte obligatorio registrado para este período')
+        if (existe)
+          throw new HttpError(
+            400,
+            'El socio ya tiene un aporte obligatorio registrado para este período'
+          )
       }
 
       const nuevoAporte = await tx.aporte.create({
@@ -266,7 +308,8 @@ export const aporteService = {
       await registrarMovimientoFondo(tx, socioEnFondo.fondoId, 'ING-APORTE', {
         tipo: 'INGRESO',
         monto: data.monto,
-        descripcion: `Aporte ${data.tipo} ${data.periodo ? 'de periodo ' + data.periodo : ''} - ${socioEnFondo.socio?.nombres || ''} ${socioEnFondo.socio?.apellidoPaterno || ''}`.trim(),
+        descripcion:
+          `Aporte ${data.tipo} ${data.periodo ? 'de periodo ' + data.periodo : ''} - ${socioEnFondo.socio?.nombres || ''} ${socioEnFondo.socio?.apellidoPaterno || ''}`.trim(),
         metodoPago: data.metodoPago,
         comprobante: data.comprobante || undefined,
         referencia: `APORTE-${nuevoAporte.id}`,
@@ -280,22 +323,30 @@ export const aporteService = {
       tabla: 'Aporte',
       registroId: aporte.id,
       operacion: 'CREATE',
-      datosNuevos: { tipo: aporte.tipo, monto: Number(aporte.monto), periodo: aporte.periodo, fondoId: socioEnFondo.fondoId, socioId: socioEnFondo.socioId },
+      datosNuevos: {
+        tipo: aporte.tipo,
+        monto: Number(aporte.monto),
+        periodo: aporte.periodo,
+        fondoId: socioEnFondo.fondoId,
+        socioId: socioEnFondo.socioId,
+      },
+      usuarioId,
     })
 
     return { ...aporte, monto: Number(aporte.monto) }
   },
 
-  async update(id: number, data: any) {
+  async update(id: number, data: z.infer<typeof updateAporteSchema>, usuarioId?: number) {
     const result = await prisma.$transaction(async (tx) => {
       const existing = await tx.aporte.findUnique({
         where: { id },
         include: { fondoSocio: { select: { id: true, fondoId: true } } },
       })
       if (!existing) return null
-      if (existing.estado === 'ANULADO') throw new HttpError(400, 'No se puede modificar un aporte anulado')
+      if (existing.estado === 'ANULADO')
+        throw new HttpError(400, 'No se puede modificar un aporte anulado')
 
-      const updateData: any = {}
+      const updateData: Prisma.AporteUpdateInput = {}
       if (data.tipo !== undefined) updateData.tipo = data.tipo
       if (data.monto !== undefined) updateData.monto = Number(data.monto)
       if (data.periodo !== undefined) updateData.periodo = data.periodo
@@ -316,7 +367,11 @@ export const aporteService = {
             estado: 'ACTIVO',
           },
         })
-        if (existe) throw new HttpError(400, 'El socio ya tiene un aporte obligatorio registrado para este período')
+        if (existe)
+          throw new HttpError(
+            400,
+            'El socio ya tiene un aporte obligatorio registrado para este período'
+          )
       }
       if (data.tipo !== undefined || data.periodo !== undefined) {
         updateData.claveUnica = claveUnicaAporte(existing.fondoSocio.id, nuevoTipo, nuevoPeriodo)
@@ -327,9 +382,14 @@ export const aporteService = {
       const updated = await tx.aporte.update({ where: { id }, data: updateData })
 
       if (montoDiff !== 0) {
-        const fondo = await tx.fondoRotatorio.findUnique({ where: { id: existing.fondoSocio.fondoId } })
+        const fondo = await tx.fondoRotatorio.findUnique({
+          where: { id: existing.fondoSocio.fondoId },
+        })
         if (fondo && Number(fondo.capitalDisponible) + montoDiff < 0) {
-          throw new HttpError(400, 'No se puede reducir: el capital disponible del fondo sería negativo')
+          throw new HttpError(
+            400,
+            'No se puede reducir: el capital disponible del fondo sería negativo'
+          )
         }
         await tx.fondoRotatorio.update({
           where: { id: existing.fondoSocio.fondoId },
@@ -338,10 +398,16 @@ export const aporteService = {
       }
 
       // Mantener sincronizado el movimiento de caja vinculado al aporte.
-      if (montoDiff !== 0 || data.fechaAporte !== undefined || data.metodoPago !== undefined || data.comprobante !== undefined) {
+      if (
+        montoDiff !== 0 ||
+        data.fechaAporte !== undefined ||
+        data.metodoPago !== undefined ||
+        data.comprobante !== undefined
+      ) {
         await actualizarMovimientoCajaVinculado(tx, `APORTE-${existing.id}`, {
           deltaMonto: montoDiff,
-          fechaMovimiento: data.fechaAporte !== undefined ? parseFechaLocal(data.fechaAporte) : undefined,
+          fechaMovimiento:
+            data.fechaAporte !== undefined ? parseFechaLocal(data.fechaAporte) : undefined,
           metodoPago: data.metodoPago,
           comprobante: data.comprobante !== undefined ? data.comprobante || null : undefined,
         })
@@ -367,23 +433,29 @@ export const aporteService = {
         observacion: existing.observacion,
       },
       datosNuevos: data,
+      usuarioId,
     })
 
     return { ...updated, monto: Number(updated.monto) }
   },
 
-  async delete(id: number) {
+  async delete(id: number, usuarioId?: number) {
     const result = await prisma.$transaction(async (tx) => {
       const aporte = await tx.aporte.findUnique({
         where: { id },
         include: { fondoSocio: { select: { fondoId: true } } },
       })
       if (!aporte) return { success: false as const, message: 'Aporte no encontrado' }
-      if (aporte.estado === 'ANULADO') return { success: false as const, message: 'El aporte ya está anulado' }
+      if (aporte.estado === 'ANULADO')
+        return { success: false as const, message: 'El aporte ya está anulado' }
 
       const fondo = await tx.fondoRotatorio.findUnique({ where: { id: aporte.fondoSocio.fondoId } })
       if (fondo && Number(fondo.capitalDisponible) < Number(aporte.monto)) {
-        return { success: false as const, message: 'No se puede anular: el capital disponible del fondo es insuficiente (préstamos activos)' }
+        return {
+          success: false as const,
+          message:
+            'No se puede anular: el capital disponible del fondo es insuficiente (préstamos activos)',
+        }
       }
 
       await tx.aporte.update({
@@ -407,6 +479,7 @@ export const aporteService = {
         registroId: id,
         operacion: 'DELETE',
         datosAnteriores: { estado: 'ACTIVO' },
+        usuarioId,
       })
     }
 

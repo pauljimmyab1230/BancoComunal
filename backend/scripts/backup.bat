@@ -6,8 +6,18 @@ REM Backup de Base de Datos - Banquito Solidario
 REM ========================================
 
 set DB_NAME=banquito_solidario
-set DB_USER=root
-set DB_PASS=pauljimmyAB1230
+set DB_USER=%DB_USER%
+set DB_PASS=%DB_PASS%
+if "%DB_USER%"=="" (
+    echo [ERROR] Variable DB_USER no configurada. Ejecute: set DB_USER=root
+    pause
+    exit /b 1
+)
+if "%DB_PASS%"=="" (
+    echo [ERROR] Variable DB_PASS no configurada. Ejecute: set DB_PASS=su_password
+    pause
+    exit /b 1
+)
 set BACKUP_DIR=%~dp0..\backups
 set TIMESTAMP=%DATE:~-4%%DATE:~3,2%%DATE:~0,2%_%TIME:~0,2%%TIME:~3,2%%TIME:~6,2%
 set TIMESTAMP=%TIMESTAMP: =0%

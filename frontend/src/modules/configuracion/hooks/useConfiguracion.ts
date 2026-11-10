@@ -2,10 +2,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { configuracionApi } from '../api/configuracionApi'
 import type { PaginationParams } from '../types'
+import type {
+  CreateUsuarioInput,
+  UpdateUsuarioInput,
+  CreateConceptoInput,
+  UpdateConceptoInput,
+} from '../api/configuracionApi'
 
 export function useLogin() {
   return useMutation({
-    mutationFn: ({ username, password }: { username: string; password: string }) => configuracionApi.login(username, password),
+    mutationFn: ({ username, password }: { username: string; password: string }) =>
+      configuracionApi.login(username, password),
     onError: (error: Error) => {
       toast.error(error.message || 'Error al iniciar sesión')
     },
@@ -31,7 +38,7 @@ export function useCreateUsuario() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: any) => configuracionApi.createUsuario(data),
+    mutationFn: (data: CreateUsuarioInput) => configuracionApi.createUsuario(data),
     onSuccess: (res) => {
       toast.success(res.message || 'Usuario creado')
       queryClient.invalidateQueries({ queryKey: ['usuarios'] })
@@ -46,7 +53,8 @@ export function useUpdateUsuario() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) => configuracionApi.updateUsuario(id, data),
+    mutationFn: ({ id, data }: { id: number; data: UpdateUsuarioInput }) =>
+      configuracionApi.updateUsuario(id, data),
     onSuccess: (res) => {
       toast.success(res.message || 'Usuario actualizado')
       queryClient.invalidateQueries({ queryKey: ['usuarios'] })
@@ -61,7 +69,8 @@ export function useUpdatePassword() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, password }: { id: number; password: string }) => configuracionApi.updatePassword(id, password),
+    mutationFn: ({ id, password }: { id: number; password: string }) =>
+      configuracionApi.updatePassword(id, password),
     onSuccess: (res) => {
       toast.success(res.message || 'Contraseña actualizada')
       queryClient.invalidateQueries({ queryKey: ['usuarios'] })
@@ -74,8 +83,13 @@ export function useUpdatePassword() {
 
 export function useChangeOwnPassword() {
   return useMutation({
-    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
-      configuracionApi.changeOwnPassword(currentPassword, newPassword),
+    mutationFn: ({
+      currentPassword,
+      newPassword,
+    }: {
+      currentPassword: string
+      newPassword: string
+    }) => configuracionApi.changeOwnPassword(currentPassword, newPassword),
     onSuccess: (res) => {
       toast.success(res.message || 'Contraseña actualizada correctamente')
     },
@@ -102,7 +116,7 @@ export function useDeleteUsuario() {
 
 export function useConceptos(params?: PaginationParams) {
   return useQuery({
-    queryKey: ['conceptosCaja', params],
+    queryKey: ['configuracion', 'conceptos', params],
     queryFn: () => configuracionApi.listConceptos(params),
   })
 }
@@ -111,10 +125,10 @@ export function useCreateConcepto() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: any) => configuracionApi.createConcepto(data),
+    mutationFn: (data: CreateConceptoInput) => configuracionApi.createConcepto(data),
     onSuccess: (res) => {
       toast.success(res.message || 'Concepto creado')
-      queryClient.invalidateQueries({ queryKey: ['conceptosCaja'] })
+      queryClient.invalidateQueries({ queryKey: ['configuracion', 'conceptos'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al crear concepto')
@@ -126,10 +140,11 @@ export function useUpdateConcepto() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) => configuracionApi.updateConcepto(id, data),
+    mutationFn: ({ id, data }: { id: number; data: UpdateConceptoInput }) =>
+      configuracionApi.updateConcepto(id, data),
     onSuccess: (res) => {
       toast.success(res.message || 'Concepto actualizado')
-      queryClient.invalidateQueries({ queryKey: ['conceptosCaja'] })
+      queryClient.invalidateQueries({ queryKey: ['configuracion', 'conceptos'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al actualizar concepto')
@@ -144,7 +159,7 @@ export function useDeleteConcepto() {
     mutationFn: (id: number) => configuracionApi.deleteConcepto(id),
     onSuccess: () => {
       toast.success('Concepto eliminado')
-      queryClient.invalidateQueries({ queryKey: ['conceptosCaja'] })
+      queryClient.invalidateQueries({ queryKey: ['configuracion', 'conceptos'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al eliminar concepto')
@@ -163,7 +178,8 @@ export function useUpdateOrganizacion() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: any) => configuracionApi.updateOrganizacion(data),
+    mutationFn: (data: import('../types').Organizacion) =>
+      configuracionApi.updateOrganizacion(data),
     onSuccess: (res) => {
       toast.success(res.message || 'Organización actualizada')
       queryClient.invalidateQueries({ queryKey: ['organizacion'] })

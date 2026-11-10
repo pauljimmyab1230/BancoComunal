@@ -2,7 +2,17 @@ import { useState } from 'react'
 import { Plus, Banknote, Wallet, Calendar, Eye, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useCreditos, useAnularCredito } from '../hooks/useCreditos'
-import { Button, DataTable, SearchInput, Badge, SectionHeader, Card, ConfirmDialog, Select } from '@/components/ui'
+import {
+  Button,
+  DataTable,
+  SearchInput,
+  Badge,
+  SectionHeader,
+  Card,
+  ConfirmDialog,
+  Select,
+  ErrorState,
+} from '@/components/ui'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
@@ -10,10 +20,14 @@ import type { Prestamo } from '../types'
 
 const estadoBadge = (estado: string) => {
   switch (estado) {
-    case 'ACTIVO': return <Badge variant="blue">Activo</Badge>
-    case 'PAGADO': return <Badge variant="green">Pagado</Badge>
-    case 'ANULADO': return <Badge variant="gray">Anulado</Badge>
-    default: return <Badge>{estado}</Badge>
+    case 'ACTIVO':
+      return <Badge variant="blue">Activo</Badge>
+    case 'PAGADO':
+      return <Badge variant="green">Pagado</Badge>
+    case 'ANULADO':
+      return <Badge variant="gray">Anulado</Badge>
+    default:
+      return <Badge>{estado}</Badge>
   }
 }
 
@@ -31,7 +45,7 @@ export default function CreditosListPage() {
   const fondoFiltro = searchParams.get('fondoId') || ''
   const estadoFiltro = searchParams.get('estado') || ''
 
-  const { data, isLoading } = useCreditos({
+  const { data, isLoading, isError, error, refetch } = useCreditos({
     search,
     page,
     limit: 10,
@@ -42,7 +56,7 @@ export default function CreditosListPage() {
   const anularMutation = useAnularCredito()
 
   const { data: fondosData } = useQuery({
-    queryKey: ['fondos-select'],
+    queryKey: ['fondos-select', { estado: undefined }],
     queryFn: async () => {
       const { data } = await api.get('/fondos', { params: { limit: 100 } })
       return data.data as { id: number; nombre: string; moneda: string }[]
@@ -65,12 +79,18 @@ export default function CreditosListPage() {
       key: 'socio',
       label: 'Socio',
       render: (p: Prestamo) => (
-        <Link to={`/socios/${p.socio.id}`} className="flex items-center gap-2 text-sm hover:text-[#2563EB]">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB]/10 text-xs font-bold text-[#2563EB]">
-            {p.socio.nombres.charAt(0)}{p.socio.apellidoPaterno.charAt(0)}
+        <Link
+          to={`/socios/${p.socio.id}`}
+          className="flex items-center gap-2 text-sm hover:text-secondary"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/10 text-xs font-bold text-secondary">
+            {p.socio.nombres.charAt(0)}
+            {p.socio.apellidoPaterno.charAt(0)}
           </div>
           <div>
-            <p className="font-medium text-[#111827]">{p.socio.nombres} {p.socio.apellidoPaterno}</p>
+            <p className="font-medium text-gray-900">
+              {p.socio.nombres} {p.socio.apellidoPaterno}
+            </p>
             <p className="text-xs text-gray-400">{p.socio.codigo}</p>
           </div>
         </Link>
@@ -95,15 +115,13 @@ export default function CreditosListPage() {
     {
       key: 'interes',
       label: 'Interés',
-      render: (p: Prestamo) => (
-        <span className="text-sm text-gray-600">{p.tasaInteres}%</span>
-      ),
+      render: (p: Prestamo) => <span className="text-sm text-gray-600">{p.tasaInteres}%</span>,
     },
     {
       key: 'fondo',
       label: 'Fondo',
       render: (p: Prestamo) => (
-        <Link to={`/fondos/${p.fondo.id}`} className="text-sm text-gray-600 hover:text-[#2563EB]">
+        <Link to={`/fondos/${p.fondo.id}`} className="text-sm text-gray-600 hover:text-secondary">
           {p.fondo.nombre}
         </Link>
       ),
@@ -119,11 +137,17 @@ export default function CreditosListPage() {
       className: 'text-right',
       render: (p: Prestamo) => (
         <div className="flex justify-end gap-1">
-          <Link to={`/creditos/${p.id}`} className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-[#2563EB]/10 hover:text-[#2563EB]">
+          <Link
+            to={`/creditos/${p.id}`}
+            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-secondary/10 hover:text-secondary"
+          >
             <Eye className="h-4 w-4" />
           </Link>
           {p.estado === 'ACTIVO' && (
-            <button onClick={() => setAnularId(p.id)} className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600">
+            <button
+              onClick={() => setAnularId(p.id)}
+              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+            >
               <Trash2 className="h-4 w-4" />
             </button>
           )}
@@ -141,10 +165,7 @@ export default function CreditosListPage() {
   return (
     <div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <SectionHeader
-          title="Créditos"
-          description="Gestión de préstamos y cuotas"
-        />
+        <SectionHeader title="Créditos" description="Gestión de préstamos y cuotas" />
         <Button as="link" to="/creditos/nuevo" iconLeft={<Plus className="h-4 w-4" />}>
           Nuevo Crédito
         </Button>
@@ -153,11 +174,13 @@ export default function CreditosListPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <Card padding="md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
               <Banknote className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#111827]">{isLoading ? '—' : (data?.total || 0)}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {isLoading ? '—' : data?.total || 0}
+              </p>
               <p className="text-xs text-gray-500">Total Créditos</p>
             </div>
           </div>
@@ -169,11 +192,18 @@ export default function CreditosListPage() {
             </div>
             <div>
               {Object.keys(totalPrestadoPorMoneda).length === 0 ? (
-                <p className="text-2xl font-bold text-[#111827]">—</p>
+                <p className="text-2xl font-bold text-gray-900">—</p>
               ) : (
                 <div className="space-y-0.5">
                   {Object.entries(totalPrestadoPorMoneda).map(([moneda, monto]) => (
-                    <p key={moneda} className={Object.keys(totalPrestadoPorMoneda).length === 1 ? 'text-2xl font-bold text-[#111827]' : 'text-lg font-bold text-[#111827]'}>
+                    <p
+                      key={moneda}
+                      className={
+                        Object.keys(totalPrestadoPorMoneda).length === 1
+                          ? 'text-2xl font-bold text-gray-900'
+                          : 'text-lg font-bold text-gray-900'
+                      }
+                    >
                       {formatMonto(monto, moneda)}
                     </p>
                   ))}
@@ -189,7 +219,9 @@ export default function CreditosListPage() {
               <Calendar className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#111827]">{isLoading ? '—' : (data?.totalActivos || 0)}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {isLoading ? '—' : data?.totalActivos || 0}
+              </p>
               <p className="text-xs text-gray-500">Créditos Activos</p>
             </div>
           </div>
@@ -200,7 +232,10 @@ export default function CreditosListPage() {
         <SearchInput
           placeholder="Buscar por socio..."
           value={search}
-          onChange={(val) => { setSearch(val); setPage(1) }}
+          onChange={(val) => {
+            setSearch(val)
+            setPage(1)
+          }}
           className="max-w-md"
         />
         <div className="flex flex-wrap gap-3">
@@ -227,19 +262,23 @@ export default function CreditosListPage() {
         </div>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={creditos}
-        loading={isLoading}
-        keyField="id"
-        emptyTitle="No hay créditos registrados"
-        emptyDescription="Registra el primer crédito para comenzar."
-        emptyActionLabel="Nuevo Crédito"
-        emptyActionTo="/creditos/nuevo"
-        currentPage={data?.page}
-        totalPages={data?.totalPages}
-        onPageChange={setPage}
-      />
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={creditos}
+          loading={isLoading}
+          keyField="id"
+          emptyTitle="No hay créditos registrados"
+          emptyDescription="Registra el primer crédito para comenzar."
+          emptyActionLabel="Nuevo Crédito"
+          emptyActionTo="/creditos/nuevo"
+          currentPage={data?.page}
+          totalPages={data?.totalPages}
+          onPageChange={setPage}
+        />
+      )}
 
       <ConfirmDialog
         open={anularId !== null}

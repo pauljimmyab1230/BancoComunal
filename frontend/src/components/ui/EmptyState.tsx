@@ -24,23 +24,21 @@ export default function EmptyState({
       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
         {icon || <Inbox className="h-8 w-8" />}
       </div>
-      <h3 className="text-lg font-semibold text-[#111827]">{title}</h3>
-      {description && (
-        <p className="mt-2 max-w-sm text-sm text-gray-500">{description}</p>
-      )}
+      <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+      {description && <p className="mt-2 max-w-sm text-sm text-gray-500">{description}</p>}
       {actionLabel && (onAction || actionTo) && (
         <div className="mt-6">
           {actionTo ? (
             <Link
               to={actionTo}
-              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#2563EB] to-[#38BDF8] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#2563EB]/25 transition-all hover:shadow-lg hover:shadow-[#2563EB]/30 active:scale-[0.98]"
+              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-secondary to-accent px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-secondary/25 transition-all hover:shadow-lg hover:shadow-secondary/30 active:scale-[0.98]"
             >
               {actionLabel}
             </Link>
           ) : (
             <button
               onClick={onAction}
-              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#2563EB] to-[#38BDF8] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#2563EB]/25 transition-all hover:shadow-lg hover:shadow-[#2563EB]/30 active:scale-[0.98]"
+              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-secondary to-accent px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-secondary/25 transition-all hover:shadow-lg hover:shadow-secondary/30 active:scale-[0.98]"
             >
               {actionLabel}
             </button>

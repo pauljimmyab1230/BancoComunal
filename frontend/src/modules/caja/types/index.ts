@@ -153,7 +153,7 @@ export interface CreateCajaInput {
   estado?: string
 }
 
-export interface UpdateCajaInput extends Partial<CreateCajaInput> {}
+export type UpdateCajaInput = Partial<CreateCajaInput>
 
 export interface CreateMovimientoInput {
   cajaId: number

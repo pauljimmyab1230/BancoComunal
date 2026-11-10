@@ -7,7 +7,12 @@ interface PaginationProps {
   className?: string
 }
 
-export default function Pagination({ currentPage, totalPages, onPageChange, className = '' }: PaginationProps) {
+export default function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+  className = '',
+}: PaginationProps) {
   if (totalPages <= 1) return null
 
   const getPages = (): (number | '...')[] => {
@@ -39,7 +44,10 @@ export default function Pagination({ currentPage, totalPages, onPageChange, clas
 
       {getPages().map((page, i) =>
         page === '...' ? (
-          <span key={`ellipsis-${i}`} className="flex h-9 w-9 items-center justify-center text-sm text-gray-400">
+          <span
+            key={`ellipsis-${i}`}
+            className="flex h-9 w-9 items-center justify-center text-sm text-gray-400"
+          >
             ···
           </span>
         ) : (
@@ -49,14 +57,14 @@ export default function Pagination({ currentPage, totalPages, onPageChange, clas
             onClick={() => onPageChange(page)}
             className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
               page === currentPage
-                ? 'bg-[#2563EB] text-white shadow-md shadow-[#2563EB]/25'
+                ? 'bg-secondary text-white shadow-md shadow-secondary/25'
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
             aria-current={page === currentPage ? 'page' : undefined}
           >
             {page}
           </button>
-        ),
+        )
       )}
 
       <button

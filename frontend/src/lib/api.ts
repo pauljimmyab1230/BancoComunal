@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/authStore'
 
 export const API_URL = import.meta.env.VITE_API_URL || '/api'
@@ -8,82 +8,61 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 })
 
-api.interceptors.request.use(
-  (config) => {
-    const token = useAuthStore.getState().token
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-      sessionStorage.removeItem('authRedirecting')
-    }
-    return config
-  },
-  (error) => Promise.reject(error)
-)
+type ConfigReintento = InternalAxiosRequestConfig & { _retry?: boolean }
 
-let isRefreshing = false
-let failedQueue: { resolve: (token: string) => void; reject: (error: unknown) => void }[] = []
+let refrescando = false
+let colaEspera: { resolve: () => void; reject: (error: unknown) => void }[] = []
 
-function processQueue(error: unknown, token: string | null) {
-  failedQueue.forEach((prom) => {
-    if (error || !token) {
-      prom.reject(error)
-    } else {
-      prom.resolve(token)
-    }
+function procesarCola(error: unknown) {
+  colaEspera.forEach((prom) => {
+    if (error) prom.reject(error)
+    else prom.resolve()
   })
-  failedQueue = []
+  colaEspera = []
+}
+
+async function cerrarSesionYRedirigir() {
+  const { logout } = useAuthStore.getState()
+  await logout()
+  if (!sessionStorage.getItem('authRedirecting')) {
+    sessionStorage.setItem('authRedirecting', '1')
+    window.location.replace('/login')
+  }
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    sessionStorage.removeItem('authRedirecting')
+    return response
+  },
   async (error) => {
-    const originalRequest = error.config
+    const originalRequest = error.config as ConfigReintento | undefined
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      const { refreshToken, setTokens, logout } = useAuthStore.getState()
-
-      if (!refreshToken) {
-        const hadToken = !!useAuthStore.getState().token
-        logout()
-        if (hadToken && !sessionStorage.getItem('authRedirecting')) {
-          sessionStorage.setItem('authRedirecting', '1')
-          window.location.replace('/login')
-        }
-        return Promise.reject(error)
-      }
-
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject })
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`
-          return api(originalRequest)
-        })
-      }
-
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true
-      isRefreshing = true
 
+      // Ya hay un refresh en curso: esperar a que termine y reintentar.
+      if (refrescando) {
+        return new Promise<void>((resolve, reject) => {
+          colaEspera.push({ resolve, reject })
+        }).then(() => api(originalRequest))
+      }
+
+      refrescando = true
       try {
-        const { data } = await axios.post(`${API_URL}/configuracion/refresh-token`, { refreshToken })
-        const newToken = data.data.token
-        const newRefreshToken = data.data.refreshToken
-        setTokens(newToken, newRefreshToken)
-        processQueue(null, newToken)
-        originalRequest.headers.Authorization = `Bearer ${newToken}`
+        // Las cookies httpOnly viajan solas: no hace falta enviar el token en el body.
+        await axios.post(`${API_URL}/configuracion/refresh-token`, {}, { withCredentials: true })
+        procesarCola(null)
         return api(originalRequest)
       } catch (refreshError) {
-        processQueue(refreshError, null)
-        logout()
-        if (!sessionStorage.getItem('authRedirecting')) {
-          sessionStorage.setItem('authRedirecting', '1')
-          window.location.replace('/login')
-        }
+        procesarCola(refreshError)
+        await cerrarSesionYRedirigir()
         return Promise.reject(refreshError)
       } finally {
-        isRefreshing = false
+        refrescando = false
       }
     }
 
@@ -94,12 +73,17 @@ api.interceptors.response.use(
 )
 
 export function extractServerMessage(error: unknown): string | null {
-  const data = (error as any)?.response?.data
+  const data = (
+    error as AxiosError<{
+      message?: string
+      errors?: Array<{ mensaje?: string; message?: string }>
+    }>
+  )?.response?.data
   if (!data) return null
   if (Array.isArray(data.errors) && data.errors.length > 0) {
     const msgs = data.errors
-      .map((e: any) => e?.mensaje || e?.message)
-      .filter((m: unknown): m is string => typeof m === 'string' && m.trim().length > 0)
+      .map((e) => e?.mensaje || e?.message)
+      .filter((m): m is string => typeof m === 'string' && m.trim().length > 0)
     if (msgs.length > 0) return msgs.join(' · ')
   }
   if (typeof data.message === 'string' && data.message.trim()) return data.message
@@ -108,15 +92,24 @@ export function extractServerMessage(error: unknown): string | null {
 
 function statusMessage(status: number): string {
   switch (status) {
-    case 400: return 'Solicitud inválida'
-    case 401: return 'Sesión no autorizada, inicia sesión nuevamente'
-    case 403: return 'No tienes permisos para realizar esta acción'
-    case 404: return 'El recurso solicitado no existe'
-    case 409: return 'Conflicto con los datos existentes'
-    case 422: return 'No se pudo procesar la solicitud'
-    case 429: return 'Demasiadas solicitudes, intenta de nuevo más tarde'
-    case 500: return 'Error interno del servidor'
-    default: return `Error en el servidor (${status})`
+    case 400:
+      return 'Solicitud inválida'
+    case 401:
+      return 'Sesión no autorizada, inicia sesión nuevamente'
+    case 403:
+      return 'No tienes permisos para realizar esta acción'
+    case 404:
+      return 'El recurso solicitado no existe'
+    case 409:
+      return 'Conflicto con los datos existentes'
+    case 422:
+      return 'No se pudo procesar la solicitud'
+    case 429:
+      return 'Demasiadas solicitudes, intenta de nuevo más tarde'
+    case 500:
+      return 'Error interno del servidor'
+    default:
+      return `Error en el servidor (${status})`
   }
 }
 
@@ -135,19 +128,16 @@ export function getErrorMessage(error: unknown, fallback?: string): string {
 export { api }
 export default api
 
-/**
- * Descarga un PDF protegido por autenticación (con el token Bearer) y lo
- * abre en una pestaña nueva. Devuelve true si el PDF se abrió correctamente.
- */
 export async function openProtectedPdf(url: string): Promise<boolean> {
-  const token = useAuthStore.getState().token
-  const response = await api.get(url, {
-    responseType: 'blob',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  })
+  // La autenticación viaja en la cookie httpOnly, no hace falta el header.
+  const response = await api.get(url, { responseType: 'blob' })
   const blob = new Blob([response.data], { type: 'application/pdf' })
   const objectUrl = URL.createObjectURL(blob)
-  window.open(objectUrl, '_blank')
+  const ventana = window.open(objectUrl, '_blank')
+  if (ventana === null) {
+    URL.revokeObjectURL(objectUrl)
+    return false
+  }
   setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
   return true
 }

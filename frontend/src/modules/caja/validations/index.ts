@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const cajaCreateSchema = z.object({
-  nombre: z.string().min(1, 'Nombre es requerido').max(100),
+  nombre: z.string().min(2, 'Nombre debe tener al menos 2 caracteres').max(100),
   descripcion: z.string().max(500).optional(),
   tipo: z.enum(['PRINCIPAL', 'SECUNDARIA', 'CAJA_CHICA']).default('PRINCIPAL'),
   moneda: z.enum(['PEN', 'USD']).default('PEN'),
@@ -19,7 +19,9 @@ export const movimientoCreateSchema = z.object({
   monto: z.number().min(0.01, 'Monto debe ser mayor a 0'),
   descripcion: z.string().max(500).optional(),
   comprobante: z.string().max(100).optional(),
-  metodoPago: z.enum(['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE', 'TARJETA', 'OTRO']).default('EFECTIVO'),
+  metodoPago: z
+    .enum(['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE', 'TARJETA', 'OTRO'])
+    .default('EFECTIVO'),
   referencia: z.string().max(100).optional(),
   fechaMovimiento: z.string().optional(),
 })
@@ -37,6 +39,7 @@ export const aprobarArqueoSchema = z.object({
 })
 
 export const transferirSchema = z.object({
+  cajaOrigenId: z.number().min(1, 'Caja origen es requerida'),
   cajaDestinoId: z.number().min(1, 'Seleccione la caja destino'),
   monto: z.number().min(0.01, 'El monto debe ser mayor a 0'),
   descripcion: z.string().max(500).optional(),

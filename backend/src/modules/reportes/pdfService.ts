@@ -1,10 +1,25 @@
-import { chromium, type Browser } from 'playwright'
+import type { Browser } from 'playwright'
 
 let browserPromise: Promise<Browser> | null = null
 
+async function launchBrowser(): Promise<Browser> {
+  try {
+    const { chromium } = await import('playwright')
+    return await chromium.launch({ args: ['--disable-dev-shm-usage'] })
+  } catch (err) {
+    throw new Error(
+      'No se pudo iniciar el motor PDF (Playwright/Chromium) en este servidor: ' +
+        (err instanceof Error ? err.message : String(err))
+    )
+  }
+}
+
 async function getBrowser(): Promise<Browser> {
   if (!browserPromise) {
-    browserPromise = chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] })
+    browserPromise = launchBrowser().catch((err) => {
+      browserPromise = null
+      throw err
+    })
   }
   return browserPromise
 }
@@ -24,9 +39,12 @@ export async function renderHtmlToPdf(html: string, options: PdfOptions = {}): P
   const page = await browser.newPage()
 
   try {
-    await page.setContent(html, { waitUntil: 'networkidle' })
+    await page.route('**', (route) =>
+      route.request().url().startsWith('data:') ? route.continue() : route.abort()
+    )
+    await page.setContent(html, { waitUntil: 'load' })
     const pdf = await page.pdf({
-      format: (options.format as any) || 'A4',
+      format: options.format || 'A4',
       landscape: options.landscape ?? false,
       printBackground: true,
       preferCSSPageSize: true,

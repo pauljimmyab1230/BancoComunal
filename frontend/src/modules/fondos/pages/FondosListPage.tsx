@@ -1,19 +1,34 @@
 import { useState } from 'react'
 import { Plus, Building2, Users, Wallet, Eye, Pencil, Trash2, Download } from 'lucide-react'
 import { useFondos, useDeleteFondo } from '../hooks/useFondos'
-import { Button, DataTable, SearchInput, Badge, SectionHeader, Card, ConfirmDialog, Select } from '@/components/ui'
+import {
+  Button,
+  DataTable,
+  SearchInput,
+  Badge,
+  SectionHeader,
+  Card,
+  ConfirmDialog,
+  Select,
+  ErrorState,
+} from '@/components/ui'
 import { Link } from 'react-router-dom'
 import { fondosApi } from '../api/fondosApi'
 import { getErrorMessage } from '@/lib/api'
+import { exportCsv } from '@/lib/utils'
 import type { FondoRotatorio } from '../types'
 import toast from 'react-hot-toast'
 
 const estadoBadge = (estado: string) => {
   switch (estado) {
-    case 'ACTIVO': return <Badge variant="green">Activo</Badge>
-    case 'INACTIVO': return <Badge variant="yellow">Inactivo</Badge>
-    case 'CERRADO': return <Badge variant="gray">Cerrado</Badge>
-    default: return <Badge>{estado}</Badge>
+    case 'ACTIVO':
+      return <Badge variant="green">Activo</Badge>
+    case 'INACTIVO':
+      return <Badge variant="yellow">Inactivo</Badge>
+    case 'CERRADO':
+      return <Badge variant="gray">Cerrado</Badge>
+    default:
+      return <Badge>{estado}</Badge>
   }
 }
 
@@ -27,7 +42,12 @@ export default function FondosListPage() {
   const [estadoFilter, setEstadoFilter] = useState('')
   const [deleteId, setDeleteId] = useState<number | null>(null)
 
-  const { data, isLoading } = useFondos({ search, page, limit: 10, estado: estadoFilter || undefined })
+  const { data, isLoading, isError, error, refetch } = useFondos({
+    search,
+    page,
+    limit: 10,
+    estado: estadoFilter || undefined,
+  })
   const deleteMutation = useDeleteFondo()
 
   // Vista de tarjetas para el dashboard rápido
@@ -35,17 +55,30 @@ export default function FondosListPage() {
 
   const handleExportCsv = async () => {
     try {
-      const result = await fondosApi.list({ search, limit: 1000, estado: estadoFilter || undefined })
-      const headers = ['Nombre', 'Organización', 'Moneda', 'Capital Inicial', 'Disponible', 'Estado', 'N° Socios']
+      const result = await fondosApi.list({
+        search,
+        limit: 1000,
+        estado: estadoFilter || undefined,
+      })
+      const headers = [
+        'Nombre',
+        'Organizacion',
+        'Moneda',
+        'Capital Inicial',
+        'Disponible',
+        'Estado',
+        'N socios',
+      ]
       const rows = result.data.map((f: FondoRotatorio) => [
-        f.nombre, f.organizacion || '', f.moneda, f.capitalInicial, f.capitalDisponible, f.estado, f.totalSocios,
+        f.nombre,
+        f.organizacion || '',
+        f.moneda,
+        f.capitalInicial,
+        f.capitalDisponible,
+        f.estado,
+        f.totalSocios,
       ])
-      const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
-      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = 'fondos.csv'; a.click()
-      URL.revokeObjectURL(url)
+      exportCsv('fondos.csv', headers, rows)
     } catch (error) {
       toast.error(getErrorMessage(error, 'Error al exportar fondos'))
     }
@@ -57,11 +90,11 @@ export default function FondosListPage() {
       label: 'Fondo',
       render: (f: FondoRotatorio) => (
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
             <Building2 className="h-4 w-4" />
           </div>
           <div>
-            <p className="font-medium text-[#111827]">{f.nombre}</p>
+            <p className="font-medium text-gray-900">{f.nombre}</p>
             <p className="text-xs text-gray-500">{f.organizacion || '—'}</p>
           </div>
         </div>
@@ -78,7 +111,9 @@ export default function FondosListPage() {
       key: 'capitalDisponible',
       label: 'Disponible',
       render: (f: FondoRotatorio) => (
-        <span className={`font-medium ${f.capitalDisponible < f.capitalInicial * 0.3 ? 'text-amber-600' : 'text-emerald-600'}`}>
+        <span
+          className={`font-medium ${f.capitalDisponible < f.capitalInicial * 0.3 ? 'text-amber-600' : 'text-emerald-600'}`}
+        >
           {formatMonto(f.capitalDisponible, f.moneda)}
         </span>
       ),
@@ -104,13 +139,22 @@ export default function FondosListPage() {
       className: 'text-right',
       render: (f: FondoRotatorio) => (
         <div className="flex justify-end gap-1">
-          <Link to={`/fondos/${f.id}`} className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-[#2563EB]/10 hover:text-[#2563EB]">
+          <Link
+            to={`/fondos/${f.id}`}
+            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-secondary/10 hover:text-secondary"
+          >
             <Eye className="h-4 w-4" />
           </Link>
-          <Link to={`/fondos/${f.id}/editar`} className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-[#2563EB]/10 hover:text-[#2563EB]">
+          <Link
+            to={`/fondos/${f.id}/editar`}
+            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-secondary/10 hover:text-secondary"
+          >
             <Pencil className="h-4 w-4" />
           </Link>
-          <button onClick={() => setDeleteId(f.id)} className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600">
+          <button
+            onClick={() => setDeleteId(f.id)}
+            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+          >
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
@@ -129,7 +173,11 @@ export default function FondosListPage() {
           <Button as="link" to="/fondos/nuevo" iconLeft={<Plus className="h-4 w-4" />}>
             Nuevo Fondo
           </Button>
-          <Button variant="secondary" onClick={handleExportCsv} iconLeft={<Download className="h-4 w-4" />}>
+          <Button
+            variant="ghost"
+            onClick={handleExportCsv}
+            iconLeft={<Download className="h-4 w-4" />}
+          >
             Exportar CSV
           </Button>
         </div>
@@ -139,11 +187,11 @@ export default function FondosListPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <Card padding="md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
               <Building2 className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#111827]">{data?.total || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{data?.total || 0}</p>
               <p className="text-xs text-gray-500">Total Fondos</p>
             </div>
           </div>
@@ -157,14 +205,17 @@ export default function FondosListPage() {
               {data?.capitalResumen?.length ? (
                 <div className="space-y-0.5">
                   {data.capitalResumen.map((r) => (
-                    <p key={r.moneda} className="text-lg font-bold text-[#111827]">
+                    <p key={r.moneda} className="text-lg font-bold text-gray-900">
                       {formatMonto(r.capitalDisponible, r.moneda)}
-                      <span className="text-xs font-normal text-gray-500"> {r.moneda === 'PEN' ? 'soles' : 'dólares'}</span>
+                      <span className="text-xs font-normal text-gray-500">
+                        {' '}
+                        {r.moneda === 'PEN' ? 'soles' : 'dólares'}
+                      </span>
                     </p>
                   ))}
                 </div>
               ) : (
-                <p className="text-2xl font-bold text-[#111827]">0</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               )}
               <p className="text-xs text-gray-500">Capital Disponible Total</p>
             </div>
@@ -176,7 +227,7 @@ export default function FondosListPage() {
               <Users className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#111827]">{data?.totalSocios || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{data?.totalSocios || 0}</p>
               <p className="text-xs text-gray-500">Socios en Fondos (activos)</p>
             </div>
           </div>
@@ -187,13 +238,19 @@ export default function FondosListPage() {
         <SearchInput
           placeholder="Buscar por nombre de fondo u organización..."
           value={search}
-          onChange={(val) => { setSearch(val); setPage(1) }}
+          onChange={(val) => {
+            setSearch(val)
+            setPage(1)
+          }}
           className="max-w-md"
         />
         <Select
           className="w-full sm:w-48"
           value={estadoFilter}
-          onChange={(e) => { setEstadoFilter(e.target.value); setPage(1) }}
+          onChange={(e) => {
+            setEstadoFilter(e.target.value)
+            setPage(1)
+          }}
           options={[
             { value: '', label: 'Todos los estados' },
             { value: 'ACTIVO', label: 'Activos' },
@@ -203,19 +260,23 @@ export default function FondosListPage() {
         />
       </div>
 
-      <DataTable
-        columns={columns}
-        data={fondos}
-        loading={isLoading}
-        keyField="id"
-        emptyTitle="No hay fondos rotatorios"
-        emptyDescription="Crea tu primer fondo rotatorio para empezar a administrar."
-        emptyActionLabel="Crear Fondo"
-        emptyActionTo="/fondos/nuevo"
-        currentPage={data?.page}
-        totalPages={data?.totalPages}
-        onPageChange={setPage}
-      />
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={fondos}
+          loading={isLoading}
+          keyField="id"
+          emptyTitle="No hay fondos rotatorios"
+          emptyDescription="Crea tu primer fondo rotatorio para empezar a administrar."
+          emptyActionLabel="Crear Fondo"
+          emptyActionTo="/fondos/nuevo"
+          currentPage={data?.page}
+          totalPages={data?.totalPages}
+          onPageChange={setPage}
+        />
+      )}
 
       <ConfirmDialog
         open={deleteId !== null}

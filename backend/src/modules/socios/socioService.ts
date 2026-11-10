@@ -1,17 +1,22 @@
 import prisma from '../../config/prisma'
 import path from 'path'
 import fs from 'fs'
+import crypto from 'crypto'
 import { env } from '../../config/env'
 import { HttpError } from '../../middleware/httpError'
 import { createAuditLog } from '../../config/auditLog'
+import { z } from 'zod'
+import { createSocioSchema, updateSocioSchema, createBeneficiarioSchema } from './socioValidation'
+import type { Prisma } from '@prisma/client'
 
 const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR)
 
 function generateCodigo(length = 8): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const bytes = crypto.randomBytes(length)
   let result = ''
   for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
+    result += chars[bytes[i] % chars.length]
   }
   return result
 }
@@ -34,16 +39,26 @@ function deleteFileIfExists(rutaArchivo: string | null | undefined) {
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath)
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
-function buildNombreCompleto(nombres: string, apellidoPaterno: string, apellidoMaterno: string | null): string {
+function buildNombreCompleto(
+  nombres: string,
+  apellidoPaterno: string,
+  apellidoMaterno: string | null
+): string {
   return [nombres, apellidoPaterno, apellidoMaterno].filter(Boolean).join(' ')
 }
 
 function cleanupTempFile(filePath?: string) {
   if (!filePath) return
-  try { fs.unlinkSync(filePath) } catch { /* ignore */ }
+  try {
+    fs.unlinkSync(filePath)
+  } catch {
+    /* ignore */
+  }
 }
 
 function isAtleast18(fechaNacimiento: string): boolean {
@@ -59,12 +74,14 @@ function isAtleast18(fechaNacimiento: string): boolean {
 
 export const socioService = {
   async list(params: { search?: string; page?: number; limit?: number; estado?: string }) {
-    const { search, page = 1, limit = 10, estado } = params
+    const { search, estado } = params
+    const page = Math.max(1, Math.trunc(Number(params.page)) || 1)
+    const limit = Math.min(100, Math.max(1, Math.trunc(Number(params.limit)) || 10))
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: Prisma.SocioWhereInput = {}
 
-    if (estado) {
+    if (estado === 'A' || estado === 'I') {
       where.estado = estado
     }
 
@@ -119,11 +136,19 @@ export const socioService = {
 
     return {
       ...socio,
-      nombreCompleto: buildNombreCompleto(socio.nombres, socio.apellidoPaterno, socio.apellidoMaterno),
+      nombreCompleto: buildNombreCompleto(
+        socio.nombres,
+        socio.apellidoPaterno,
+        socio.apellidoMaterno
+      ),
     }
   },
 
-  async create(data: any, fotoFile?: Express.Multer.File) {
+  async create(
+    data: z.infer<typeof createSocioSchema>,
+    fotoFile?: Express.Multer.File,
+    usuarioId?: number
+  ) {
     const existingDni = await prisma.socio.findUnique({ where: { dni: data.dni } })
     if (existingDni) {
       throw new HttpError(400, 'El DNI ya está registrado')
@@ -147,10 +172,13 @@ export const socioService = {
 
     let codigo = generateCodigo()
     let exists = await prisma.socio.findUnique({ where: { codigo } })
-    while (exists) {
+    let retries = 0
+    while (exists && retries < 10) {
       codigo = generateCodigo()
       exists = await prisma.socio.findUnique({ where: { codigo } })
+      retries++
     }
+    if (exists) throw new HttpError(500, 'No se pudo generar un código único para el socio')
 
     let socio: Awaited<ReturnType<typeof prisma.socio.create>>
     try {
@@ -181,16 +209,32 @@ export const socioService = {
       tabla: 'Socio',
       registroId: socio.id,
       operacion: 'CREATE',
-      datosNuevos: { codigo: socio.codigo, dni: socio.dni, nombres: socio.nombres, apellidoPaterno: socio.apellidoPaterno, estado: socio.estado },
+      datosNuevos: {
+        codigo: socio.codigo,
+        dni: socio.dni,
+        nombres: socio.nombres,
+        apellidoPaterno: socio.apellidoPaterno,
+        estado: socio.estado,
+      },
+      usuarioId,
     })
 
     return {
       ...socio,
-      nombreCompleto: buildNombreCompleto(socio.nombres, socio.apellidoPaterno, socio.apellidoMaterno),
+      nombreCompleto: buildNombreCompleto(
+        socio.nombres,
+        socio.apellidoPaterno,
+        socio.apellidoMaterno
+      ),
     }
   },
 
-  async update(id: number, data: any, fotoFile?: Express.Multer.File) {
+  async update(
+    id: number,
+    data: z.infer<typeof updateSocioSchema>,
+    fotoFile?: Express.Multer.File,
+    usuarioId?: number
+  ) {
     const existing = await prisma.socio.findUnique({ where: { id } })
     if (!existing) return null
 
@@ -205,6 +249,18 @@ export const socioService = {
       throw new HttpError(400, 'El socio debe ser mayor de 18 años')
     }
 
+    if (data.estado === 'I' && existing.estado !== 'I') {
+      const prestamosActivos = await prisma.prestamo.count({
+        where: { fondoSocio: { socioId: id }, estado: 'ACTIVO' },
+      })
+      if (prestamosActivos > 0) {
+        throw new HttpError(
+          400,
+          'No se puede desactivar: el socio tiene créditos activos. Regularícelos antes de darlo de baja.'
+        )
+      }
+    }
+
     let fotoUrl = existing.fotoUrl
 
     if (fotoFile) {
@@ -217,20 +273,25 @@ export const socioService = {
       fotoUrl = `/uploads/${filename}`
     }
 
-    const updateData: any = {}
+    const updateData: Prisma.SocioUpdateInput = {}
     if (data.dni !== undefined) updateData.dni = data.dni
     if (data.nombres !== undefined) updateData.nombres = data.nombres
     if (data.apellidoPaterno !== undefined) updateData.apellidoPaterno = data.apellidoPaterno
     if (data.apellidoMaterno !== undefined) updateData.apellidoMaterno = data.apellidoMaterno
     if (data.genero !== undefined) updateData.genero = data.genero
-    if (data.fechaNacimiento !== undefined) updateData.fechaNacimiento = data.fechaNacimiento ? parseDate(data.fechaNacimiento) : null
+    if (data.fechaNacimiento !== undefined)
+      updateData.fechaNacimiento = data.fechaNacimiento ? parseDate(data.fechaNacimiento) : null
     if (data.estadoCivil !== undefined) updateData.estadoCivil = data.estadoCivil || null
     if (data.telefono !== undefined) updateData.telefono = data.telefono || null
     if (data.direccion !== undefined) updateData.direccion = data.direccion || null
     if (data.email !== undefined) updateData.email = data.email || null
     if (data.fechaIngreso !== undefined) updateData.fechaIngreso = parseDate(data.fechaIngreso)
     if (data.estado !== undefined) updateData.estado = data.estado
-    if (fotoUrl) updateData.fotoUrl = fotoUrl
+    if (data.quitarFoto === 'true') {
+      updateData.fotoUrl = null
+    } else if (fotoUrl) {
+      updateData.fotoUrl = fotoUrl
+    }
 
     let socio: Awaited<ReturnType<typeof prisma.socio.update>>
     try {
@@ -245,7 +306,9 @@ export const socioService = {
       throw error
     }
 
-    if (fotoFile && fotoUrl !== existing.fotoUrl) {
+    if (data.quitarFoto === 'true') {
+      deleteFileIfExists(existing.fotoUrl)
+    } else if (fotoFile && fotoUrl !== existing.fotoUrl) {
       deleteFileIfExists(existing.fotoUrl)
     }
 
@@ -255,15 +318,20 @@ export const socioService = {
       operacion: 'UPDATE',
       datosAnteriores: { dni: existing.dni, nombres: existing.nombres, estado: existing.estado },
       datosNuevos: updateData,
+      usuarioId,
     })
 
     return {
       ...socio,
-      nombreCompleto: buildNombreCompleto(socio.nombres, socio.apellidoPaterno, socio.apellidoMaterno),
+      nombreCompleto: buildNombreCompleto(
+        socio.nombres,
+        socio.apellidoPaterno,
+        socio.apellidoMaterno
+      ),
     }
   },
 
-  async delete(id: number) {
+  async delete(id: number, usuarioId?: number) {
     const socio = await prisma.socio.findUnique({
       where: { id },
       include: {
@@ -279,13 +347,19 @@ export const socioService = {
     ])
 
     if (prestamosCount > 0) {
-      return { success: false, message: 'No se puede eliminar: el socio tiene préstamos registrados' }
+      return {
+        success: false,
+        message: 'No se puede eliminar: el socio tiene préstamos registrados',
+      }
     }
     if (aportesCount > 0) {
       return { success: false, message: 'No se puede eliminar: el socio tiene aportes registrados' }
     }
     if (membresiasActivas > 0) {
-      return { success: false, message: 'No se puede eliminar: el socio pertenece a uno o más fondos' }
+      return {
+        success: false,
+        message: 'No se puede eliminar: el socio pertenece a uno o más fondos',
+      }
     }
 
     await prisma.$transaction(async (tx) => {
@@ -302,7 +376,13 @@ export const socioService = {
       tabla: 'Socio',
       registroId: socio.id,
       operacion: 'DELETE',
-      datosAnteriores: { codigo: socio.codigo, dni: socio.dni, nombres: socio.nombres, apellidoPaterno: socio.apellidoPaterno },
+      datosAnteriores: {
+        codigo: socio.codigo,
+        dni: socio.dni,
+        nombres: socio.nombres,
+        apellidoPaterno: socio.apellidoPaterno,
+      },
+      usuarioId,
     })
 
     return { success: true, message: 'Socio eliminado correctamente' }
@@ -313,31 +393,53 @@ export const socioService = {
     return prisma.beneficiario.findMany({ where: { socioId } })
   },
 
-  async addBeneficiario(socioId: number, data: any) {
+  async addBeneficiario(socioId: number, data: z.infer<typeof createBeneficiarioSchema>) {
     const socio = await prisma.socio.findUnique({ where: { id: socioId } })
     if (!socio) return null
+
+    if (data.dni === socio.dni) {
+      throw new HttpError(400, 'El beneficiario no puede ser el mismo socio')
+    }
+
+    const duplicado = await prisma.beneficiario.findFirst({
+      where: { socioId, dni: data.dni },
+      select: { id: true },
+    })
+    if (duplicado) {
+      throw new HttpError(400, 'Ya existe un beneficiario con ese DNI para este socio')
+    }
 
     return prisma.beneficiario.create({
       data: {
         ...data,
         socioId,
+        telefono: data.telefono || null,
         fechaNacimiento: data.fechaNacimiento ? parseDate(data.fechaNacimiento) : null,
       },
     })
   },
 
-  async updateBeneficiario(socioId: number, beneficiarioId: number, data: any) {
+  async updateBeneficiario(
+    socioId: number,
+    beneficiarioId: number,
+    data: Partial<z.infer<typeof createBeneficiarioSchema>>
+  ) {
     const beneficiario = await prisma.beneficiario.findFirst({
       where: { id: beneficiarioId, socioId },
     })
     if (!beneficiario) return null
 
-    return prisma.beneficiario.update({
-      where: { id: beneficiarioId },
-      data: {
-        ...data,
-        fechaNacimiento: data.fechaNacimiento ? parseDate(data.fechaNacimiento) : null,
-      },
+    // Usar transacción para garantizar que solo se actualice si pertenece al socio
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.beneficiario.updateMany({
+        where: { id: beneficiarioId, socioId },
+        data: {
+          ...data,
+          fechaNacimiento: data.fechaNacimiento ? parseDate(data.fechaNacimiento) : null,
+        },
+      })
+      if (updated.count === 0) throw new HttpError(404, 'Beneficiario no encontrado')
+      return tx.beneficiario.findUnique({ where: { id: beneficiarioId } })
     })
   },
 
@@ -347,8 +449,11 @@ export const socioService = {
     })
     if (!beneficiario) return false
 
-    await prisma.beneficiario.delete({ where: { id: beneficiarioId } })
-    return true
+    // Usar deleteMany para garantizar que solo se elimine si pertenece al socio
+    const deleted = await prisma.beneficiario.deleteMany({
+      where: { id: beneficiarioId, socioId },
+    })
+    return deleted.count > 0
   },
 
   // Documentos
@@ -367,16 +472,22 @@ export const socioService = {
     fs.copyFileSync(file.path, destPath)
     cleanupTempFile(file.path)
 
-    return prisma.documentoSocio.create({
-      data: {
-        tipoDocumento,
-        nombreArchivo: file.originalname,
-        rutaArchivo: `/uploads/${filename}`,
-        mimeType: file.mimetype,
-        tamaño: file.size,
-        socioId,
-      },
-    })
+    const rutaRelativa = `/uploads/${filename}`
+    try {
+      return await prisma.documentoSocio.create({
+        data: {
+          tipoDocumento,
+          nombreArchivo: file.originalname,
+          rutaArchivo: rutaRelativa,
+          mimeType: file.mimetype,
+          tamano: file.size,
+          socioId,
+        },
+      })
+    } catch (error) {
+      deleteFileIfExists(rutaRelativa)
+      throw error
+    }
   },
 
   async deleteDocumento(socioId: number, documentoId: number) {
@@ -385,8 +496,8 @@ export const socioService = {
     })
     if (!doc) return false
 
-    deleteFileIfExists(doc.rutaArchivo)
     await prisma.documentoSocio.delete({ where: { id: documentoId } })
+    deleteFileIfExists(doc.rutaArchivo)
     return true
   },
 }

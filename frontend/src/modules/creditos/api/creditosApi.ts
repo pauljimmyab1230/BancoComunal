@@ -1,6 +1,13 @@
 import api from '@/lib/api'
 import type { ApiResponse } from '@/types'
-import type { Prestamo, PrestamoFormData, PagoCuotaForm, CreditosListResponse } from '../types'
+import type {
+  Prestamo,
+  PrestamoFormData,
+  PagoCuotaForm,
+  CreditosListResponse,
+  CuotaPrestamo,
+  ResultadoLiquidacion,
+} from '../types'
 
 export interface PrestamosQuery {
   search?: string
@@ -37,7 +44,7 @@ export const creditosApi = {
     return data
   },
 
-  pagarCuota: async (form: PagoCuotaForm): Promise<ApiResponse<any>> => {
+  pagarCuota: async (form: PagoCuotaForm): Promise<ApiResponse<CuotaPrestamo>> => {
     const { data } = await api.post('/creditos/pagar', form)
     return data
   },
@@ -47,7 +54,12 @@ export const creditosApi = {
     return data
   },
 
-  liquidar: async (form: { prestamoId: number; metodoPago: string; fechaPago?: string; comprobante?: string }): Promise<ApiResponse<any>> => {
+  liquidar: async (form: {
+    prestamoId: number
+    metodoPago: string
+    fechaPago?: string
+    comprobante?: string
+  }): Promise<ApiResponse<ResultadoLiquidacion>> => {
     const { data } = await api.post('/creditos/liquidar', form)
     return data
   },

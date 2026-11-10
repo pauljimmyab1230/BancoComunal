@@ -1,7 +1,12 @@
 import prisma from '../../config/prisma'
 import { HttpError } from '../../middleware/httpError'
 import { renderHtmlToPdf } from './pdfService'
-import { buildAportesSocioHtml, type AportesSocioData, type AporteGrupo, type AporteItem } from './aportesSocioTemplate'
+import {
+  buildAportesSocioHtml,
+  type AportesSocioData,
+  type AporteGrupo,
+  type AporteItem,
+} from './aportesSocioTemplate'
 
 const tipoLabel: Record<string, string> = {
   OBLIGATORIO: 'Obligatorio',
@@ -36,7 +41,9 @@ export const aportesPdfService = {
 
     if (!socio) throw new HttpError(404, 'Socio no encontrado')
 
-    const whereFondo: any = { fondoSocio: { socioId } }
+    const whereFondo: { fondoSocio: { socioId: number; fondoId?: number } } = {
+      fondoSocio: { socioId },
+    }
     if (fondoId !== undefined) {
       const pertenece = socio.fondosSocios.some((fs) => fs.fondoId === fondoId)
       if (!pertenece) throw new HttpError(400, 'El socio no pertenece a ese fondo')
@@ -46,10 +53,7 @@ export const aportesPdfService = {
     const aportes = await prisma.aporte.findMany({
       where: whereFondo,
       include: { fondoSocio: { include: { fondo: true } } },
-      orderBy: [
-        { fondoSocio: { fondoId: 'asc' } },
-        { fechaAporte: 'asc' },
-      ],
+      orderBy: [{ fondoSocio: { fondoId: 'asc' } }, { fechaAporte: 'asc' }],
     })
 
     // Agrupar por fondo preservando el orden (fechaAporte ascendente dentro de cada grupo).
@@ -84,18 +88,22 @@ export const aportesPdfService = {
       }
     })
 
-    const total = aportes.filter((a) => a.estado === 'ACTIVO').reduce((acc, a) => acc + Number(a.monto), 0)
+    const total = aportes
+      .filter((a) => a.estado === 'ACTIVO')
+      .reduce((acc, a) => acc + Number(a.monto), 0)
     const monedaTotal = aportes[0]?.fondoSocio.fondo.moneda ?? 'PEN'
 
-    const fondoSocioHeader = fondoId !== undefined
-      ? socio.fondosSocios.find((fs) => fs.fondoId === fondoId)
-      : socio.fondosSocios.find((fs) => fs.fondo.estado === 'ACTIVO') ?? socio.fondosSocios[0]
+    const fondoSocioHeader =
+      fondoId !== undefined
+        ? socio.fondosSocios.find((fs) => fs.fondoId === fondoId)
+        : (socio.fondosSocios.find((fs) => fs.fondo.estado === 'ACTIVO') ?? socio.fondosSocios[0])
 
     const data: AportesSocioData = {
       organizacion: fondoSocioHeader?.fondo.nombre ?? 'Banquito 2.0',
       lema: fondoSocioHeader?.fondo.organizacion?.trim() || 'Bancos comunitarios',
       fechaEmision: formatFecha(new Date()),
-      nombreCompleto: `${socio.apellidoPaterno} ${socio.apellidoMaterno} ${socio.nombres}`.toUpperCase(),
+      nombreCompleto:
+        `${socio.apellidoPaterno} ${socio.apellidoMaterno} ${socio.nombres}`.toUpperCase(),
       dni: socio.dni,
       codigo: socio.codigo.toUpperCase(),
       grupos,

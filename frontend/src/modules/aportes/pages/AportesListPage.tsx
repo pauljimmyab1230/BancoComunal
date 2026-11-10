@@ -1,8 +1,19 @@
 import { useState } from 'react'
-import { Plus, Eye, Trash2, Banknote, Wallet, Calendar, Receipt, HandCoins, AlertTriangle } from 'lucide-react'
+import { Plus, Eye, Trash2, Banknote, Wallet, Calendar, Receipt } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAportes, useDeleteAporte } from '../hooks/useAportes'
-import { Button, DataTable, SearchInput, Badge, SectionHeader, Card, ConfirmDialog, Select, Input } from '@/components/ui'
+import {
+  Button,
+  DataTable,
+  SearchInput,
+  Badge,
+  SectionHeader,
+  Card,
+  ConfirmDialog,
+  Select,
+  Input,
+  ErrorState,
+} from '@/components/ui'
 import { Link, useSearchParams } from 'react-router-dom'
 import api from '@/lib/api'
 import { openProtectedPdf, getErrorMessage } from '@/lib/api'
@@ -25,11 +36,16 @@ const ESTADOS = [
 
 const tipoBadge = (tipo: string) => {
   switch (tipo) {
-    case 'OBLIGATORIO': return <Badge variant="blue">Obligatorio</Badge>
-    case 'EXTRAORDINARIO': return <Badge variant="purple">Extraordinario</Badge>
-    case 'VOLUNTARIO': return <Badge variant="green">Voluntario</Badge>
-    case 'MULTA': return <Badge variant="red">Multa</Badge>
-    default: return <Badge>{tipo}</Badge>
+    case 'OBLIGATORIO':
+      return <Badge variant="blue">Obligatorio</Badge>
+    case 'EXTRAORDINARIO':
+      return <Badge variant="purple">Extraordinario</Badge>
+    case 'VOLUNTARIO':
+      return <Badge variant="green">Voluntario</Badge>
+    case 'MULTA':
+      return <Badge variant="red">Multa</Badge>
+    default:
+      return <Badge>{tipo}</Badge>
   }
 }
 
@@ -50,14 +66,14 @@ export default function AportesListPage() {
   const socioId = searchParams.get('socioId')
 
   const { data: fondosData } = useQuery({
-    queryKey: ['fondos-select'],
+    queryKey: ['fondos-select', { estado: undefined }],
     queryFn: async () => {
       const { data } = await api.get('/fondos', { params: { limit: 100 } })
       return data.data as { id: number; nombre: string; moneda: string }[]
     },
   })
 
-  const { data, isLoading } = useAportes({
+  const { data, isLoading, isError, error, refetch } = useAportes({
     search,
     page,
     limit: 10,
@@ -77,12 +93,18 @@ export default function AportesListPage() {
       key: 'socio',
       label: 'Socio',
       render: (a: Aporte) => (
-        <Link to={`/socios/${a.socio.id}`} className="flex items-center gap-2 text-sm hover:text-[#2563EB]">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB]/10 text-xs font-bold text-[#2563EB]">
-            {a.socio.nombres.charAt(0)}{a.socio.apellidoPaterno.charAt(0)}
+        <Link
+          to={`/socios/${a.socio.id}`}
+          className="flex items-center gap-2 text-sm hover:text-secondary"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/10 text-xs font-bold text-secondary">
+            {a.socio.nombres.charAt(0)}
+            {a.socio.apellidoPaterno.charAt(0)}
           </div>
           <div>
-            <p className="font-medium text-[#111827]">{a.socio.nombres} {a.socio.apellidoPaterno}</p>
+            <p className="font-medium text-gray-900">
+              {a.socio.nombres} {a.socio.apellidoPaterno}
+            </p>
             <p className="text-xs text-gray-400">{a.socio.codigo}</p>
           </div>
         </Link>
@@ -114,7 +136,7 @@ export default function AportesListPage() {
       key: 'fondo',
       label: 'Fondo',
       render: (a: Aporte) => (
-        <Link to={`/fondos/${a.fondo.id}`} className="text-sm text-gray-600 hover:text-[#2563EB]">
+        <Link to={`/fondos/${a.fondo.id}`} className="text-sm text-gray-600 hover:text-secondary">
           {a.fondo.nombre}
         </Link>
       ),
@@ -122,11 +144,12 @@ export default function AportesListPage() {
     {
       key: 'estado',
       label: 'Estado',
-      render: (a: Aporte) => (
-        a.estado === 'ANULADO'
-          ? <Badge variant="gray">Anulado</Badge>
-          : <Badge variant="green">Activo</Badge>
-      ),
+      render: (a: Aporte) =>
+        a.estado === 'ANULADO' ? (
+          <Badge variant="gray">Anulado</Badge>
+        ) : (
+          <Badge variant="green">Activo</Badge>
+        ),
     },
     {
       key: 'acciones',
@@ -137,15 +160,21 @@ export default function AportesListPage() {
           <button
             onClick={() => handleImprimirComprobante(a)}
             title="Ver comprobante"
-            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
           >
             <Receipt className="h-4 w-4" />
           </button>
-          <Link to={`/aportes/${a.id}`} className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-[#2563EB]/10 hover:text-[#2563EB]">
+          <Link
+            to={`/aportes/${a.id}`}
+            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-secondary/10 hover:text-secondary"
+          >
             <Eye className="h-4 w-4" />
           </Link>
           {a.estado === 'ACTIVO' && (
-            <button onClick={() => setDeleteId(a.id)} className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600">
+            <button
+              onClick={() => setDeleteId(a.id)}
+              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+            >
               <Trash2 className="h-4 w-4" />
             </button>
           )}
@@ -185,11 +214,13 @@ export default function AportesListPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <Card padding="md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
               <Banknote className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#111827]">{isLoading ? '—' : (data?.total || 0)}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {isLoading ? '—' : data?.total || 0}
+              </p>
               <p className="text-xs text-gray-500">Total Aportes</p>
             </div>
           </div>
@@ -201,15 +232,15 @@ export default function AportesListPage() {
             </div>
             <div>
               {isLoading ? (
-                <p className="text-2xl font-bold text-[#111827]">—</p>
+                <p className="text-2xl font-bold text-gray-900">—</p>
+              ) : Object.keys(totalPorMoneda).length > 0 ? (
+                Object.entries(totalPorMoneda).map(([moneda, monto]) => (
+                  <p key={moneda} className="text-lg font-bold text-gray-900">
+                    {formatMonto(monto, moneda)}
+                  </p>
+                ))
               ) : (
-                Object.keys(totalPorMoneda).length > 0 ? (
-                  Object.entries(totalPorMoneda).map(([moneda, monto]) => (
-                    <p key={moneda} className="text-lg font-bold text-[#111827]">{formatMonto(monto, moneda)}</p>
-                  ))
-                ) : (
-                  <p className="text-2xl font-bold text-[#111827]">0.00</p>
-                )
+                <p className="text-2xl font-bold text-gray-900">0.00</p>
               )}
               <p className="text-xs text-gray-500">Total Aportado</p>
             </div>
@@ -221,7 +252,9 @@ export default function AportesListPage() {
               <Calendar className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#111827]">{isLoading ? '—' : (data?.totalActivos || 0)}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {isLoading ? '—' : data?.totalActivos || 0}
+              </p>
               <p className="text-xs text-gray-500">Aportes Activos</p>
             </div>
           </div>
@@ -232,53 +265,75 @@ export default function AportesListPage() {
         <SearchInput
           placeholder="Buscar por socio, comprobante o período..."
           value={search}
-          onChange={(val) => { setSearch(val); setPage(1) }}
+          onChange={(val) => {
+            setSearch(val)
+            setPage(1)
+          }}
           className="w-full max-w-md"
         />
         <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Select
             value={tipo}
-            onChange={(e) => { setTipo(e.target.value); setPage(1) }}
+            onChange={(e) => {
+              setTipo(e.target.value)
+              setPage(1)
+            }}
             options={TIPOS}
             placeholder="Todos los tipos"
           />
           <Select
             value={estado}
-            onChange={(e) => { setEstado(e.target.value); setPage(1) }}
+            onChange={(e) => {
+              setEstado(e.target.value)
+              setPage(1)
+            }}
             options={ESTADOS}
             placeholder="Todos los estados"
           />
           <Select
             value={fondo}
-            onChange={(e) => { setFondo(e.target.value); setPage(1) }}
+            onChange={(e) => {
+              setFondo(e.target.value)
+              setPage(1)
+            }}
             options={[
               { value: '', label: 'Todos los fondos' },
-              ...(fondosData || []).map((f) => ({ value: String(f.id), label: `${f.nombre} (${f.moneda})` })),
+              ...(fondosData || []).map((f) => ({
+                value: String(f.id),
+                label: `${f.nombre} (${f.moneda})`,
+              })),
             ]}
             placeholder="Todos los fondos"
           />
           <Input
             type="month"
             value={periodo}
-            onChange={(e) => { setPeriodo(e.target.value); setPage(1) }}
+            onChange={(e) => {
+              setPeriodo(e.target.value)
+              setPage(1)
+            }}
             placeholder="Período"
           />
         </div>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={aportes}
-        loading={isLoading}
-        keyField="id"
-        emptyTitle="No hay aportes registrados"
-        emptyDescription="Registra el primer aporte para comenzar."
-        emptyActionLabel="Nuevo Aporte"
-        emptyActionTo="/aportes/nuevo"
-        currentPage={data?.page}
-        totalPages={data?.totalPages}
-        onPageChange={setPage}
-      />
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={aportes}
+          loading={isLoading}
+          keyField="id"
+          emptyTitle="No hay aportes registrados"
+          emptyDescription="Registra el primer aporte para comenzar."
+          emptyActionLabel="Nuevo Aporte"
+          emptyActionTo="/aportes/nuevo"
+          currentPage={data?.page}
+          totalPages={data?.totalPages}
+          onPageChange={setPage}
+        />
+      )}
 
       <ConfirmDialog
         open={deleteId !== null}

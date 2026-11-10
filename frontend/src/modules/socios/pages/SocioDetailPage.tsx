@@ -4,20 +4,61 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  ArrowLeft, Pencil, User, Phone, Mail, MapPin, Calendar, Shield,
-  FileText, Users, Camera, QrCode, Download, Plus, Trash2, Printer,
-  HandCoins, Landmark, Upload,
+  ArrowLeft,
+  Pencil,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  Shield,
+  FileText,
+  Users,
+  Camera,
+  QrCode,
+  Download,
+  Plus,
+  Trash2,
+  Printer,
+  HandCoins,
+  Landmark,
+  Upload,
 } from 'lucide-react'
 import { useSocio } from '../hooks/useSocios'
+import type { Beneficiario } from '../types'
 import { useAportes } from '@/modules/aportes/hooks/useAportes'
 import { useCreditos } from '@/modules/creditos/hooks/useCreditos'
-import { Button, Card, Badge, LoadingSpinner, Modal, Input, Select, FormField, QRCode } from '@/components/ui'
+import type { Aporte } from '@/modules/aportes/types'
+import type { Prestamo } from '@/modules/creditos/types'
+import {
+  Button,
+  Card,
+  Badge,
+  LoadingSpinner,
+  Modal,
+  Input,
+  Select,
+  FormField,
+  QRCode,
+  ConfirmDialog,
+  ErrorState,
+} from '@/components/ui'
 import { socioApi } from '../api/socioApi'
 import { getErrorMessage, openProtectedPdf } from '@/lib/api'
 import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import { es } from 'date-fns/locale'
+
+const etiquetasParentesco: Record<string, string> = {
+  CONYUGE: 'Cónyuge',
+  HIJO: 'Hijo(a)',
+  PADRE: 'Padre',
+  MADRE: 'Madre',
+  HERMANO: 'Hermano(a)',
+  ABUELO: 'Abuelo(a)',
+  OTRO: 'Otro',
+}
 
 const beneficiarioSchema = z.object({
   dni: z.string().length(8, '8 dígitos').regex(/^\d+$/),
@@ -37,15 +78,37 @@ function formatBytes(bytes: number) {
   return (bytes / 1048576).toFixed(1) + ' MB'
 }
 
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: string
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div>
+        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-sm font-medium text-gray-900">{value}</p>
+      </div>
+    </div>
+  )
+}
+
 export default function SocioDetailPage() {
   const { id } = useParams()
-  const { data, isLoading } = useSocio(Number(id))
+  const { data, isLoading, isError, error, refetch } = useSocio(Number(id))
   const socio = data?.data
   const queryClient = useQueryClient()
 
   // Beneficiario modal
   const [showBenModal, setShowBenModal] = useState(false)
-  const [editingBen, setEditingBen] = useState<any>(null)
+  const [editingBen, setEditingBen] = useState<Beneficiario | null>(null)
   const [savingBen, setSavingBen] = useState(false)
 
   // Documento modal
@@ -61,7 +124,9 @@ export default function SocioDetailPage() {
   const [printingAportes, setPrintingAportes] = useState(false)
   const [printingCreditos, setPrintingCreditos] = useState(false)
   const [printingCuenta, setPrintingCuenta] = useState(false)
-  const [fondoSelectorFor, setFondoSelectorFor] = useState<'ficha' | 'aportes' | 'creditos' | 'cuenta' | null>(null)
+  const [fondoSelectorFor, setFondoSelectorFor] = useState<
+    'ficha' | 'aportes' | 'creditos' | 'cuenta' | null
+  >(null)
 
   const {
     register,
@@ -71,23 +136,40 @@ export default function SocioDetailPage() {
   } = useForm<BeneficiarioForm>({
     resolver: zodResolver(beneficiarioSchema),
     defaultValues: {
-      dni: '', nombres: '', apellidoPaterno: '', apellidoMaterno: '',
-      parentesco: '', telefono: '', fechaNacimiento: '',
+      dni: '',
+      nombres: '',
+      apellidoPaterno: '',
+      apellidoMaterno: '',
+      parentesco: '',
+      telefono: '',
+      fechaNacimiento: '',
     },
   })
 
   const openAddBen = () => {
     setEditingBen(null)
-    reset({ dni: '', nombres: '', apellidoPaterno: '', apellidoMaterno: '', parentesco: '', telefono: '', fechaNacimiento: '' })
+    reset({
+      dni: '',
+      nombres: '',
+      apellidoPaterno: '',
+      apellidoMaterno: '',
+      parentesco: '',
+      telefono: '',
+      fechaNacimiento: '',
+    })
     setShowBenModal(true)
   }
 
-  const openEditBen = (ben: any) => {
+  const openEditBen = (ben: Beneficiario) => {
     setEditingBen(ben)
     reset({
-      dni: ben.dni, nombres: ben.nombres, apellidoPaterno: ben.apellidoPaterno,
-      apellidoMaterno: ben.apellidoMaterno, parentesco: ben.parentesco,
-      telefono: ben.telefono || '', fechaNacimiento: ben.fechaNacimiento?.split('T')[0] || '',
+      dni: ben.dni,
+      nombres: ben.nombres,
+      apellidoPaterno: ben.apellidoPaterno,
+      apellidoMaterno: ben.apellidoMaterno,
+      parentesco: ben.parentesco,
+      telefono: ben.telefono || '',
+      fechaNacimiento: ben.fechaNacimiento?.split('T')[0] || '',
     })
     setShowBenModal(true)
   }
@@ -108,11 +190,19 @@ export default function SocioDetailPage() {
       setEditingBen(null)
       reset()
     } catch (error) {
-      toast.error(getErrorMessage(error, editingBen ? 'Error al actualizar beneficiario' : 'Error al agregar beneficiario'))
+      toast.error(
+        getErrorMessage(
+          error,
+          editingBen ? 'Error al actualizar beneficiario' : 'Error al agregar beneficiario'
+        )
+      )
     } finally {
       setSavingBen(false)
     }
   }
+
+  const [benAEliminar, setBenAEliminar] = useState<number | null>(null)
+  const [docAEliminar, setDocAEliminar] = useState<number | null>(null)
 
   const handleDeleteBeneficiario = async (beneficiarioId: number) => {
     if (!socio) return
@@ -122,6 +212,8 @@ export default function SocioDetailPage() {
       toast.success('Beneficiario eliminado')
     } catch (error) {
       toast.error(getErrorMessage(error, 'Error al eliminar beneficiario'))
+    } finally {
+      setBenAEliminar(null)
     }
   }
 
@@ -153,6 +245,8 @@ export default function SocioDetailPage() {
       toast.success('Documento eliminado')
     } catch (error) {
       toast.error(getErrorMessage(error, 'Error al eliminar documento'))
+    } finally {
+      setDocAEliminar(null)
     }
   }
 
@@ -256,36 +350,44 @@ export default function SocioDetailPage() {
     )
   }
 
+  if (isError) {
+    return (
+      <ErrorState
+        error={error}
+        title="No se pudo cargar el socio"
+        description="Revisa tu conexión e inténtalo de nuevo."
+        onRetry={() => refetch()}
+      />
+    )
+  }
+
   if (!socio) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <p className="text-gray-500">Socio no encontrado</p>
-        <Button as="link" to="/socios" variant="ghost" iconLeft={<ArrowLeft className="h-4 w-4" />} className="mt-4">
+        <Button
+          as="link"
+          to="/socios"
+          variant="ghost"
+          iconLeft={<ArrowLeft className="h-4 w-4" />}
+          className="mt-4"
+        >
           Volver a Socios
         </Button>
       </div>
     )
   }
 
-  const estadoBadge = socio.estado === 'A'
-    ? <Badge variant="green">Activo</Badge>
-    : <Badge variant="red">Inactivo</Badge>
-
-  const InfoRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
-    <div className="flex items-start gap-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-        <Icon className="h-4 w-4" />
-      </div>
-      <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-sm font-medium text-[#111827]">{value}</p>
-      </div>
-    </div>
-  )
+  const estadoBadge =
+    socio.estado === 'A' ? (
+      <Badge variant="green">Activo</Badge>
+    ) : (
+      <Badge variant="red">Inactivo</Badge>
+    )
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-8">
+      <div className="mb-8 flex flex-wrap items-center gap-3">
         <Button variant="ghost" as="link" to="/socios" iconLeft={<ArrowLeft className="h-4 w-4" />}>
           Socios
         </Button>
@@ -306,7 +408,12 @@ export default function SocioDetailPage() {
         >
           {printingCuenta ? 'Generando...' : 'Estado de Cuenta'}
         </Button>
-        <Button variant="secondary" as="link" to={`/socios/${socio.id}/editar`} iconLeft={<Pencil className="h-4 w-4" />}>
+        <Button
+          variant="secondary"
+          as="link"
+          to={`/socios/${socio.id}/editar`}
+          iconLeft={<Pencil className="h-4 w-4" />}
+        >
           Editar
         </Button>
       </div>
@@ -314,26 +421,31 @@ export default function SocioDetailPage() {
       {/* Header */}
       <Card padding="lg" className="mb-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[#2563EB]/10">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-secondary/10">
             {socio.fotoUrl ? (
-              <img src={socio.fotoUrl} alt={socio.nombreCompleto} className="h-full w-full rounded-2xl object-cover" />
+              <img
+                src={socio.fotoUrl}
+                alt={socio.nombreCompleto}
+                className="h-full w-full rounded-2xl object-cover"
+              />
             ) : (
-              <Camera className="h-8 w-8 text-[#2563EB]" />
+              <Camera className="h-8 w-8 text-secondary" />
             )}
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-[#111827]">{socio.nombreCompleto}</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{socio.nombreCompleto}</h1>
               {estadoBadge}
             </div>
             <p className="mt-1 text-sm text-gray-500">
-              Código: <span className="font-medium text-[#111827]">{socio.codigo}</span>
-              {' · '}DNI: <span className="font-medium text-[#111827]">{socio.dni}</span>
+              Código: <span className="font-medium text-gray-900">{socio.codigo}</span>
+              {' · '}DNI: <span className="font-medium text-gray-900">{socio.dni}</span>
             </p>
           </div>
           <button
             onClick={() => setShowQr(true)}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-[#111827] transition-all hover:bg-gray-50"
+            aria-label="Ver código QR del socio"
+            className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-900 transition-all hover:bg-gray-50"
           >
             <QrCode className="h-5 w-5" />
             <span className="hidden sm:inline">QR</span>
@@ -345,22 +457,44 @@ export default function SocioDetailPage() {
         {/* Datos Personales */}
         <Card padding="lg">
           <div className="mb-4 flex items-center gap-2">
-            <User className="h-5 w-5 text-[#2563EB]" />
-            <h3 className="font-semibold text-[#111827]">Datos Personales</h3>
+            <User className="h-5 w-5 text-secondary" />
+            <h3 className="text-lg font-semibold text-gray-900">Datos Personales</h3>
           </div>
           <div className="space-y-4">
-            <InfoRow icon={User} label="Género" value={socio.genero === 'M' ? 'Masculino' : 'Femenino'} />
-            <InfoRow icon={Calendar} label="Fecha de Nacimiento" value={socio.fechaNacimiento ? new Date(socio.fechaNacimiento).toLocaleDateString() : '—'} />
-            <InfoRow icon={Shield} label="Estado Civil" value={{ S: 'Soltero', C: 'Casado', V: 'Viudo', D: 'Divorciado' }[socio.estadoCivil || ''] || '—'} />
-            <InfoRow icon={Calendar} label="Ingreso" value={new Date(socio.fechaIngreso).toLocaleDateString()} />
+            <InfoRow
+              icon={User}
+              label="Género"
+              value={socio.genero === 'M' ? 'Masculino' : 'Femenino'}
+            />
+            <InfoRow
+              icon={Calendar}
+              label="Fecha de Nacimiento"
+              value={
+                socio.fechaNacimiento ? new Date(socio.fechaNacimiento).toLocaleDateString() : '—'
+              }
+            />
+            <InfoRow
+              icon={Shield}
+              label="Estado Civil"
+              value={
+                { S: 'Soltero', C: 'Casado', V: 'Viudo', D: 'Divorciado' }[
+                  socio.estadoCivil || ''
+                ] || '—'
+              }
+            />
+            <InfoRow
+              icon={Calendar}
+              label="Ingreso"
+              value={new Date(socio.fechaIngreso).toLocaleDateString()}
+            />
           </div>
         </Card>
 
         {/* Contacto */}
         <Card padding="lg">
           <div className="mb-4 flex items-center gap-2">
-            <Phone className="h-5 w-5 text-[#2563EB]" />
-            <h3 className="font-semibold text-[#111827]">Contacto</h3>
+            <Phone className="h-5 w-5 text-secondary" />
+            <h3 className="text-lg font-semibold text-gray-900">Contacto</h3>
           </div>
           <div className="space-y-4">
             <InfoRow icon={Phone} label="Teléfono" value={socio.telefono || '—'} />
@@ -373,35 +507,49 @@ export default function SocioDetailPage() {
         <Card padding="lg">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-[#2563EB]" />
-              <h3 className="font-semibold text-[#111827]">Documentos</h3>
+              <FileText className="h-5 w-5 text-secondary" />
+              <h3 className="text-lg font-semibold text-gray-900">Documentos</h3>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => setShowDocModal(true)} iconLeft={<Upload className="h-4 w-4" />}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowDocModal(true)}
+              iconLeft={<Upload className="h-4 w-4" />}
+            >
               Subir
             </Button>
           </div>
           <div className="space-y-3">
-            {(!socio.documentos || socio.documentos.length === 0) ? (
-              <p className="text-sm text-gray-400">Sin documentos adjuntos</p>
+            {!socio.documentos || socio.documentos.length === 0 ? (
+              <p className="text-sm text-gray-600">Sin documentos adjuntos</p>
             ) : (
               socio.documentos.map((doc) => (
-                <div key={doc.id} className="flex items-center gap-3 rounded-lg border border-gray-100 p-3">
+                <div
+                  key={doc.id}
+                  className="flex items-center gap-3 rounded-lg border border-gray-100 p-3"
+                >
                   <FileText className="h-8 w-8 text-gray-400 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#111827] truncate">{doc.nombreArchivo}</p>
-                    <p className="text-xs text-gray-500">{doc.tipoDocumento} · {formatBytes(doc.tamaño)}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {doc.nombreArchivo}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {doc.tipoDocumento} · {formatBytes(doc.tamano)}
+                    </p>
                   </div>
                   <a
                     href={doc.rutaArchivo}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg p-1.5 text-gray-400 hover:text-[#2563EB]"
+                    className="rounded-lg p-1.5 text-gray-500 hover:text-secondary"
                   >
                     <Download className="h-4 w-4" />
                   </a>
                   <button
-                    onClick={() => handleDeleteDocumento(doc.id)}
-                    className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                    onClick={() => setDocAEliminar(doc.id)}
+                    aria-label={`Eliminar documento ${doc.nombreArchivo}`}
+                    title="Eliminar documento"
+                    className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -415,41 +563,54 @@ export default function SocioDetailPage() {
         <Card padding="lg" className="lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-[#2563EB]" />
-              <h3 className="font-semibold text-[#111827]">Beneficiarios</h3>
+              <Users className="h-5 w-5 text-secondary" />
+              <h3 className="text-lg font-semibold text-gray-900">Beneficiarios</h3>
             </div>
-            <Button variant="secondary" size="sm" onClick={openAddBen} iconLeft={<Plus className="h-4 w-4" />}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={openAddBen}
+              iconLeft={<Plus className="h-4 w-4" />}
+            >
               Agregar
             </Button>
           </div>
-          {(!socio.beneficiarios || socio.beneficiarios.length === 0) ? (
-            <p className="text-sm text-gray-400">No tiene beneficiarios registrados</p>
+          {!socio.beneficiarios || socio.beneficiarios.length === 0 ? (
+            <p className="text-sm text-gray-600">No tiene beneficiarios registrados</p>
           ) : (
             <div className="space-y-3">
               {socio.beneficiarios.map((ben) => (
-                <div key={ben.id} className="flex items-center gap-4 rounded-lg border border-gray-100 p-4">
+                <div
+                  key={ben.id}
+                  className="flex items-center gap-4 rounded-lg border border-gray-100 p-4"
+                >
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-600">
                     {ben.nombres.charAt(0)}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-[#111827]">
+                    <p className="text-sm font-medium text-gray-900">
                       {ben.nombres} {ben.apellidoPaterno} {ben.apellidoMaterno}
                     </p>
                     <p className="text-xs text-gray-500">
-                      DNI: {ben.dni} · {ben.parentesco}
+                      DNI: {ben.dni} · {etiquetasParentesco[ben.parentesco] || ben.parentesco}
                       {ben.telefono && ` · ${ben.telefono}`}
-                      {ben.fechaNacimiento && ` · Nac: ${new Date(ben.fechaNacimiento).toLocaleDateString()}`}
+                      {ben.fechaNacimiento &&
+                        ` · Nac: ${new Date(ben.fechaNacimiento).toLocaleDateString()}`}
                     </p>
                   </div>
                   <button
                     onClick={() => openEditBen(ben)}
-                    className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                    aria-label={`Editar beneficiario ${ben.nombres}`}
+                    title="Editar beneficiario"
+                    className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => handleDeleteBeneficiario(ben.id)}
-                    className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                    onClick={() => setBenAEliminar(ben.id)}
+                    aria-label={`Eliminar beneficiario ${ben.nombres}`}
+                    title="Eliminar beneficiario"
+                    className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -463,31 +624,39 @@ export default function SocioDetailPage() {
         <Card padding="lg" className="lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Landmark className="h-5 w-5 text-[#2563EB]" />
-              <h3 className="font-semibold text-[#111827]">Fondos</h3>
+              <Landmark className="h-5 w-5 text-secondary" />
+              <h3 className="text-lg font-semibold text-gray-900">Fondos</h3>
             </div>
             <Button variant="secondary" size="sm" as="link" to="/fondos">
               Ver todos
             </Button>
           </div>
-          {(!socio.fondosSocios || socio.fondosSocios.length === 0) ? (
-            <p className="text-sm text-gray-400">No pertenece a ningún fondo</p>
+          {!socio.fondosSocios || socio.fondosSocios.length === 0 ? (
+            <p className="text-sm text-gray-600">No pertenece a ningún fondo</p>
           ) : (
             <div className="space-y-3">
               {socio.fondosSocios.map((fs) => (
-                <div key={fs.id} className="flex items-center gap-4 rounded-lg border border-gray-100 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+                <div
+                  key={fs.id}
+                  className="flex items-center gap-4 rounded-lg border border-gray-100 p-4"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
                     <Landmark className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Link to={`/fondos/${fs.fondo?.id ?? fs.fondoId}`} className="text-sm font-medium text-[#111827] hover:text-[#2563EB]">
+                    <Link
+                      to={`/fondos/${fs.fondo?.id ?? fs.fondoId}`}
+                      className="text-sm font-medium text-gray-900 hover:text-secondary"
+                    >
                       {fs.fondo?.nombre ?? `Fondo #${fs.fondoId}`}
                     </Link>
                     <p className="text-xs text-gray-500">
                       {fs.numeroSocio ? `N° ${fs.numeroSocio}` : ''}
                       {fs.cargo ? ` · ${fs.cargo}` : ''}
                       {fs.nivel ? ` · ${fs.nivel}` : ''}
-                      {fs.fechaIngreso ? ` · Ingreso: ${new Date(fs.fechaIngreso).toLocaleDateString()}` : ''}
+                      {fs.fechaIngreso
+                        ? ` · Ingreso: ${new Date(fs.fechaIngreso).toLocaleDateString()}`
+                        : ''}
                     </p>
                   </div>
                 </div>
@@ -500,8 +669,8 @@ export default function SocioDetailPage() {
         <Card padding="lg" className="lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <HandCoins className="h-5 w-5 text-[#2563EB]" />
-              <h3 className="font-semibold text-[#111827]">Aportes</h3>
+              <HandCoins className="h-5 w-5 text-secondary" />
+              <h3 className="text-lg font-semibold text-gray-900">Aportes</h3>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -525,8 +694,8 @@ export default function SocioDetailPage() {
         <Card padding="lg" className="lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <HandCoins className="h-5 w-5 text-[#2563EB]" />
-              <h3 className="font-semibold text-[#111827]">Créditos</h3>
+              <HandCoins className="h-5 w-5 text-secondary" />
+              <h3 className="text-lg font-semibold text-gray-900">Créditos</h3>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -548,11 +717,25 @@ export default function SocioDetailPage() {
       </div>
 
       {/* Modal Beneficiario (Add/Edit) */}
-      <Modal open={showBenModal} onClose={() => { setShowBenModal(false); setEditingBen(null); reset() }} title={editingBen ? 'Editar Beneficiario' : 'Agregar Beneficiario'} maxWidth="lg">
+      <Modal
+        open={showBenModal}
+        onClose={() => {
+          setShowBenModal(false)
+          setEditingBen(null)
+          reset()
+        }}
+        title={editingBen ? 'Editar Beneficiario' : 'Agregar Beneficiario'}
+        maxWidth="lg"
+      >
         <form onSubmit={handleSubmit(handleSaveBeneficiario)} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="DNI" required error={errors.dni?.message}>
-              <Input {...register('dni')} placeholder="12345678" maxLength={8} error={errors.dni?.message} />
+              <Input
+                {...register('dni')}
+                placeholder="12345678"
+                maxLength={8}
+                error={errors.dni?.message}
+              />
             </FormField>
             <FormField label="Parentesco" required error={errors.parentesco?.message}>
               <Select
@@ -570,23 +753,52 @@ export default function SocioDetailPage() {
               />
             </FormField>
             <FormField label="Nombres" required error={errors.nombres?.message}>
-              <Input {...register('nombres')} placeholder="Nombres" error={errors.nombres?.message} />
+              <Input
+                {...register('nombres')}
+                placeholder="Nombres"
+                error={errors.nombres?.message}
+              />
             </FormField>
             <FormField label="Teléfono" error={errors.telefono?.message}>
-              <Input {...register('telefono')} placeholder="987654321" maxLength={9} error={errors.telefono?.message} />
+              <Input
+                {...register('telefono')}
+                placeholder="987654321"
+                maxLength={9}
+                error={errors.telefono?.message}
+              />
             </FormField>
             <FormField label="Apellido Paterno" required error={errors.apellidoPaterno?.message}>
-              <Input {...register('apellidoPaterno')} placeholder="Apellido paterno" error={errors.apellidoPaterno?.message} />
+              <Input
+                {...register('apellidoPaterno')}
+                placeholder="Apellido paterno"
+                error={errors.apellidoPaterno?.message}
+              />
             </FormField>
             <FormField label="Apellido Materno" required error={errors.apellidoMaterno?.message}>
-              <Input {...register('apellidoMaterno')} placeholder="Apellido materno" error={errors.apellidoMaterno?.message} />
+              <Input
+                {...register('apellidoMaterno')}
+                placeholder="Apellido materno"
+                error={errors.apellidoMaterno?.message}
+              />
             </FormField>
             <FormField label="Fecha de Nacimiento" error={errors.fechaNacimiento?.message}>
-              <Input type="date" {...register('fechaNacimiento')} error={errors.fechaNacimiento?.message} />
+              <Input
+                type="date"
+                {...register('fechaNacimiento')}
+                error={errors.fechaNacimiento?.message}
+              />
             </FormField>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" type="button" onClick={() => { setShowBenModal(false); setEditingBen(null); reset() }}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => {
+                setShowBenModal(false)
+                setEditingBen(null)
+                reset()
+              }}
+            >
               Cancelar
             </Button>
             <Button type="submit" loading={savingBen} iconLeft={<Plus className="h-4 w-4" />}>
@@ -597,7 +809,16 @@ export default function SocioDetailPage() {
       </Modal>
 
       {/* Modal Subir Documento */}
-      <Modal open={showDocModal} onClose={() => { setShowDocModal(false); setDocFile(null); setDocTipo('OTRO') }} title="Subir Documento" maxWidth="sm">
+      <Modal
+        open={showDocModal}
+        onClose={() => {
+          setShowDocModal(false)
+          setDocFile(null)
+          setDocTipo('OTRO')
+        }}
+        title="Subir Documento"
+        maxWidth="sm"
+      >
         <div className="space-y-4">
           <FormField label="Tipo de Documento">
             <Select
@@ -625,20 +846,30 @@ export default function SocioDetailPage() {
             <button
               type="button"
               onClick={() => docInputRef.current?.click()}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 p-6 text-sm text-gray-500 transition-colors hover:border-[#2563EB] hover:text-[#2563EB]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 p-6 text-sm text-gray-500 transition-colors hover:border-secondary hover:text-secondary"
             >
               <Upload className="h-5 w-5" />
               {docFile ? docFile.name : 'Seleccionar archivo'}
             </button>
-            {docFile && (
-              <p className="mt-1 text-xs text-gray-400">{formatBytes(docFile.size)}</p>
-            )}
+            {docFile && <p className="mt-1 text-xs text-gray-600">{formatBytes(docFile.size)}</p>}
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={() => { setShowDocModal(false); setDocFile(null); setDocTipo('OTRO') }}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowDocModal(false)
+                setDocFile(null)
+                setDocTipo('OTRO')
+              }}
+            >
               Cancelar
             </Button>
-            <Button onClick={handleUploadDocumento} loading={uploadingDoc} disabled={!docFile} iconLeft={<Upload className="h-4 w-4" />}>
+            <Button
+              onClick={handleUploadDocumento}
+              loading={uploadingDoc}
+              disabled={!docFile}
+              iconLeft={<Upload className="h-4 w-4" />}
+            >
               Subir
             </Button>
           </div>
@@ -646,7 +877,12 @@ export default function SocioDetailPage() {
       </Modal>
 
       {/* Modal selector de fondo para ficha / historiales */}
-      <Modal open={fondoSelectorFor !== null} onClose={() => setFondoSelectorFor(null)} title="Elegir Fondo" maxWidth="sm">
+      <Modal
+        open={fondoSelectorFor !== null}
+        onClose={() => setFondoSelectorFor(null)}
+        title="Elegir Fondo"
+        maxWidth="sm"
+      >
         <p className="text-sm text-gray-500">
           El socio pertenece a varios fondos. Selecciona para cuál generar
           {fondoSelectorFor === 'aportes' && ' el historial de aportes'}
@@ -673,17 +909,22 @@ export default function SocioDetailPage() {
                     generarFicha(rel.fondoId)
                   }
                 }}
-                className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 text-left transition-all hover:border-[#2563EB] hover:bg-[#2563EB]/5 disabled:opacity-50"
+                className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 text-left transition-all hover:border-secondary hover:bg-secondary/5 disabled:opacity-50"
               >
-                <span className="text-sm font-medium text-[#111827]">{rel.fondo?.nombre}</span>
-                <span className="text-xs text-gray-400">Imprimir →</span>
+                <span className="text-sm font-medium text-gray-900">{rel.fondo?.nombre}</span>
+                <span className="text-xs text-gray-600">Imprimir →</span>
               </button>
             ))}
         </div>
       </Modal>
 
       {/* Modal QR */}
-      <Modal open={showQr} onClose={() => setShowQr(false)} title="Código QR del Socio" maxWidth="sm">
+      <Modal
+        open={showQr}
+        onClose={() => setShowQr(false)}
+        title="Código QR del Socio"
+        maxWidth="sm"
+      >
         <div className="flex flex-col items-center gap-4 py-4">
           <div className="rounded-xl border border-gray-200 p-4 bg-white">
             <QRCode
@@ -693,11 +934,31 @@ export default function SocioDetailPage() {
             />
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-[#111827]">{socio.nombreCompleto}</p>
-            <p className="text-xs text-gray-500">{socio.codigo} · DNI: {socio.dni}</p>
+            <p className="text-sm font-medium text-gray-900">{socio.nombreCompleto}</p>
+            <p className="text-xs text-gray-500">
+              {socio.codigo} · DNI: {socio.dni}
+            </p>
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={benAEliminar !== null}
+        onClose={() => setBenAEliminar(null)}
+        onConfirm={() => benAEliminar !== null && handleDeleteBeneficiario(benAEliminar)}
+        title="Eliminar beneficiario"
+        message="Esta acción no se puede deshacer. El beneficiario se eliminará de forma permanente."
+        confirmText="Eliminar"
+      />
+
+      <ConfirmDialog
+        open={docAEliminar !== null}
+        onClose={() => setDocAEliminar(null)}
+        onConfirm={() => docAEliminar !== null && handleDeleteDocumento(docAEliminar)}
+        title="Eliminar documento"
+        message="Esta acción no se puede deshacer. Se eliminará el registro y el archivo adjunto."
+        confirmText="Eliminar"
+      />
     </div>
   )
 }
@@ -706,36 +967,62 @@ function AportesSocioSection({ socioId }: { socioId: number }) {
   const { data, isLoading } = useAportes({ socioId, limit: 5 })
   const aportes = data?.data || []
 
-  if (isLoading) return <p className="text-sm text-gray-400">Cargando aportes...</p>
-  if (aportes.length === 0) return <p className="text-sm text-gray-400">No hay aportes registrados</p>
+  if (isLoading) return <p className="text-sm text-gray-600">Cargando aportes...</p>
+  if (aportes.length === 0)
+    return <p className="text-sm text-gray-600">No hay aportes registrados</p>
 
-  const formatMonto = (monto: number, moneda = 'PEN') => monto.toLocaleString('es-PE', { style: 'currency', currency: moneda })
+  const formatMonto = (monto: number, moneda = 'PEN') =>
+    monto.toLocaleString('es-PE', { style: 'currency', currency: moneda })
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200">
-      <table className="w-full text-left text-sm">
+    <div className="overflow-x-auto rounded-xl border border-gray-200">
+      <table className="w-full min-w-[560px] text-left text-sm">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50/50">
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Fondo</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Tipo</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Monto</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Período</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Fecha</th>
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Fondo
+            </th>
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Tipo
+            </th>
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Monto
+            </th>
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Período
+            </th>
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Fecha
+            </th>
             <th className="px-4 py-3" />
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {aportes.map((a: any) => (
+          {aportes.map((a: Aporte) => (
             <tr key={a.id} className="transition-colors hover:bg-gray-50/50">
               <td className="px-4 py-3">
-                <Link to={`/fondos/${a.fondo.id}`} className="font-medium text-[#111827] hover:text-[#2563EB]">{a.fondo.nombre}</Link>
+                <Link
+                  to={`/fondos/${a.fondo.id}`}
+                  className="font-medium text-gray-900 hover:text-secondary"
+                >
+                  {a.fondo.nombre}
+                </Link>
               </td>
               <td className="px-4 py-3 text-gray-600">{a.tipo}</td>
-              <td className="px-4 py-3 font-medium text-[#111827]">{formatMonto(a.monto, a.fondo.moneda)}</td>
+              <td className="px-4 py-3 font-medium text-gray-900">
+                {formatMonto(a.monto, a.fondo.moneda)}
+              </td>
               <td className="px-4 py-3 text-gray-600">{a.periodo}</td>
-              <td className="px-4 py-3 text-gray-600">{format(new Date(a.fechaAporte), 'dd MMM yyyy', { locale: es })}</td>
+              <td className="px-4 py-3 text-gray-600">
+                {format(new Date(a.fechaAporte), 'dd MMM yyyy', { locale: es })}
+              </td>
               <td className="px-4 py-3 text-right">
-                <Link to={`/aportes/${a.id}`} className="text-xs font-medium text-[#2563EB] hover:underline">Detalle</Link>
+                <Link
+                  to={`/aportes/${a.id}`}
+                  className="text-xs font-medium text-secondary hover:underline"
+                >
+                  Detalle
+                </Link>
               </td>
             </tr>
           ))}
@@ -749,40 +1036,66 @@ function CreditosSocioSection({ socioId }: { socioId: number }) {
   const { data, isLoading } = useCreditos({ socioId, limit: 10 })
   const prestamos = data?.data || []
 
-  if (isLoading) return <p className="text-sm text-gray-400">Cargando créditos...</p>
-  if (prestamos.length === 0) return <p className="text-sm text-gray-400">No tiene créditos registrados</p>
+  if (isLoading) return <p className="text-sm text-gray-600">Cargando créditos...</p>
+  if (prestamos.length === 0)
+    return <p className="text-sm text-gray-600">No tiene créditos registrados</p>
 
-  const formatMonto = (m: number) => m.toLocaleString('es-PE', { style: 'currency', currency: 'PEN' })
+  const formatMonto = (m: number) =>
+    m.toLocaleString('es-PE', { style: 'currency', currency: 'PEN' })
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200">
-      <table className="w-full text-left text-sm">
+    <div className="overflow-x-auto rounded-xl border border-gray-200">
+      <table className="w-full min-w-[560px] text-left text-sm">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50/50">
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Fondo</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Monto</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Cuotas</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Pagadas</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Estado</th>
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Fondo
+            </th>
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Monto
+            </th>
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Cuotas
+            </th>
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Pagadas
+            </th>
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Estado
+            </th>
             <th className="px-4 py-3" />
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {prestamos.map((p: any) => (
+          {prestamos.map((p: Prestamo) => (
             <tr key={p.id} className="transition-colors hover:bg-gray-50/50">
               <td className="px-4 py-3">
-                <Link to={`/fondos/${p.fondo.id}`} className="font-medium text-[#111827] hover:text-[#2563EB]">{p.fondo.nombre}</Link>
+                <Link
+                  to={`/fondos/${p.fondo.id}`}
+                  className="font-medium text-gray-900 hover:text-secondary"
+                >
+                  {p.fondo.nombre}
+                </Link>
               </td>
-              <td className="px-4 py-3 font-medium text-[#111827]">{formatMonto(p.monto)}</td>
-              <td className="px-4 py-3 text-gray-600">{p.numeroCuotas} × {formatMonto(p.montoCuota)}</td>
-              <td className="px-4 py-3 text-emerald-600">{p.totalCuotas || 0}/{p.numeroCuotas}</td>
+              <td className="px-4 py-3 font-medium text-gray-900">{formatMonto(p.monto)}</td>
+              <td className="px-4 py-3 text-gray-600">
+                {p.numeroCuotas} × {formatMonto(p.montoCuota)}
+              </td>
+              <td className="px-4 py-3 text-emerald-600">
+                {p.totalCuotas || 0}/{p.numeroCuotas}
+              </td>
               <td className="px-4 py-3">
                 {p.estado === 'ACTIVO' && <Badge variant="blue">Activo</Badge>}
                 {p.estado === 'PAGADO' && <Badge variant="green">Pagado</Badge>}
                 {p.estado === 'ANULADO' && <Badge variant="gray">Anulado</Badge>}
               </td>
               <td className="px-4 py-3 text-right">
-                <Link to={`/creditos/${p.id}`} className="text-xs font-medium text-[#2563EB] hover:underline">Ver</Link>
+                <Link
+                  to={`/creditos/${p.id}`}
+                  className="text-xs font-medium text-secondary hover:underline"
+                >
+                  Ver
+                </Link>
               </td>
             </tr>
           ))}

@@ -43,9 +43,10 @@ model Beneficiario {
   parentesco      String    @db.VarChar(50)
   telefono        String?   @db.VarChar(9)
   socioId         Int       @map("socio_id")
-  socio           Socio     @relation(fields: [socioId], references: [id], onDelete: NoAction)
+  socio           Socio     @relation(fields: [socioId], references: [id], onDelete: Cascade)
   createdAt       DateTime  @default(now())
 
+  @@index([socioId])
   @@map("beneficiario")
 }
 
@@ -55,28 +56,35 @@ model DocumentoSocio {
   nombreArchivo String   @db.VarChar(255)
   rutaArchivo   String   @db.VarChar(500)
   mimeType      String   @db.VarChar(100)
-  tamaño        Int
+  tamano        Int      @map("tamano")
   socioId       Int      @map("socio_id")
-  socio         Socio    @relation(fields: [socioId], references: [id], onDelete: NoAction)
+  socio         Socio    @relation(fields: [socioId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
 
+  @@index([socioId])
   @@map("documentosocio")
 }
 
 model Usuario {
-  id              Int      @id @default(autoincrement())
-  nombres         String   @db.VarChar(100)
-  apellidoPaterno String   @db.VarChar(50)
-  apellidoMaterno String   @db.VarChar(50)
-  username        String   @unique @db.VarChar(50)
-  password        String   @db.VarChar(255)
-  correo          String?  @unique @db.VarChar(150)
-  telefono        String?  @db.VarChar(20)
-  rol             String   @db.VarChar(45)
-  estado          String   @default("ACTIVO") @db.VarChar(45)
-  cambiarPassword Boolean  @default(false)
+  id              Int       @id @default(autoincrement())
+  nombres         String    @db.VarChar(100)
+  apellidoPaterno String    @db.VarChar(50)
+  apellidoMaterno String    @db.VarChar(50)
+  username        String    @unique @db.VarChar(50)
+  password        String    @db.VarChar(255)
+  correo          String?   @unique @db.VarChar(150)
+  telefono        String?   @db.VarChar(20)
+  rol             String    @db.VarChar(45)
+  estado          String    @default("ACTIVO") @db.VarChar(45)
+  cambiarPassword Boolean   @default(false)
   ultimoAcceso    DateTime?
-  createdAt       DateTime @default(now())
+  intentosFallidos Int      @default(0)
+  bloqueadoHasta  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  refreshTokens  RefreshToken[]
+  fondosSocios   FondoSocio[]
 
   @@map("usuario")
 }
@@ -112,17 +120,20 @@ model FondoSocio {
   observacion     String?   @db.VarChar(45)
   fechaAprobacion DateTime?
   usuarioId       Int?      @map("usuario_id")
+  usuario         Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 
   fondoId Int            @map("fondorotatorio_id")
-  fondo   FondoRotatorio @relation(fields: [fondoId], references: [id], onDelete: NoAction)
+  fondo   FondoRotatorio @relation(fields: [fondoId], references: [id], onDelete: Restrict)
   socioId Int            @map("socio_id")
-  socio   Socio          @relation(fields: [socioId], references: [id], onDelete: NoAction)
+  socio   Socio          @relation(fields: [socioId], references: [id], onDelete: Restrict)
 
   aportes       Aporte[]
   prestamos     Prestamo[]
 
   @@unique([fondoId, socioId])
+  @@unique([fondoId, numeroSocio])
   @@index([socioId])
+  @@index([fondoId])
   @@map("FondoSocio")
 }
 
@@ -141,8 +152,12 @@ model Aporte {
   updatedAt   DateTime @updatedAt
 
   fondoSocioId Int        @map("FondoSocio_Id")
-  fondoSocio   FondoSocio @relation(fields: [fondoSocioId], references: [id], onDelete: NoAction)
+  fondoSocio   FondoSocio @relation(fields: [fondoSocioId], references: [id], onDelete: Restrict)
 
+  @@index([fondoSocioId])
+  @@index([periodo])
+  @@index([estado])
+  @@index([fechaAporte])
   @@map("aporte")
 }
 
@@ -160,10 +175,12 @@ model Prestamo {
   updatedAt              DateTime @updatedAt
 
   fondoSocioId Int        @map("FondoSocio_Id")
-  fondoSocio   FondoSocio @relation(fields: [fondoSocioId], references: [id], onDelete: NoAction)
+  fondoSocio   FondoSocio @relation(fields: [fondoSocioId], references: [id], onDelete: Restrict)
 
   cuotas CuotaPrestamo[]
 
+  @@index([fondoSocioId])
+  @@index([estado])
   @@map("prestamo")
 }
 
@@ -186,6 +203,8 @@ model CuotaPrestamo {
   prestamo   Prestamo @relation(fields: [prestamoId], references: [id], onDelete: NoAction)
 
   @@unique([prestamoId, numero])
+  @@index([fechaVencimiento])
+  @@index([estado])
   @@map("cuotaprestamo")
 }
 
@@ -203,12 +222,13 @@ model Caja {
   updatedAt    DateTime @updatedAt
 
   fondoId Int            @map("fondorotatorio_id")
-  fondo   FondoRotatorio @relation(fields: [fondoId], references: [id], onDelete: NoAction)
+  fondo   FondoRotatorio @relation(fields: [fondoId], references: [id], onDelete: Restrict)
 
   movimientos      MovimientoCaja[]
   arqueos          ArqueoCaja[]
   flujoProyectados FlujoCajaProyectado[]
 
+  @@index([fondoId])
   @@map("caja")
 }
 
@@ -252,6 +272,8 @@ model MovimientoCaja {
   @@index([cajaId, fechaMovimiento])
   @@index([fechaMovimiento])
   @@index([estado])
+  @@index([referencia])
+  @@index([conceptoId])
   @@map("movimientocaja")
 }
 
@@ -270,9 +292,10 @@ model ArqueoCaja {
   aprobadoPor     String?  @db.VarChar(50)
 
   cajaId Int  @map("caja_id")
-  caja   Caja @relation(fields: [cajaId], references: [id], onDelete: NoAction)
+  caja   Caja @relation(fields: [cajaId], references: [id], onDelete: Restrict)
 
   @@index([cajaId, fechaArqueo])
+  @@index([cajaId])
   @@map("arqueocaja")
 }
 
@@ -289,9 +312,10 @@ model FlujoCajaProyectado {
   updatedAt       DateTime @updatedAt
 
   cajaId Int  @map("caja_id")
-  caja   Caja @relation(fields: [cajaId], references: [id], onDelete: NoAction)
+  caja   Caja @relation(fields: [cajaId], references: [id], onDelete: Restrict)
 
   @@index([cajaId, fecha])
+  @@index([cajaId])
   @@map("flujocajaproyectado")
 }
 
@@ -303,9 +327,23 @@ model AuditLog {
   datosAnteriores Json?
   datosNuevos     Json?
   ip              String?  @db.VarChar(45)
+  usuarioId       Int?     @map("usuario_id")
   createdAt       DateTime @default(now())
 
   @@index([tabla, registroId])
   @@index([createdAt])
+  @@index([usuarioId])
   @@map("auditlog")
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique @db.VarChar(500)
+  usuarioId Int      @map("usuario_id")
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId])
+  @@map("refreshtoken")
 }

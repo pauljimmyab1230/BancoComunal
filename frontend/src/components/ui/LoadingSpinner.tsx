@@ -13,7 +13,9 @@ const sizeMap = {
 export default function LoadingSpinner({ size = 'md', text, className = '' }: LoadingSpinnerProps) {
   return (
     <div className={`flex flex-col items-center justify-center gap-3 ${className}`}>
-      <div className={`${sizeMap[size]} animate-spin rounded-full border-4 border-[#2563EB]/20 border-t-[#2563EB]`} />
+      <div
+        className={`${sizeMap[size]} animate-spin rounded-full border-4 border-secondary/20 border-t-secondary`}
+      />
       {text && <p className="text-sm text-gray-500">{text}</p>}
     </div>
   )

@@ -31,25 +31,31 @@ function getTitle(pathname: string): string | undefined {
 
 export default function AdminLayout() {
   const location = useLocation()
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  const [sidebarHovered, setSidebarHovered] = useState(false)
 
   const title = getTitle(location.pathname)
+  const sidebarExpandida = sidebarExpanded || sidebarHovered
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <AdminSidebar
-        collapsed={sidebarCollapsed}
+        expanded={sidebarExpanded}
+        hovered={sidebarHovered}
+        onToggle={() => setSidebarExpanded(!sidebarExpanded)}
+        onHoverStart={() => setSidebarHovered(true)}
+        onHoverEnd={() => setSidebarHovered(false)}
         mobileOpen={mobileSidebarOpen}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         onMobileClose={() => setMobileSidebarOpen(false)}
       />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <AdminHeader
-          onToggleSidebar={() => setMobileSidebarOpen(true)}
-          title={title}
-        />
+      <div
+        className={`flex flex-1 flex-col overflow-hidden transition-all duration-300 ${
+          sidebarExpandida ? 'lg:ml-[240px]' : 'lg:ml-[68px]'
+        }`}
+      >
+        <AdminHeader onToggleSidebar={() => setMobileSidebarOpen(true)} title={title} />
 
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-8">

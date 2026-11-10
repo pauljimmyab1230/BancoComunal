@@ -11,9 +11,25 @@
     "dev:front": "npm run dev -w frontend",
     "dev:back": "npm run dev -w backend",
     "build": "npm run build -w frontend && npm run build -w backend",
-    "lint": "npm run lint -w frontend"
+    "test": "npm run test -w backend && npm run test -w frontend",
+    "test:back": "npm run test -w backend",
+    "test:front": "npm run test -w frontend",
+    "lint": "npm run lint -w backend && npm run lint -w frontend",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "backend/src/**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "frontend/src/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2"
   }
 }

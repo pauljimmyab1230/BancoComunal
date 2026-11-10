@@ -1,5 +1,6 @@
 import prisma from './prisma'
 import bcrypt from 'bcryptjs'
+import { logger } from './logger'
 
 export async function seedDatabase() {
   const adminExists = await prisma.usuario.findUnique({ where: { username: 'admin' } })
@@ -17,12 +18,12 @@ export async function seedDatabase() {
         correo: 'admin@banquito.com',
         rol: 'ADMIN',
         estado: 'ACTIVO',
-        cambiarPassword: true,
+        cambiarPassword: false,
       },
     })
 
-    console.log('✓ Usuario admin creado (admin / admin123) - Debe cambiar contraseña en primer login')
+    logger.info('Usuario admin creado (admin / admin123)')
   } else {
-    console.log('• Usuario admin ya existe')
+    logger.info('Usuario admin ya existe')
   }
 }

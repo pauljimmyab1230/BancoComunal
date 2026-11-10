@@ -1,11 +1,13 @@
 import type { Prisma } from '@prisma/client'
+import crypto from 'crypto'
 import { HttpError } from '../../middleware/httpError'
 
 export function generateCodigo(prefix: string): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const bytes = crypto.randomBytes(10)
   let result = prefix
   for (let i = 0; i < 10; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
+    result += chars[bytes[i] % chars.length]
   }
   return result
 }
@@ -24,7 +26,7 @@ export interface RegistroMovimientoCajaData {
 
 export async function registrarMovimientoCaja(
   tx: Prisma.TransactionClient,
-  data: RegistroMovimientoCajaData,
+  data: RegistroMovimientoCajaData
 ) {
   const [caja, concepto] = await Promise.all([
     tx.caja.findUnique({ where: { id: data.cajaId } }),
@@ -95,7 +97,7 @@ export async function registrarMovimientoFondo(
   tx: Prisma.TransactionClient,
   fondoId: number,
   conceptoCodigo: string,
-  data: Omit<RegistroMovimientoCajaData, 'cajaId' | 'conceptoId'>,
+  data: Omit<RegistroMovimientoCajaData, 'cajaId' | 'conceptoId'>
 ) {
   const [caja, concepto] = await Promise.all([
     findCajaFondo(tx, fondoId),
@@ -104,7 +106,7 @@ export async function registrarMovimientoFondo(
   if (!caja) {
     throw new HttpError(
       400,
-      'El fondo no tiene una caja activa para registrar sus movimientos. Crea una caja para este fondo.',
+      'El fondo no tiene una caja activa para registrar sus movimientos. Crea una caja para este fondo.'
     )
   }
   if (!concepto) {
@@ -129,14 +131,14 @@ export async function actualizarMovimientoCajaVinculado(
     fechaMovimiento?: Date
     metodoPago?: string
     comprobante?: string | null
-  },
+  }
 ) {
   const mov = await tx.movimientoCaja.findFirst({
     where: { referencia, estado: { not: 'ANULADO' } },
   })
   if (!mov) return null
 
-  const updateData: any = {}
+  const updateData: Prisma.MovimientoCajaUpdateInput = {}
   if (p.deltaMonto !== undefined && p.deltaMonto !== 0) {
     updateData.monto = { increment: p.deltaMonto }
   }
@@ -170,7 +172,7 @@ export async function actualizarMovimientoCajaVinculado(
  */
 export async function anularMovimientoCajaVinculado(
   tx: Prisma.TransactionClient,
-  referencia: string,
+  referencia: string
 ) {
   const mov = await tx.movimientoCaja.findFirst({
     where: { referencia, estado: { not: 'ANULADO' } },

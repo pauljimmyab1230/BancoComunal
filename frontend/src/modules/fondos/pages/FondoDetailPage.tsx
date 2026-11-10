@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -19,8 +19,21 @@ import { useFondo } from '../hooks/useFondos'
 import { useSocios } from '@/modules/socios/hooks/useSocios'
 import { useAportes } from '@/modules/aportes/hooks/useAportes'
 import { useCreditos } from '@/modules/creditos/hooks/useCreditos'
-import { Button, Card, Badge, LoadingSpinner, Modal, Input, ConfirmDialog, Select } from '@/components/ui'
+import {
+  Button,
+  Card,
+  Badge,
+  LoadingSpinner,
+  Modal,
+  Input,
+  ConfirmDialog,
+  Select,
+} from '@/components/ui'
 import { fondosApi } from '../api/fondosApi'
+import type { FondoSocio } from '../types'
+import type { Socio } from '@/types'
+import type { Aporte } from '@/modules/aportes/types'
+import type { Prestamo } from '@/modules/creditos/types'
 import { getErrorMessage, openProtectedPdf, api } from '@/lib/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -44,21 +57,29 @@ export default function FondoDetailPage() {
   const { data: aniosAportesData } = useQuery({
     queryKey: ['aportes-fondo-anios', fondo?.id],
     queryFn: () =>
-      api.get('/reportes/aportes-fondo/anios', { params: { fondoId: fondo?.id } }).then((r) => r.data?.data as number[]),
+      api
+        .get('/reportes/aportes-fondo/anios', { params: { fondoId: fondo?.id } })
+        .then((r) => r.data?.data as number[]),
     enabled: !!fondo,
   })
 
-  useEffect(() => {
-    if (aniosAportesData && aniosAportesData.length > 0 && !aniosAportesData.includes(anioAportes)) {
+  const [prevAnios, setPrevAnios] = useState(aniosAportesData)
+
+  if (aniosAportesData && aniosAportesData !== prevAnios) {
+    setPrevAnios(aniosAportesData)
+    if (aniosAportesData.length > 0 && !aniosAportesData.includes(anioAportes)) {
       const primerAnio = aniosAportesData[0]
       if (primerAnio !== undefined) setAnioAportes(primerAnio)
     }
-  }, [aniosAportesData])
+  }
 
   const { data: sociosData } = useSocios({ search: socioSearch, limit: 20 })
 
   const aniosOptions = useMemo(() => {
-    const anios = aniosAportesData && aniosAportesData.length > 0 ? aniosAportesData : [new Date().getFullYear()]
+    const anios =
+      aniosAportesData && aniosAportesData.length > 0
+        ? aniosAportesData
+        : [new Date().getFullYear()]
     return anios.map((a) => ({ value: String(a), label: String(a) }))
   }, [aniosAportesData])
 
@@ -74,7 +95,13 @@ export default function FondoDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <p className="text-gray-500">Fondo no encontrado</p>
-        <Button as="link" to="/fondos" variant="ghost" iconLeft={<ArrowLeft className="h-4 w-4" />} className="mt-4">
+        <Button
+          as="link"
+          to="/fondos"
+          variant="ghost"
+          iconLeft={<ArrowLeft className="h-4 w-4" />}
+          className="mt-4"
+        >
           Volver
         </Button>
       </div>
@@ -83,10 +110,14 @@ export default function FondoDetailPage() {
 
   const estadoBadge = (() => {
     switch (fondo.estado) {
-      case 'ACTIVO': return <Badge variant="green">Activo</Badge>
-      case 'INACTIVO': return <Badge variant="yellow">Inactivo</Badge>
-      case 'CERRADO': return <Badge variant="gray">Cerrado</Badge>
-      default: return <Badge>{fondo.estado}</Badge>
+      case 'ACTIVO':
+        return <Badge variant="green">Activo</Badge>
+      case 'INACTIVO':
+        return <Badge variant="yellow">Inactivo</Badge>
+      case 'CERRADO':
+        return <Badge variant="gray">Cerrado</Badge>
+      default:
+        return <Badge>{fondo.estado}</Badge>
     }
   })()
 
@@ -172,7 +203,12 @@ export default function FondoDetailPage() {
         >
           {printingResumen ? 'Generando...' : 'Resumen PDF'}
         </Button>
-        <Button variant="secondary" as="link" to={`/fondos/${fondo.id}/editar`} iconLeft={<Pencil className="h-4 w-4" />}>
+        <Button
+          variant="secondary"
+          as="link"
+          to={`/fondos/${fondo.id}/editar`}
+          iconLeft={<Pencil className="h-4 w-4" />}
+        >
           Editar
         </Button>
       </div>
@@ -181,12 +217,12 @@ export default function FondoDetailPage() {
       <Card padding="lg" className="mb-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#2563EB]/10">
-              <Building2 className="h-8 w-8 text-[#2563EB]" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary/10">
+              <Building2 className="h-8 w-8 text-secondary" />
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-[#111827]">{fondo.nombre}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{fondo.nombre}</h1>
                 {estadoBadge}
               </div>
               <p className="mt-1 text-sm text-gray-500">
@@ -202,13 +238,16 @@ export default function FondoDetailPage() {
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card padding="md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
               <Wallet className="h-5 w-5" />
             </div>
             <div>
               <p className="text-xs text-gray-500">Capital Inicial</p>
-              <p className="text-xl font-bold text-[#111827]">
-                {fondo.capitalInicial.toLocaleString('es-PE', { style: 'currency', currency: fondo.moneda })}
+              <p className="text-2xl font-bold text-gray-900">
+                {fondo.capitalInicial.toLocaleString('es-PE', {
+                  style: 'currency',
+                  currency: fondo.moneda,
+                })}
               </p>
             </div>
           </div>
@@ -221,8 +260,11 @@ export default function FondoDetailPage() {
             </div>
             <div>
               <p className="text-xs text-gray-500">Disponible</p>
-              <p className="text-xl font-bold text-emerald-600">
-                {fondo.capitalDisponible.toLocaleString('es-PE', { style: 'currency', currency: fondo.moneda })}
+              <p className="text-2xl font-bold text-emerald-600">
+                {fondo.capitalDisponible.toLocaleString('es-PE', {
+                  style: 'currency',
+                  currency: fondo.moneda,
+                })}
               </p>
             </div>
           </div>
@@ -235,8 +277,11 @@ export default function FondoDetailPage() {
             </div>
             <div>
               <p className="text-xs text-gray-500">Capital Prestado (saldo vigente)</p>
-              <p className="text-xl font-bold text-amber-600">
-                {capitalUsado.toLocaleString('es-PE', { style: 'currency', currency: fondo.moneda })}
+              <p className="text-2xl font-bold text-amber-600">
+                {capitalUsado.toLocaleString('es-PE', {
+                  style: 'currency',
+                  currency: fondo.moneda,
+                })}
               </p>
             </div>
           </div>
@@ -249,7 +294,7 @@ export default function FondoDetailPage() {
             </div>
             <div>
               <p className="text-xs text-gray-500">Socios</p>
-              <p className="text-xl font-bold text-[#111827]">{fondo.socios?.length || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{fondo.socios?.length || 0}</p>
             </div>
           </div>
         </Card>
@@ -258,12 +303,12 @@ export default function FondoDetailPage() {
       {/* Barra de uso de capital */}
       <Card padding="md" className="mb-8">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-[#111827]">Uso del Capital</span>
+          <span className="text-sm font-medium text-gray-900">Uso del Capital</span>
           <span className="text-sm text-gray-500">{porcentajeUsado.toFixed(1)}% utilizado</span>
         </div>
         <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[#2563EB] to-[#38BDF8] transition-all duration-500"
+            className="h-full rounded-full bg-gradient-to-r from-secondary to-accent transition-all duration-500"
             style={{ width: `${Math.min(porcentajeUsado, 100)}%` }}
           />
         </div>
@@ -277,8 +322,8 @@ export default function FondoDetailPage() {
       <Card padding="lg">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-[#2563EB]" />
-            <h3 className="font-semibold text-[#111827]">Socios del Fondo</h3>
+            <Users className="h-5 w-5 text-secondary" />
+            <h3 className="font-semibold text-gray-900">Socios del Fondo</h3>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -290,46 +335,74 @@ export default function FondoDetailPage() {
             >
               {printingPadron ? 'Generando...' : 'Padrón PDF'}
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => setShowSocioModal(true)} iconLeft={<Plus className="h-4 w-4" />}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowSocioModal(true)}
+              iconLeft={<Plus className="h-4 w-4" />}
+            >
               Agregar Socio
             </Button>
           </div>
         </div>
 
-        {(!fondo.socios || fondo.socios.length === 0) ? (
+        {!fondo.socios || fondo.socios.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-400">
             No hay socios asignados a este fondo. Agrega socios para empezar.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-gray-200">
+          <div className="overflow-hidden rounded-2xl border border-gray-200">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">N°</th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Código</th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">DNI</th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Nombres</th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Ingreso</th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Estado</th>
-                  <th className="px-4 py-3" />
+                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    N°
+                  </th>
+                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Código
+                  </th>
+                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    DNI
+                  </th>
+                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Nombres
+                  </th>
+                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Ingreso
+                  </th>
+                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Estado
+                  </th>
+                  <th className="px-5 py-3.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {fondo.socios.map((rel: any) => (
+                {fondo.socios.map((rel: FondoSocio) => (
                   <tr key={rel.id} className="transition-colors hover:bg-gray-50/50">
-                    <td className="px-4 py-3 font-semibold text-[#2563EB]">{rel.numeroSocio ?? '—'}</td>
-                    <td className="px-4 py-3 font-medium text-[#111827]">{rel.socio.codigo}</td>
-                    <td className="px-4 py-3 text-gray-600">{rel.socio.dni}</td>
-                    <td className="px-4 py-3">
-                      <Link to={`/socios/${rel.socio.id}`} className="font-medium text-[#111827] hover:text-[#2563EB]">
+                    <td className="px-5 py-4 font-semibold text-secondary">
+                      {rel.numeroSocio ?? '—'}
+                    </td>
+                    <td className="px-5 py-4 font-medium text-gray-900">{rel.socio.codigo}</td>
+                    <td className="px-5 py-4 text-gray-600">{rel.socio.dni}</td>
+                    <td className="px-5 py-4">
+                      <Link
+                        to={`/socios/${rel.socio.id}`}
+                        className="font-medium text-gray-900 hover:text-secondary"
+                      >
                         {rel.socio.nombres} {rel.socio.apellidoPaterno}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{new Date(rel.fechaIngreso).toLocaleDateString()}</td>
-                    <td className="px-4 py-3">
-                      {rel.socio.estado === 'A' ? <Badge variant="green">Activo</Badge> : <Badge variant="gray">Inactivo</Badge>}
+                    <td className="px-5 py-4 text-gray-600">
+                      {rel.fechaIngreso ? new Date(rel.fechaIngreso).toLocaleDateString() : '—'}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-5 py-4">
+                      {rel.socio.estado === 'A' ? (
+                        <Badge variant="green">Activo</Badge>
+                      ) : (
+                        <Badge variant="gray">Inactivo</Badge>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-right">
                       <button
                         onClick={() => setRemoveSocioId(rel.socio.id)}
                         className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
@@ -349,8 +422,8 @@ export default function FondoDetailPage() {
       <Card padding="lg" className="mt-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <HandCoins className="h-5 w-5 text-[#2563EB]" />
-            <h3 className="font-semibold text-[#111827]">Aportes</h3>
+            <HandCoins className="h-5 w-5 text-secondary" />
+            <h3 className="font-semibold text-gray-900">Aportes</h3>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-40">
@@ -392,14 +465,19 @@ export default function FondoDetailPage() {
       {/* Créditos del Fondo */}
       <Card padding="lg" className="mt-6">
         <div className="mb-4 flex items-center gap-2">
-          <HandCoins className="h-5 w-5 text-[#2563EB]" />
-          <h3 className="font-semibold text-[#111827]">Créditos</h3>
+          <HandCoins className="h-5 w-5 text-secondary" />
+          <h3 className="font-semibold text-gray-900">Créditos</h3>
         </div>
         <CreditosFondoSection fondoId={fondo.id} moneda={fondo.moneda} />
       </Card>
 
       {/* Modal Agregar Socio */}
-      <Modal open={showSocioModal} onClose={() => setShowSocioModal(false)} title="Agregar Socio al Fondo" maxWidth="lg">
+      <Modal
+        open={showSocioModal}
+        onClose={() => setShowSocioModal(false)}
+        title="Agregar Socio al Fondo"
+        maxWidth="lg"
+      >
         <div className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -412,24 +490,28 @@ export default function FondoDetailPage() {
           </div>
 
           <div className="max-h-60 space-y-2 overflow-y-auto">
-            {sociosData?.data?.map((socio: any) => {
-              const yaAsignado = fondo.socios?.some((r: any) => r.socio.id === socio.id)
+            {sociosData?.data?.map((socio: Socio) => {
+              const yaAsignado = fondo.socios?.some((r: FondoSocio) => r.socio.id === socio.id)
               return (
                 <div
                   key={socio.id}
                   className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${
-                    yaAsignado ? 'border-gray-100 bg-gray-50 opacity-50' : 'border-gray-100 hover:bg-gray-50'
+                    yaAsignado
+                      ? 'border-gray-100 bg-gray-50 opacity-50'
+                      : 'border-gray-100 hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2563EB]/10 text-sm font-semibold text-[#2563EB]">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary/10 text-sm font-semibold text-secondary">
                       {socio.nombres.charAt(0)}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-[#111827]">
+                      <p className="text-sm font-medium text-gray-900">
                         {socio.nombres} {socio.apellidoPaterno} {socio.apellidoMaterno}
                       </p>
-                      <p className="text-xs text-gray-500">{socio.dni} · {socio.codigo}</p>
+                      <p className="text-xs text-gray-500">
+                        {socio.dni} · {socio.codigo}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -486,36 +568,49 @@ function AportesFondoSection({ fondoId, moneda }: { fondoId: number; moneda: str
     monto.toLocaleString('es-PE', { style: 'currency', currency: moneda })
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200">
+    <div className="overflow-hidden rounded-2xl border border-gray-200">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50/50">
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Socio</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Tipo</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Monto</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Período</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Fecha</th>
-            <th className="px-4 py-3" />
+            <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Socio
+            </th>
+            <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Tipo
+            </th>
+            <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Monto
+            </th>
+            <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Período
+            </th>
+            <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Fecha
+            </th>
+            <th className="px-5 py-3.5" />
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {aportes.map((a: any) => (
+          {aportes.map((a: Aporte) => (
             <tr key={a.id} className="transition-colors hover:bg-gray-50/50">
-              <td className="px-4 py-3">
-                <Link to={`/socios/${a.socio.id}`} className="font-medium text-[#111827] hover:text-[#2563EB]">
+              <td className="px-5 py-4">
+                <Link
+                  to={`/socios/${a.socio.id}`}
+                  className="font-medium text-gray-900 hover:text-secondary"
+                >
                   {a.socio.nombres} {a.socio.apellidoPaterno}
                 </Link>
               </td>
-              <td className="px-4 py-3 text-gray-600">{a.tipo}</td>
-              <td className="px-4 py-3 font-medium text-[#111827]">{formatMonto(a.monto)}</td>
-              <td className="px-4 py-3 text-gray-600">{a.periodo}</td>
-              <td className="px-4 py-3 text-gray-600">
+              <td className="px-5 py-4 text-gray-600">{a.tipo}</td>
+              <td className="px-5 py-4 font-medium text-gray-900">{formatMonto(a.monto)}</td>
+              <td className="px-5 py-4 text-gray-600">{a.periodo}</td>
+              <td className="px-5 py-4 text-gray-600">
                 {format(new Date(a.fechaAporte), 'dd MMM yyyy', { locale: es })}
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-5 py-4 text-right">
                 <Link
                   to={`/aportes/${a.id}`}
-                  className="text-xs font-medium text-[#2563EB] hover:underline"
+                  className="text-xs font-medium text-secondary hover:underline"
                 >
                   Detalle
                 </Link>
@@ -533,42 +628,65 @@ function CreditosFondoSection({ fondoId, moneda }: { fondoId: number; moneda: st
   const prestamos = data?.data || []
 
   if (isLoading) return <p className="text-sm text-gray-400">Cargando créditos...</p>
-  if (prestamos.length === 0) return <p className="text-sm text-gray-400">No hay créditos en este fondo</p>
+  if (prestamos.length === 0)
+    return <p className="text-sm text-gray-400">No hay créditos en este fondo</p>
 
   const formatMonto = (m: number) =>
     m.toLocaleString('es-PE', { style: 'currency', currency: moneda })
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200">
+    <div className="overflow-hidden rounded-2xl border border-gray-200">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50/50">
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Socio</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Monto</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Cuotas</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Pagadas</th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Estado</th>
-            <th className="px-4 py-3" />
+            <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Socio
+            </th>
+            <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Monto
+            </th>
+            <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Cuotas
+            </th>
+            <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Pagadas
+            </th>
+            <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Estado
+            </th>
+            <th className="px-5 py-3.5" />
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {prestamos.map((p: any) => (
+          {prestamos.map((p: Prestamo) => (
             <tr key={p.id} className="transition-colors hover:bg-gray-50/50">
-              <td className="px-4 py-3">
-                <Link to={`/socios/${p.socio.id}`} className="font-medium text-[#111827] hover:text-[#2563EB]">
+              <td className="px-5 py-4">
+                <Link
+                  to={`/socios/${p.socio.id}`}
+                  className="font-medium text-gray-900 hover:text-secondary"
+                >
                   {p.socio.nombres} {p.socio.apellidoPaterno}
                 </Link>
               </td>
-              <td className="px-4 py-3 font-medium text-[#111827]">{formatMonto(p.monto)}</td>
-              <td className="px-4 py-3 text-gray-600">{p.numeroCuotas} × {formatMonto(p.montoCuota)}</td>
-              <td className="px-4 py-3 text-emerald-600">{p.totalCuotas || 0}/{p.numeroCuotas}</td>
-              <td className="px-4 py-3">
+              <td className="px-5 py-4 font-medium text-gray-900">{formatMonto(p.monto)}</td>
+              <td className="px-5 py-4 text-gray-600">
+                {p.numeroCuotas} × {formatMonto(p.montoCuota)}
+              </td>
+              <td className="px-5 py-4 text-emerald-600">
+                {p.totalCuotas || 0}/{p.numeroCuotas}
+              </td>
+              <td className="px-5 py-4">
                 {p.estado === 'ACTIVO' && <Badge variant="blue">Activo</Badge>}
                 {p.estado === 'PAGADO' && <Badge variant="green">Pagado</Badge>}
                 {p.estado === 'ANULADO' && <Badge variant="gray">Anulado</Badge>}
               </td>
-              <td className="px-4 py-3 text-right">
-                <Link to={`/creditos/${p.id}`} className="text-xs font-medium text-[#2563EB] hover:underline">Ver</Link>
+              <td className="px-5 py-4 text-right">
+                <Link
+                  to={`/creditos/${p.id}`}
+                  className="text-xs font-medium text-secondary hover:underline"
+                >
+                  Ver
+                </Link>
               </td>
             </tr>
           ))}

@@ -1,10 +1,11 @@
 import prisma from '../../config/prisma'
 import type { AuditLogQueryInput } from './auditoriaValidation'
+import type { Prisma } from '@prisma/client'
 
 export const auditoriaService = {
   async list(params: AuditLogQueryInput) {
     const { page, limit, tabla, operacion, fechaInicio, fechaFin } = params
-    const where: any = {}
+    const where: Prisma.AuditLogWhereInput = {}
 
     if (tabla) where.tabla = tabla
     if (operacion) where.operacion = operacion
@@ -50,7 +51,11 @@ export const auditoriaService = {
     const [total, byOperacion, byModule, recentActivity] = await Promise.all([
       prisma.auditLog.count(),
       prisma.auditLog.groupBy({ by: ['operacion'], _count: true }),
-      prisma.auditLog.groupBy({ by: ['tabla'], _count: true, orderBy: { _count: { tabla: 'desc' } } }),
+      prisma.auditLog.groupBy({
+        by: ['tabla'],
+        _count: true,
+        orderBy: { _count: { tabla: 'desc' } },
+      }),
       prisma.auditLog.findMany({
         take: 5,
         orderBy: { createdAt: 'desc' },
@@ -59,13 +64,32 @@ export const auditoriaService = {
 
     return {
       total,
-      byOperacion: byOperacion.reduce((acc, r) => ({ ...acc, [r.operacion]: r._count }), {} as Record<string, number>),
+      byOperacion: byOperacion.reduce(
+        (acc, r) => ({ ...acc, [r.operacion]: r._count }),
+        {} as Record<string, number>
+      ),
       byModule: byModule.map((m) => ({ tabla: m.tabla, count: m._count })),
       recentActivity,
     }
   },
 
-  async create(data: { tabla: string; registroId: number; operacion: string; datosAnteriores?: any; datosNuevos?: any; ip?: string }) {
-    return prisma.auditLog.create({ data })
+  async create(data: {
+    tabla: string
+    registroId: number
+    operacion: string
+    datosAnteriores?: unknown
+    datosNuevos?: unknown
+    ip?: string
+  }) {
+    return prisma.auditLog.create({
+      data: {
+        tabla: data.tabla,
+        registroId: data.registroId,
+        operacion: data.operacion,
+        datosAnteriores: (data.datosAnteriores ?? undefined) as Prisma.InputJsonValue | undefined,
+        datosNuevos: (data.datosNuevos ?? undefined) as Prisma.InputJsonValue | undefined,
+        ip: data.ip,
+      },
+    })
   },
 }

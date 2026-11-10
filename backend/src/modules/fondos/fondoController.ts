@@ -42,7 +42,7 @@ export const fondoController = {
   async create(req: Request, res: Response, next: NextFunction) {
     try {
       const data = createFondoSchema.parse(req.body)
-      const fondo = await fondoService.create(data)
+      const fondo = await fondoService.create(data, req.user?.userId)
 
       res.status(201).json({
         success: true,
@@ -62,7 +62,7 @@ export const fondoController = {
         return
       }
       const data = updateFondoSchema.parse(req.body)
-      const fondo = await fondoService.update(id, data)
+      const fondo = await fondoService.update(id, data, req.user?.userId)
 
       if (!fondo) {
         res.status(404).json({ success: false, message: 'Fondo no encontrado' })
@@ -86,7 +86,7 @@ export const fondoController = {
         res.status(400).json({ success: false, message: 'Id de fondo inválido' })
         return
       }
-      const result = await fondoService.delete(id)
+      const result = await fondoService.delete(id, req.user?.userId)
 
       if (!result.success) {
         res.status(400).json({ success: false, message: result.message })
@@ -108,7 +108,7 @@ export const fondoController = {
         return
       }
       const { socioId, ...rest } = addSocioSchema.parse(req.body)
-      const result = await fondoService.addSocio(fondoId, socioId, rest)
+      const result = await fondoService.addSocio(fondoId, socioId, rest, req.user?.userId)
 
       if (!result) {
         res.status(404).json({ success: false, message: 'Fondo o socio no encontrado' })
@@ -134,7 +134,7 @@ export const fondoController = {
         res.status(400).json({ success: false, message: 'Id de fondo o socio inválido' })
         return
       }
-      const result = await fondoService.removeSocio(fondoId, socioId)
+      const result = await fondoService.removeSocio(fondoId, socioId, req.user?.userId)
 
       if (!result.success) {
         res.status(400).json({ success: false, message: result.message })

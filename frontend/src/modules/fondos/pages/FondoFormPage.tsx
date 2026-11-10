@@ -1,11 +1,20 @@
 import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { ArrowLeft, Save, Building2 } from 'lucide-react'
 import { useFondo, useCreateFondo, useUpdateFondo } from '../hooks/useFondos'
-import { Button, Card, FormField, Input, Select, SectionHeader, LoadingSpinner } from '@/components/ui'
+import {
+  Button,
+  Card,
+  FormField,
+  Input,
+  Textarea,
+  Select,
+  SectionHeader,
+  LoadingSpinner,
+} from '@/components/ui'
 
 const fondoSchema = z.object({
   nombre: z.string().min(3, 'Mínimo 3 caracteres').max(200),
@@ -34,7 +43,7 @@ export default function FondoFormPage() {
     register,
     handleSubmit,
     reset,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FondoFormValues>({
     resolver: zodResolver(fondoSchema),
@@ -51,7 +60,7 @@ export default function FondoFormPage() {
     },
   })
 
-  const estadoSeleccionado = watch('estado')
+  const estadoSeleccionado = useWatch({ control, name: 'estado' })
 
   useEffect(() => {
     if (fondoData?.data && isEditing) {
@@ -94,49 +103,76 @@ export default function FondoFormPage() {
   return (
     <div>
       <div className="flex items-center gap-4 mb-8">
-        <Button variant="ghost" onClick={() => navigate(-1)} iconLeft={<ArrowLeft className="h-4 w-4" />}>
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          iconLeft={<ArrowLeft className="h-4 w-4" />}
+        >
           Volver
         </Button>
         <SectionHeader
           title={isEditing ? 'Editar Fondo' : 'Nuevo Fondo Rotatorio'}
-          description={isEditing ? 'Actualiza los datos del fondo' : 'Crea un nuevo fondo rotatorio'}
+          description={
+            isEditing ? 'Actualiza los datos del fondo' : 'Crea un nuevo fondo rotatorio'
+          }
         />
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         <Card padding="lg">
           <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
               <Building2 className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-[#111827]">Información del Fondo</h3>
+              <h3 className="text-base font-semibold text-gray-900">Información del Fondo</h3>
               <p className="text-xs text-gray-500">Datos generales del fondo rotatorio</p>
             </div>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <FormField label="Nombre del Fondo" required error={errors.nombre?.message} className="sm:col-span-2">
-              <Input {...register('nombre')} placeholder="Ej: Fondo Rotatorio Comunal 2026" error={errors.nombre?.message} />
+            <FormField
+              label="Nombre del Fondo"
+              required
+              error={errors.nombre?.message}
+              className="sm:col-span-2"
+            >
+              <Input
+                {...register('nombre')}
+                placeholder="Ej: Fondo Rotatorio Comunal 2026"
+                error={errors.nombre?.message}
+              />
             </FormField>
 
             <FormField label="Estado" required error={errors.estado?.message}>
-              <Select {...register('estado')} options={[
-                { value: 'ACTIVO', label: 'Activo' },
-                { value: 'INACTIVO', label: 'Inactivo' },
-                { value: 'CERRADO', label: 'Cerrado' },
-              ]} error={errors.estado?.message} />
+              <Select
+                {...register('estado')}
+                options={[
+                  { value: 'ACTIVO', label: 'Activo' },
+                  { value: 'INACTIVO', label: 'Inactivo' },
+                  { value: 'CERRADO', label: 'Cerrado' },
+                ]}
+                error={errors.estado?.message}
+              />
             </FormField>
 
             <FormField label="Organización" error={errors.organizacion?.message}>
-              <Input {...register('organizacion')} placeholder="Nombre de la organización" error={errors.organizacion?.message} />
+              <Input
+                {...register('organizacion')}
+                placeholder="Nombre de la organización"
+                error={errors.organizacion?.message}
+              />
             </FormField>
 
             <FormField label="Moneda" required error={errors.moneda?.message}>
-              <Select {...register('moneda')} options={[
-                { value: 'PEN', label: 'Soles (PEN)' },
-                { value: 'USD', label: 'Dólares (USD)' },
-              ]} error={errors.moneda?.message} />
+              <Select
+                {...register('moneda')}
+                options={[
+                  { value: 'PEN', label: 'Soles (PEN)' },
+                  { value: 'USD', label: 'Dólares (USD)' },
+                ]}
+                error={errors.moneda?.message}
+              />
             </FormField>
 
             <FormField label="Capital Inicial" required error={errors.capitalInicial?.message}>
@@ -151,33 +187,46 @@ export default function FondoFormPage() {
 
             {estadoSeleccionado === 'CERRADO' && (
               <FormField label="Fecha de Cierre" error={errors.fechaCierre?.message}>
-                <Input type="date" {...register('fechaCierre')} error={errors.fechaCierre?.message} />
+                <Input
+                  type="date"
+                  {...register('fechaCierre')}
+                  error={errors.fechaCierre?.message}
+                />
               </FormField>
             )}
 
-            <FormField label="Descripción" error={errors.descripcion?.message} className="sm:col-span-2">
-              <textarea
+            <FormField
+              label="Descripción"
+              error={errors.descripcion?.message}
+              className="sm:col-span-2"
+            >
+              <Textarea
                 {...register('descripcion')}
                 rows={3}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-2.5 text-sm text-[#111827] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 resize-none"
                 placeholder="Descripción del propósito del fondo..."
               />
             </FormField>
 
-            <FormField label="Reglamento" error={errors.reglamento?.message} className="sm:col-span-3">
-              <textarea
+            <FormField
+              label="Reglamento"
+              error={errors.reglamento?.message}
+              className="sm:col-span-3"
+            >
+              <Textarea
                 {...register('reglamento')}
                 rows={3}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-2.5 text-sm text-[#111827] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 resize-none"
                 placeholder="Reglamento del fondo..."
               />
             </FormField>
 
-            <FormField label="Condiciones" error={errors.condiciones?.message} className="sm:col-span-3">
-              <textarea
+            <FormField
+              label="Condiciones"
+              error={errors.condiciones?.message}
+              className="sm:col-span-3"
+            >
+              <Textarea
                 {...register('condiciones')}
                 rows={3}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-2.5 text-sm text-[#111827] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 resize-none"
                 placeholder="Condiciones del fondo..."
               />
             </FormField>

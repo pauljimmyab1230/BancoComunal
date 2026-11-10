@@ -49,7 +49,7 @@ export const aporteController = {
   async create(req: Request, res: Response, next: NextFunction) {
     try {
       const data = createAporteSchema.parse(req.body)
-      const aporte = await aporteService.create(data)
+      const aporte = await aporteService.create(data, req.user?.userId)
       res.status(201).json({
         success: true,
         data: aporte,
@@ -65,7 +65,7 @@ export const aporteController = {
       const id = parseId(req, res)
       if (id === undefined) return
       const data = updateAporteSchema.parse(req.body)
-      const aporte = await aporteService.update(id, data)
+      const aporte = await aporteService.update(id, data, req.user?.userId)
       if (!aporte) {
         res.status(404).json({ success: false, message: 'Aporte no encontrado' })
         return
@@ -80,7 +80,7 @@ export const aporteController = {
     try {
       const id = parseId(req, res)
       if (id === undefined) return
-      const result = await aporteService.delete(id)
+      const result = await aporteService.delete(id, req.user?.userId)
       if (!result.success) {
         res.status(400).json({ success: false, message: result.message })
         return

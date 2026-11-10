@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { socioApi, type SociosQuery } from '../api/socioApi'
@@ -7,6 +7,7 @@ export function useSocios(params?: SociosQuery) {
   return useQuery({
     queryKey: ['socios', params],
     queryFn: () => socioApi.list(params),
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -58,9 +59,10 @@ export function useDeleteSocio() {
 
   return useMutation({
     mutationFn: (id: number) => socioApi.delete(id),
-    onSuccess: () => {
+    onSuccess: (_res, id) => {
       toast.success('Socio eliminado correctamente')
       queryClient.invalidateQueries({ queryKey: ['socios'] })
+      queryClient.invalidateQueries({ queryKey: ['socio', id] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al eliminar socio')

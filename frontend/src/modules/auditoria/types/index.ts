@@ -3,8 +3,8 @@ export interface AuditLogEntry {
   tabla: string
   registroId: number
   operacion: 'CREATE' | 'UPDATE' | 'DELETE'
-  datosAnteriores?: Record<string, any>
-  datosNuevos?: Record<string, any>
+  datosAnteriores?: Record<string, unknown>
+  datosNuevos?: Record<string, unknown>
   ip?: string
   createdAt: string
 }

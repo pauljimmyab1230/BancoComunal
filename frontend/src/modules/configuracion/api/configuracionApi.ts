@@ -1,5 +1,19 @@
 import api from '@/lib/api'
-import type { Usuario, ConceptoCajaItem, Organizacion, PaginationParams, PaginatedResponse } from '../types'
+import type {
+  Usuario,
+  ConceptoCajaItem,
+  Organizacion,
+  PaginationParams,
+  PaginatedResponse,
+} from '../types'
+
+export type CreateUsuarioInput = Omit<Usuario, 'id' | 'estado' | 'ultimoAcceso' | 'createdAt'> & {
+  password: string
+  estado?: string
+}
+export type UpdateUsuarioInput = Partial<Omit<Usuario, 'id' | 'createdAt' | 'ultimoAcceso'>>
+export type CreateConceptoInput = Omit<ConceptoCajaItem, 'id' | 'estado'>
+export type UpdateConceptoInput = Partial<Omit<ConceptoCajaItem, 'id' | 'estado'>>
 
 export const configuracionApi = {
   // Login
@@ -10,7 +24,10 @@ export const configuracionApi = {
 
   // Cambio de contraseña propio
   changeOwnPassword: async (currentPassword: string, newPassword: string) => {
-    const { data } = await api.post('/configuracion/change-password', { currentPassword, newPassword })
+    const { data } = await api.post('/configuracion/change-password', {
+      currentPassword,
+      newPassword,
+    })
     return data
   },
 
@@ -25,12 +42,12 @@ export const configuracionApi = {
     return data.data
   },
 
-  createUsuario: async (data: any) => {
+  createUsuario: async (data: CreateUsuarioInput) => {
     const res = await api.post('/configuracion/usuarios', data)
     return res.data
   },
 
-  updateUsuario: async (id: number, data: any) => {
+  updateUsuario: async (id: number, data: UpdateUsuarioInput) => {
     const res = await api.put(`/configuracion/usuarios/${id}`, data)
     return res.data
   },
@@ -46,7 +63,9 @@ export const configuracionApi = {
   },
 
   // Conceptos de Caja
-  listConceptos: async (params?: PaginationParams): Promise<PaginatedResponse<ConceptoCajaItem>> => {
+  listConceptos: async (
+    params?: PaginationParams
+  ): Promise<PaginatedResponse<ConceptoCajaItem>> => {
     const { data } = await api.get('/configuracion/conceptos', { params })
     return data
   },
@@ -56,12 +75,12 @@ export const configuracionApi = {
     return data.data
   },
 
-  createConcepto: async (data: any) => {
+  createConcepto: async (data: CreateConceptoInput) => {
     const res = await api.post('/configuracion/conceptos', data)
     return res.data
   },
 
-  updateConcepto: async (id: number, data: any) => {
+  updateConcepto: async (id: number, data: UpdateConceptoInput) => {
     const res = await api.put(`/configuracion/conceptos/${id}`, data)
     return res.data
   },
@@ -77,7 +96,7 @@ export const configuracionApi = {
     return data.data
   },
 
-  updateOrganizacion: async (data: any) => {
+  updateOrganizacion: async (data: Organizacion) => {
     const res = await api.put('/configuracion/organizacion', data)
     return res.data
   },

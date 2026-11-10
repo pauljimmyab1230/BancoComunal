@@ -75,23 +75,37 @@ export default function DataTable<T>({
   return (
     <div className={`overflow-hidden rounded-2xl border border-gray-200 bg-white ${className}`}>
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[600px] text-left text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50/50">
               {columns.map((col) => (
                 <th
                   key={col.key}
+                  scope="col"
+                  aria-sort={
+                    sortKey !== col.key ? 'none' : sortDir === 'asc' ? 'ascending' : 'descending'
+                  }
                   className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500 ${
                     col.sortable ? 'cursor-pointer select-none hover:text-gray-700' : ''
                   } ${col.className || ''}`}
-                  onClick={() => col.sortable && handleSort(col.key)}
                 >
-                  <span className="inline-flex items-center gap-1">
-                    {col.label}
-                    {col.sortable && sortKey === col.key && (
-                      sortDir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
-                    )}
-                  </span>
+                  {col.sortable ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSort(col.key)}
+                      className="inline-flex items-center gap-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+                    >
+                      {col.label}
+                      {sortKey === col.key &&
+                        (sortDir === 'asc' ? (
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        ))}
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1">{col.label}</span>
+                  )}
                 </th>
               ))}
             </tr>
@@ -99,11 +113,14 @@ export default function DataTable<T>({
           <tbody className="divide-y divide-gray-100">
             {data.map((item, index) => (
               <tr
-                key={String((item as Record<string, unknown>)[keyField] as string ?? index)}
+                key={String(((item as Record<string, unknown>)[keyField] as string) ?? index)}
                 className="transition-colors hover:bg-gray-50/50"
               >
                 {columns.map((col) => (
-                  <td key={col.key} className={`px-5 py-4 text-sm text-[#111827] ${col.className || ''}`}>
+                  <td
+                    key={col.key}
+                    className={`px-5 py-4 text-sm text-gray-900 ${col.className || ''}`}
+                  >
                     {col.render
                       ? col.render(item, index)
                       : String((item as Record<string, unknown>)[col.key] ?? '')}

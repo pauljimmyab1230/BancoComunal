@@ -19,6 +19,7 @@ export interface Socio {
   updatedAt: string
   beneficiarios?: Beneficiario[]
   documentos?: DocumentoSocio[]
+  fondosSocios?: import('../../fondos/types').FondoSocio[]
 }
 
 export interface Beneficiario {
@@ -39,7 +40,7 @@ export interface DocumentoSocio {
   nombreArchivo: string
   rutaArchivo: string
   mimeType: string
-  tamaño: number
+  tamano: number
   socioId: number
   createdAt: string
 }

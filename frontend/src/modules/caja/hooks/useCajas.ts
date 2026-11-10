@@ -2,7 +2,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { cajaApi } from '../api/cajaApi'
-import type { PaginationParams, CreateCajaInput, UpdateCajaInput, CreateMovimientoInput, CreateArqueoInput, AprobarArqueoInput, TransferirInput, CreateFlujoProyectadoInput } from '../types'
+import type {
+  PaginationParams,
+  CreateCajaInput,
+  UpdateCajaInput,
+  CreateMovimientoInput,
+  CreateArqueoInput,
+  AprobarArqueoInput,
+  TransferirInput,
+  CreateFlujoProyectadoInput,
+} from '../types'
 
 export function useCajas(params?: PaginationParams) {
   return useQuery({
@@ -29,7 +38,7 @@ export function useCajaResumen(id: number) {
 
 export function useConceptos(params?: { estado?: string; tipo?: string }) {
   return useQuery({
-    queryKey: ['conceptosCaja', params],
+    queryKey: ['caja', 'conceptos', params],
     queryFn: () => cajaApi.listConceptos(params),
   })
 }
@@ -88,10 +97,11 @@ export function useCreateConcepto() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: any) => cajaApi.createConcepto(data),
+    mutationFn: (data: Omit<import('../types').ConceptoCaja, 'id' | 'estado'>) =>
+      cajaApi.createConcepto(data),
     onSuccess: (res) => {
       toast.success(res.message || 'Concepto creado correctamente')
-      queryClient.invalidateQueries({ queryKey: ['conceptosCaja'] })
+      queryClient.invalidateQueries({ queryKey: ['caja', 'conceptos'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al crear concepto')
@@ -103,10 +113,11 @@ export function useUpdateConcepto() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) => cajaApi.updateConcepto(id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<import('../types').ConceptoCaja> }) =>
+      cajaApi.updateConcepto(id, data),
     onSuccess: (res) => {
       toast.success(res.message || 'Concepto actualizado correctamente')
-      queryClient.invalidateQueries({ queryKey: ['conceptosCaja'] })
+      queryClient.invalidateQueries({ queryKey: ['caja', 'conceptos'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al actualizar concepto')
@@ -121,7 +132,7 @@ export function useDeleteConcepto() {
     mutationFn: (id: number) => cajaApi.deleteConcepto(id),
     onSuccess: () => {
       toast.success('Concepto eliminado correctamente')
-      queryClient.invalidateQueries({ queryKey: ['conceptosCaja'] })
+      queryClient.invalidateQueries({ queryKey: ['caja', 'conceptos'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al eliminar concepto')
@@ -131,7 +142,7 @@ export function useDeleteConcepto() {
 
 export function useMovimientos(params?: PaginationParams) {
   return useQuery({
-    queryKey: ['movimientosCaja', params],
+    queryKey: ['caja', 'movimientos', params],
     queryFn: () => cajaApi.listMovimientos(params),
   })
 }
@@ -143,7 +154,7 @@ export function useCreateMovimiento() {
     mutationFn: (data: CreateMovimientoInput) => cajaApi.createMovimiento(data),
     onSuccess: (res) => {
       toast.success(res.message || 'Movimiento registrado correctamente')
-      queryClient.invalidateQueries({ queryKey: ['movimientosCaja'] })
+      queryClient.invalidateQueries({ queryKey: ['caja', 'movimientos'] })
       queryClient.invalidateQueries({ queryKey: ['caja'] })
       queryClient.invalidateQueries({ queryKey: ['cajas'] })
     },
@@ -160,7 +171,7 @@ export function useAnularMovimiento() {
     mutationFn: (id: number) => cajaApi.anularMovimiento(id),
     onSuccess: () => {
       toast.success('Movimiento anulado correctamente')
-      queryClient.invalidateQueries({ queryKey: ['movimientosCaja'] })
+      queryClient.invalidateQueries({ queryKey: ['caja', 'movimientos'] })
       queryClient.invalidateQueries({ queryKey: ['caja'] })
       queryClient.invalidateQueries({ queryKey: ['cajas'] })
     },
@@ -206,14 +217,15 @@ export function useAprobarArqueo() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: AprobarArqueoInput }) => cajaApi.aprobarArqueo(id, data),
+    mutationFn: ({ id, data }: { id: number; data: AprobarArqueoInput }) =>
+      cajaApi.aprobarArqueo(id, data),
     onSuccess: (res) => {
       toast.success(res.message || 'Arqueo procesado correctamente')
       queryClient.invalidateQueries({ queryKey: ['arqueosCaja'] })
       queryClient.invalidateQueries({ queryKey: ['arqueo'] })
       queryClient.invalidateQueries({ queryKey: ['cajaResumen'] })
       queryClient.invalidateQueries({ queryKey: ['cajas'] })
-      queryClient.invalidateQueries({ queryKey: ['movimientosCaja'] })
+      queryClient.invalidateQueries({ queryKey: ['caja', 'movimientos'] })
       queryClient.invalidateQueries({ queryKey: ['caja'] })
     },
     onError: (error: Error) => {
@@ -231,7 +243,7 @@ export function useTransferir() {
       toast.success(res.message || 'Transferencia realizada correctamente')
       queryClient.invalidateQueries({ queryKey: ['cajas'] })
       queryClient.invalidateQueries({ queryKey: ['caja'] })
-      queryClient.invalidateQueries({ queryKey: ['movimientosCaja'] })
+      queryClient.invalidateQueries({ queryKey: ['caja', 'movimientos'] })
       queryClient.invalidateQueries({ queryKey: ['cajaResumen'] })
     },
     onError: (error: Error) => {
@@ -240,7 +252,12 @@ export function useTransferir() {
   })
 }
 
-export function useFlujoProyectado(params?: { cajaId?: number; estado?: string; fechaInicio?: string; fechaFin?: string }) {
+export function useFlujoProyectado(params?: {
+  cajaId?: number
+  estado?: string
+  fechaInicio?: string
+  fechaFin?: string
+}) {
   return useQuery({
     queryKey: ['flujoProyectado', params],
     queryFn: () => cajaApi.listFlujoProyectado(params),
@@ -266,7 +283,8 @@ export function useUpdateFlujoProyectado() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<CreateFlujoProyectadoInput> }) => cajaApi.updateFlujoProyectado(id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<CreateFlujoProyectadoInput> }) =>
+      cajaApi.updateFlujoProyectado(id, data),
     onSuccess: () => {
       toast.success('Flujo proyectado actualizado correctamente')
       queryClient.invalidateQueries({ queryKey: ['flujoProyectado'] })

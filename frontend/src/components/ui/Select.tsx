@@ -15,15 +15,33 @@ export interface SelectOption {
   label: string
 }
 
-export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange' | 'options'> {
+export interface SelectProps extends Omit<
+  SelectHTMLAttributes<HTMLSelectElement>,
+  'onChange' | 'options'
+> {
   error?: string
   options: SelectOption[]
   placeholder?: string
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void
 }
 
-const makeChangeEvent = (name: string | undefined, value: string): React.ChangeEvent<HTMLSelectElement> =>
-  ({ target: { name: name ?? '', value } } as unknown as React.ChangeEvent<HTMLSelectElement>)
+const crearEventoCambio = (
+  nombre: string | undefined,
+  valor: string
+): React.ChangeEvent<HTMLSelectElement> =>
+  ({
+    type: 'change',
+    target: { name: nombre ?? '', value: valor, type: 'select-one' },
+  }) as unknown as React.ChangeEvent<HTMLSelectElement>
+
+const crearEventoDesenfoque = (
+  nombre: string | undefined,
+  valor: string
+): React.FocusEvent<HTMLSelectElement> =>
+  ({
+    type: 'focusout',
+    target: { name: nombre ?? '', value: valor, type: 'select-one' },
+  }) as unknown as React.FocusEvent<HTMLSelectElement>
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
   (
@@ -39,6 +57,9 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       defaultValue,
       name,
       required,
+      id,
+      'aria-describedby': ariaDescribedby,
+      'aria-invalid': ariaInvalid,
       ...props
     },
     ref
@@ -47,10 +68,13 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const [internalValue, setInternalValue] = useState<string>(String(defaultValue ?? ''))
     const [open, setOpen] = useState(false)
     const [activeIndex, setActiveIndex] = useState(-1)
-    const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number } | null>(null)
+    const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number } | null>(
+      null
+    )
     const hiddenRef = useRef<HTMLSelectElement | null>(null)
     const containerRef = useRef<HTMLDivElement | null>(null)
     const panelRef = useRef<HTMLDivElement | null>(null)
+    const optionRefs = useRef<(HTMLLIElement | null)[]>([])
 
     const currentValue = isControlled ? String(valueProp ?? '') : internalValue
     const selectedOption = options.find((o) => String(o.value) === currentValue)
@@ -66,7 +90,13 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       if (!isControlled && hiddenRef.current && hiddenRef.current.value !== internalValue) {
         setInternalValue(hiddenRef.current.value)
       }
-    })
+    }, [isControlled, internalValue])
+
+    useEffect(() => {
+      if (open && activeIndex >= 0 && optionRefs.current[activeIndex]) {
+        optionRefs.current[activeIndex]?.scrollIntoView({ block: 'nearest' })
+      }
+    }, [activeIndex, open])
 
     useEffect(() => {
       if (!open) return
@@ -109,12 +139,11 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
 
     const selectValue = (val: string) => {
       setOpen(false)
-      if (!isControlled) {
-        if (hiddenRef.current) hiddenRef.current.value = val
-        setInternalValue(val)
-      }
-      onChange?.(makeChangeEvent(name, val))
-      onBlur?.({} as React.FocusEvent<HTMLSelectElement>)
+      if (hiddenRef.current) hiddenRef.current.value = val
+      if (!isControlled) setInternalValue(val)
+      const nombreCampo = name ?? hiddenRef.current?.name
+      onChange?.(crearEventoCambio(nombreCampo, val))
+      onBlur?.(crearEventoDesenfoque(nombreCampo, val))
     }
 
     const handleKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
@@ -122,7 +151,12 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       if (!open) {
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          setActiveIndex(Math.max(0, options.findIndex((o) => String(o.value) === currentValue)))
+          setActiveIndex(
+            Math.max(
+              0,
+              options.findIndex((o) => String(o.value) === currentValue)
+            )
+          )
           openPanel()
         }
         return
@@ -150,29 +184,35 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       if (e.key === 'Tab') setOpen(false)
     }
 
-    const triggerStyles = `flex w-full items-center justify-between gap-2 rounded-xl border bg-gray-50/50 px-4 py-2.5 text-left text-sm outline-none transition-all
-      ${error
-        ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
-        : 'border-gray-200 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20'
+    const triggerStyles = `flex w-full items-center justify-between gap-2 rounded-xl border bg-white px-4 py-2.5 text-left text-sm outline-none transition-all
+      ${
+        error
+          ? 'border-red-400 focus-visible:border-red-500 focus-visible:ring-2 focus-visible:ring-red-500/20'
+          : 'border-gray-200 focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/20'
       }
-      ${open ? 'border-[#2563EB] ring-2 ring-[#2563EB]/20' : ''}
+      ${open ? 'border-secondary ring-2 ring-secondary/20' : ''}
       disabled:opacity-50 disabled:cursor-not-allowed`
 
     return (
       <div ref={containerRef} className={`relative ${className}`}>
         <button
           type="button"
+          id={id}
           disabled={disabled}
           onClick={() => (open ? setOpen(false) : openPanel())}
           onKeyDown={handleKeyDown}
           aria-haspopup="listbox"
           aria-expanded={open}
+          aria-describedby={ariaDescribedby}
+          aria-invalid={ariaInvalid}
           className={triggerStyles}
         >
-          <span className={`truncate ${selectedOption ? 'text-[#111827]' : 'text-gray-400'}`}>
+          <span className={`truncate ${selectedOption ? 'text-gray-900' : 'text-gray-600'}`}>
             {selectedOption ? selectedOption.label : placeholder || 'Seleccionar'}
           </span>
-          <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          />
         </button>
 
         {/* Select nativo oculto: mantiene la integración con formularios (register/valueAsNumber/submit) */}
@@ -210,7 +250,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             >
               <ul role="listbox" className="max-h-60 overflow-auto">
                 {options.length === 0 && (
-                  <li className="px-4 py-2.5 text-sm text-gray-400">Sin opciones</li>
+                  <li className="px-4 py-2.5 text-sm text-gray-600">Sin opciones</li>
                 )}
                 {options.map((opt, i) => {
                   const selected = String(opt.value) === currentValue
@@ -218,16 +258,19 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                   return (
                     <li
                       key={opt.value}
+                      ref={(el) => {
+                        optionRefs.current[i] = el
+                      }}
                       role="option"
                       aria-selected={selected}
                       onClick={() => selectValue(String(opt.value))}
                       onMouseEnter={() => setActiveIndex(i)}
                       className={`flex cursor-pointer items-center justify-between gap-2 px-3.5 py-2 text-sm transition-colors ${
                         selected
-                          ? 'bg-[#2563EB]/10 font-medium text-[#2563EB]'
+                          ? 'bg-secondary/10 font-medium text-secondary'
                           : active
-                            ? 'bg-gray-100 text-[#111827]'
-                            : 'text-[#111827]'
+                            ? 'bg-gray-100 text-gray-900'
+                            : 'text-gray-900'
                       }`}
                     >
                       <span className="truncate">{opt.label}</span>

@@ -1,19 +1,19 @@
 import prisma from '../../config/prisma'
 import { createAuditLog } from '../../config/auditLog'
 import { HttpError } from '../../middleware/httpError'
+import { z } from 'zod'
+import { createFondoSchema, updateFondoSchema, addSocioSchema } from './fondoValidation'
+import type { Prisma } from '@prisma/client'
 
 export const fondoService = {
   async list(params: { search?: string; page?: number; limit?: number; estado?: string }) {
     const { search, page = 1, limit = 10, estado } = params
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: Prisma.FondoRotatorioWhereInput = {}
     if (estado) where.estado = estado
     if (search) {
-      where.OR = [
-        { nombre: { contains: search } },
-        { organizacion: { contains: search } },
-      ]
+      where.OR = [{ nombre: { contains: search } }, { organizacion: { contains: search } }]
     }
 
     const [data, total, capitalResumen, totalSociosCount] = await Promise.all([
@@ -64,7 +64,15 @@ export const fondoService = {
             where: { fechaSalida: null },
             include: {
               socio: {
-                select: { id: true, codigo: true, dni: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, estado: true },
+                select: {
+                  id: true,
+                  codigo: true,
+                  dni: true,
+                  nombres: true,
+                  apellidoPaterno: true,
+                  apellidoMaterno: true,
+                  estado: true,
+                },
               },
             },
             orderBy: { fechaIngreso: 'desc' },
@@ -84,15 +92,19 @@ export const fondoService = {
     if (!fondo) return null
 
     // Capital recuperado = suma de amortizaciones pagadas (sin intereses).
-    const capitalRecuperado = Math.round(cuotasActivas.reduce((a, c) => {
-      const cMonto = Number(c.monto)
-      const cPagado = Number(c.montoPagado)
-      if (cPagado <= 0) return a
-      const proporcion = cMonto > 0 ? Math.min(1, cPagado / cMonto) : 1
-      return a + Number(c.amortizacion) * proporcion
-    }, 0) * 100) / 100
+    const capitalRecuperado =
+      Math.round(
+        cuotasActivas.reduce((a, c) => {
+          const cMonto = Number(c.monto)
+          const cPagado = Number(c.montoPagado)
+          if (cPagado <= 0) return a
+          const proporcion = cMonto > 0 ? Math.min(1, cPagado / cMonto) : 1
+          return a + Number(c.amortizacion) * proporcion
+        }, 0) * 100
+      ) / 100
     // Capital prestado pendiente = total desembolsado activo menos capital recuperado.
-    const capitalPrestado = Math.round((Number(totalActivo._sum?.monto || 0) - capitalRecuperado) * 100) / 100
+    const capitalPrestado =
+      Math.round((Number(totalActivo._sum?.monto || 0) - capitalRecuperado) * 100) / 100
 
     return {
       ...fondo,
@@ -104,7 +116,7 @@ export const fondoService = {
     }
   },
 
-  async create(data: any) {
+  async create(data: z.infer<typeof createFondoSchema>, usuarioId?: number) {
     const fondo = await prisma.fondoRotatorio.create({
       data: {
         nombre: data.nombre,
@@ -124,21 +136,28 @@ export const fondoService = {
       tabla: 'FondoRotatorio',
       registroId: fondo.id,
       operacion: 'CREATE',
-      datosNuevos: { nombre: fondo.nombre, organizacion: fondo.organizacion, capitalInicial: Number(fondo.capitalInicial), moneda: fondo.moneda, estado: fondo.estado },
+      datosNuevos: {
+        nombre: fondo.nombre,
+        organizacion: fondo.organizacion,
+        capitalInicial: Number(fondo.capitalInicial),
+        moneda: fondo.moneda,
+        estado: fondo.estado,
+      },
+      usuarioId,
     })
 
-    return { ...fondo, capitalInicial: Number(fondo.capitalInicial), capitalDisponible: Number(fondo.capitalDisponible) }
+    return {
+      ...fondo,
+      capitalInicial: Number(fondo.capitalInicial),
+      capitalDisponible: Number(fondo.capitalDisponible),
+    }
   },
 
-  async update(id: number, data: any) {
+  async update(id: number, data: z.infer<typeof updateFondoSchema>, usuarioId?: number) {
     const existing = await prisma.fondoRotatorio.findUnique({ where: { id } })
     if (!existing) return null
 
-    if (data.capitalDisponible !== undefined) {
-      throw new HttpError(400, 'El capital disponible no puede modificarse manualmente; se ajusta con los movimientos del fondo')
-    }
-
-    const updateData: any = {}
+    const updateData: Prisma.FondoRotatorioUpdateInput = {}
     if (data.nombre !== undefined) updateData.nombre = data.nombre
     if (data.organizacion !== undefined) updateData.organizacion = data.organizacion
     if (data.capitalInicial !== undefined) {
@@ -146,7 +165,10 @@ export const fondoService = {
       // No permitir reducir el capital por debajo de lo ya comprometido en préstamos.
       const capitalUsado = Number(existing.capitalInicial) - Number(existing.capitalDisponible)
       if (nuevoCapitalInicial < capitalUsado) {
-        throw new HttpError(400, `El capital inicial no puede ser menor a ${capitalUsado.toFixed(2)} (capital comprometido en préstamos)`)
+        throw new HttpError(
+          400,
+          `El capital inicial no puede ser menor a ${capitalUsado.toFixed(2)} (capital comprometido en préstamos)`
+        )
       }
       updateData.capitalInicial = nuevoCapitalInicial
       const diff = nuevoCapitalInicial - Number(existing.capitalInicial)
@@ -158,7 +180,10 @@ export const fondoService = {
         prisma.aporte.count({ where: { fondoSocio: { fondoId: id } } }),
       ])
       if (prestamosCount > 0 || aportesCount > 0) {
-        throw new HttpError(400, 'No se puede cambiar la moneda de un fondo con préstamos o aportes registrados')
+        throw new HttpError(
+          400,
+          'No se puede cambiar la moneda de un fondo con préstamos o aportes registrados'
+        )
       }
       updateData.moneda = data.moneda
     }
@@ -174,7 +199,8 @@ export const fondoService = {
     if (data.descripcion !== undefined) updateData.descripcion = data.descripcion || null
     if (data.reglamento !== undefined) updateData.reglamento = data.reglamento || null
     if (data.condiciones !== undefined) updateData.condiciones = data.condiciones || null
-    if (data.fechaCierre !== undefined) updateData.fechaCierre = data.fechaCierre ? new Date(data.fechaCierre) : null
+    if (data.fechaCierre !== undefined)
+      updateData.fechaCierre = data.fechaCierre ? new Date(data.fechaCierre) : null
 
     const fondo = await prisma.fondoRotatorio.update({ where: { id }, data: updateData })
 
@@ -182,14 +208,24 @@ export const fondoService = {
       tabla: 'FondoRotatorio',
       registroId: fondo.id,
       operacion: 'UPDATE',
-      datosAnteriores: { nombre: existing.nombre, capitalInicial: Number(existing.capitalInicial), capitalDisponible: Number(existing.capitalDisponible), estado: existing.estado },
+      datosAnteriores: {
+        nombre: existing.nombre,
+        capitalInicial: Number(existing.capitalInicial),
+        capitalDisponible: Number(existing.capitalDisponible),
+        estado: existing.estado,
+      },
       datosNuevos: updateData,
+      usuarioId,
     })
 
-    return { ...fondo, capitalInicial: Number(fondo.capitalInicial), capitalDisponible: Number(fondo.capitalDisponible) }
+    return {
+      ...fondo,
+      capitalInicial: Number(fondo.capitalInicial),
+      capitalDisponible: Number(fondo.capitalDisponible),
+    }
   },
 
-  async delete(id: number) {
+  async delete(id: number, usuarioId?: number) {
     const fondo = await prisma.fondoRotatorio.findUnique({ where: { id } })
     if (!fondo) return { success: false, message: 'Fondo no encontrado' }
 
@@ -218,6 +254,7 @@ export const fondoService = {
       registroId: id,
       operacion: 'DELETE',
       datosAnteriores: { nombre: fondo.nombre, estado: fondo.estado },
+      usuarioId,
     })
 
     await prisma.fondoRotatorio.delete({ where: { id } })
@@ -225,27 +262,39 @@ export const fondoService = {
   },
 
   // Socios del fondo
-  async addSocio(fondoId: number, socioId: number, data: any = {}) {
+  async addSocio(
+    fondoId: number,
+    socioId: number,
+    data: Omit<z.infer<typeof addSocioSchema>, 'socioId'> = {},
+    usuarioId?: number
+  ) {
     const [fondo, socio] = await Promise.all([
       prisma.fondoRotatorio.findUnique({ where: { id: fondoId } }),
       prisma.socio.findUnique({ where: { id: socioId } }),
     ])
     if (!fondo || !socio) return null
-    if (fondo.estado !== 'ACTIVO') return { success: false as const, message: 'No se puede agregar socios a un fondo que no está activo' }
-    if (socio.estado !== 'A') return { success: false as const, message: 'No se puede agregar un socio inactivo al fondo' }
+    if (fondo.estado !== 'ACTIVO')
+      return {
+        success: false as const,
+        message: 'No se puede agregar socios a un fondo que no está activo',
+      }
+    if (socio.estado !== 'A')
+      return { success: false as const, message: 'No se puede agregar un socio inactivo al fondo' }
 
     const existing = await prisma.fondoSocio.findUnique({
       where: { fondoId_socioId: { fondoId, socioId } },
     })
     if (existing) {
-      if (!existing.fechaSalida) return { success: false as const, message: 'El socio ya pertenece al fondo' }
+      if (!existing.fechaSalida)
+        return { success: false as const, message: 'El socio ya pertenece al fondo' }
 
       const rel = await prisma.fondoSocio.update({
         where: { id: existing.id },
         data: {
           fechaSalida: null,
           fechaIngreso: data.fechaIngreso ? new Date(data.fechaIngreso) : new Date(),
-          numeroSocio: data.numeroSocio !== undefined ? Number(data.numeroSocio) : existing.numeroSocio,
+          numeroSocio:
+            data.numeroSocio !== undefined ? Number(data.numeroSocio) : existing.numeroSocio,
           cargo: data.cargo !== undefined ? data.cargo : existing.cargo,
           nivel: data.nivel !== undefined ? data.nivel : existing.nivel,
           observacion: data.observacion !== undefined ? data.observacion : existing.observacion,
@@ -256,47 +305,56 @@ export const fondoService = {
         tabla: 'FondoSocio',
         registroId: rel.id,
         operacion: 'CREATE',
-        datosNuevos: { fondoId, socioId, numeroSocio: rel.numeroSocio, fechaIngreso: rel.fechaIngreso },
+        datosNuevos: {
+          fondoId,
+          socioId,
+          numeroSocio: rel.numeroSocio,
+          fechaIngreso: rel.fechaIngreso,
+        },
+        usuarioId,
       })
       return { success: true as const, data: rel }
     }
 
     let numeroSocio = data.numeroSocio !== undefined ? Number(data.numeroSocio) : null
-    if (numeroSocio === null) {
-      // Cálculo y alta dentro de una transacción para reducir el riesgo de
-      // asignar el mismo número a dos socios en altas concurrentes.
-      numeroSocio = await prisma.$transaction(async (tx) => {
+    const rel = await prisma.$transaction(async (tx) => {
+      if (numeroSocio === null) {
         const maxAgg = await tx.fondoSocio.aggregate({
           where: { fondoId },
           _max: { numeroSocio: true },
         })
-        return (maxAgg._max.numeroSocio ?? 0) + 1
+        numeroSocio = (maxAgg._max.numeroSocio ?? 0) + 1
+      }
+      return tx.fondoSocio.create({
+        data: {
+          fondoId,
+          socioId,
+          fechaIngreso: data.fechaIngreso ? new Date(data.fechaIngreso) : new Date(),
+          numeroSocio,
+          cargo: data.cargo || null,
+          nivel: data.nivel || null,
+          observacion: data.observacion || null,
+          fechaAprobacion: data.fechaAprobacion ? new Date(data.fechaAprobacion) : null,
+        },
+        include: { socio: true },
       })
-    }
-
-    const rel = await prisma.fondoSocio.create({
-      data: {
-        fondoId,
-        socioId,
-        fechaIngreso: data.fechaIngreso ? new Date(data.fechaIngreso) : new Date(),
-        numeroSocio,
-        cargo: data.cargo || null,
-        nivel: data.nivel || null,
-        observacion: data.observacion || null,
-        fechaAprobacion: data.fechaAprobacion ? new Date(data.fechaAprobacion) : null,
-      },
-      include: { socio: true },
     })
     await createAuditLog({
       tabla: 'FondoSocio',
       registroId: rel.id,
       operacion: 'CREATE',
-      datosNuevos: { fondoId, socioId, numeroSocio: rel.numeroSocio, fechaIngreso: rel.fechaIngreso },
+      datosNuevos: {
+        fondoId,
+        socioId,
+        numeroSocio: rel.numeroSocio,
+        fechaIngreso: rel.fechaIngreso,
+      },
+      usuarioId,
     })
     return { success: true as const, data: rel }
   },
 
-  async removeSocio(fondoId: number, socioId: number) {
+  async removeSocio(fondoId: number, socioId: number, usuarioId?: number) {
     const rel = await prisma.fondoSocio.findUnique({
       where: { fondoId_socioId: { fondoId, socioId } },
     })
@@ -309,10 +367,16 @@ export const fondoService = {
     ])
 
     if (prestamosActivos > 0) {
-      return { success: false, message: 'No se puede retirar: el socio tiene préstamos activos en este fondo' }
+      return {
+        success: false,
+        message: 'No se puede retirar: el socio tiene préstamos activos en este fondo',
+      }
     }
     if (aportesActivos > 0) {
-      return { success: false, message: 'No se puede retirar: el socio tiene aportes activos en este fondo' }
+      return {
+        success: false,
+        message: 'No se puede retirar: el socio tiene aportes activos en este fondo',
+      }
     }
 
     await prisma.fondoSocio.update({
@@ -324,6 +388,7 @@ export const fondoService = {
       registroId: rel.id,
       operacion: 'DELETE',
       datosAnteriores: { fondoId, socioId, numeroSocio: rel.numeroSocio },
+      usuarioId,
     })
     return { success: true, message: 'Socio retirado del fondo' }
   },
@@ -333,7 +398,16 @@ export const fondoService = {
       where: { fondoId, fechaSalida: null },
       include: {
         socio: {
-          select: { id: true, codigo: true, dni: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, telefono: true, estado: true },
+          select: {
+            id: true,
+            codigo: true,
+            dni: true,
+            nombres: true,
+            apellidoPaterno: true,
+            apellidoMaterno: true,
+            telefono: true,
+            estado: true,
+          },
         },
       },
       orderBy: { fechaIngreso: 'desc' },

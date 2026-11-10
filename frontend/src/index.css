@@ -18,6 +18,20 @@ html {
   scroll-behavior: smooth;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 body {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -45,41 +59,4 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-accent);
-}
-
-@utility gradient-primary {
-  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
-}
-
-@utility gradient-secondary {
-  background: linear-gradient(135deg, #2563EB 0%, #38BDF8 100%);
-}
-
-@utility gradient-accent {
-  background: linear-gradient(135deg, #38BDF8 0%, #7DD3FC 100%);
-}
-
-@utility gradient-hero {
-  background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #2563EB 100%);
-}
-
-@utility glass {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-@utility glass-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(8px);
-}
-
-@utility text-gradient {
-  background: linear-gradient(135deg, #2563EB 0%, #38BDF8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }

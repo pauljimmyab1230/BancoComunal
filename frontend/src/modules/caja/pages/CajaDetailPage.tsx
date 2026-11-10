@@ -1,9 +1,18 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ArrowLeft, Plus, Filter, DollarSign, TrendingUp, TrendingDown, AlertTriangle, ArrowRightLeft } from 'lucide-react'
+import {
+  ArrowLeft,
+  Plus,
+  Filter,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  ArrowRightLeft,
+} from 'lucide-react'
 import {
   useCaja,
   useCajaResumen,
@@ -16,7 +25,14 @@ import {
   useAprobarArqueo,
   useTransferir,
 } from '../hooks/useCajas'
-import { movimientoCreateSchema, arqueoCreateSchema, transferirSchema, type MovimientoCreateInput, type ArqueoCreateInput, type TransferirInput } from '../validations'
+import {
+  movimientoCreateSchema,
+  arqueoCreateSchema,
+  transferirSchema,
+  type MovimientoCreateInput,
+  type ArqueoCreateInput,
+  type TransferirInput,
+} from '../validations'
 import {
   Button,
   Card,
@@ -42,7 +58,7 @@ const filtroTipoOptions = [
 const tipoMovimientoOptions = [
   { value: 'INGRESO', label: 'Ingreso' },
   { value: 'EGRESO', label: 'Egreso' },
-  { value: 'TRASPASO', label: 'Traspaso' },
+  { value: 'TRANSFERENCIA', label: 'Traspaso' },
 ]
 
 export default function CajaDetailPage() {
@@ -69,7 +85,11 @@ export default function CajaDetailPage() {
   const [selectedArqueoId, setSelectedArqueoId] = useState<number | null>(null)
   const [filtroTipo, setFiltroTipo] = useState('TODOS')
 
-  const movimientoForm = useForm<z.input<typeof movimientoCreateSchema>, any, z.output<typeof movimientoCreateSchema>>({
+  const movimientoForm = useForm<
+    z.input<typeof movimientoCreateSchema>,
+    unknown,
+    z.output<typeof movimientoCreateSchema>
+  >({
     resolver: zodResolver(movimientoCreateSchema),
     defaultValues: {
       cajaId,
@@ -82,16 +102,25 @@ export default function CajaDetailPage() {
     },
   })
 
-  const transferForm = useForm<z.input<typeof transferirSchema>, any, z.output<typeof transferirSchema>>({
+  const transferForm = useForm<
+    z.input<typeof transferirSchema>,
+    unknown,
+    z.output<typeof transferirSchema>
+  >({
     resolver: zodResolver(transferirSchema),
     defaultValues: {
+      cajaOrigenId: cajaId,
       cajaDestinoId: 0,
       monto: 0,
       descripcion: '',
     },
   })
 
-  const arqueoForm = useForm<z.input<typeof arqueoCreateSchema>, any, z.output<typeof arqueoCreateSchema>>({
+  const arqueoForm = useForm<
+    z.input<typeof arqueoCreateSchema>,
+    unknown,
+    z.output<typeof arqueoCreateSchema>
+  >({
     resolver: zodResolver(arqueoCreateSchema),
     defaultValues: {
       cajaId,
@@ -103,6 +132,8 @@ export default function CajaDetailPage() {
   const aprobarForm = useForm<{ observacion?: string }>({
     defaultValues: { observacion: '' },
   })
+
+  const tipoSeleccionado = useWatch({ control: movimientoForm.control, name: 'tipo' })
 
   if (loadingCaja) {
     return (
@@ -135,8 +166,6 @@ export default function CajaDetailPage() {
         return <Badge>{estado}</Badge>
     }
   }
-
-  const tipoSeleccionado = movimientoForm.watch('tipo')
 
   const conceptoOptions = (conceptos || [])
     .filter((c: ConceptoCaja) => c.estado === 'ACTIVO' && c.tipo === tipoSeleccionado)
@@ -190,7 +219,12 @@ export default function CajaDetailPage() {
 
   const onSubmitTransferir = (data: TransferirInput) => {
     transferir.mutate(
-      { cajaOrigenId: cajaId, cajaDestinoId: data.cajaDestinoId, monto: data.monto, descripcion: data.descripcion },
+      {
+        cajaOrigenId: data.cajaOrigenId,
+        cajaDestinoId: data.cajaDestinoId,
+        monto: data.monto,
+        descripcion: data.descripcion,
+      },
       {
         onSuccess: () => {
           setShowTransferModal(false)
@@ -217,10 +251,13 @@ export default function CajaDetailPage() {
             description={caja.descripcion || `Caja tipo ${caja.tipo}`}
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {caja.estado === 'ACTIVA' && (
             <>
-              <Button onClick={() => setShowMovimientoModal(true)} iconLeft={<Plus className="h-4 w-4" />}>
+              <Button
+                onClick={() => setShowMovimientoModal(true)}
+                iconLeft={<Plus className="h-4 w-4" />}
+              >
                 Nuevo Movimiento
               </Button>
               <Button
@@ -245,47 +282,53 @@ export default function CajaDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
+        <Card padding="md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
               <DollarSign className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <p className="text-xs text-gray-500">Saldo Actual</p>
-              <p className="text-lg font-bold text-gray-900">{formatCurrency(caja.saldoActual)}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {formatCurrency(caja.saldoActual, caja.moneda)}
+              </p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card padding="md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
               <TrendingUp className="h-5 w-5 text-green-600" />
             </div>
             <div>
               <p className="text-xs text-gray-500">Ingresos Hoy</p>
-              <p className="text-lg font-bold text-green-600">{formatCurrency(resumen?.hoy?.ingresos || 0)}</p>
+              <p className="text-2xl font-bold text-green-600">
+                {formatCurrency(resumen?.hoy?.ingresos || 0, caja.moneda)}
+              </p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card padding="md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
               <TrendingDown className="h-5 w-5 text-red-600" />
             </div>
             <div>
               <p className="text-xs text-gray-500">Egresos Hoy</p>
-              <p className="text-lg font-bold text-red-600">{formatCurrency(resumen?.hoy?.egresos || 0)}</p>
+              <p className="text-2xl font-bold text-red-600">
+                {formatCurrency(resumen?.hoy?.egresos || 0, caja.moneda)}
+              </p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card padding="md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-50">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-50">
               <AlertTriangle className="h-5 w-5 text-yellow-600" />
             </div>
             <div>
               <p className="text-xs text-gray-500">Movimientos Hoy</p>
-              <p className="text-lg font-bold text-gray-900">{resumen?.hoy?.movimientos || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{resumen?.hoy?.movimientos || 0}</p>
             </div>
           </div>
         </Card>
@@ -316,38 +359,69 @@ export default function CajaDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Fecha</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Tipo</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Concepto</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Descripción</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500">Monto</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Estado</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Fecha
+                    </th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Tipo
+                    </th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Concepto
+                    </th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Descripción
+                    </th>
+                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Monto
+                    </th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Estado
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-gray-100">
                   {movimientosFiltrados.map((mov: MovimientoCaja) => (
-                    <tr key={mov.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-600">
+                    <tr key={mov.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-4 text-gray-600">
                         {new Date(mov.fechaMovimiento).toLocaleDateString('es-PE')}
                       </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={mov.tipo === 'INGRESO' ? 'green' : mov.tipo === 'EGRESO' ? 'red' : 'blue'}>
+                      <td className="px-5 py-4">
+                        <Badge
+                          variant={
+                            mov.tipo === 'INGRESO'
+                              ? 'green'
+                              : mov.tipo === 'EGRESO'
+                                ? 'red'
+                                : 'blue'
+                          }
+                        >
                           {mov.tipo}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{conceptoNombre(mov.conceptoId)}</td>
-                      <td className="px-4 py-3 text-gray-600">{mov.descripcion || '—'}</td>
-                      <td className={`px-4 py-3 text-right font-medium ${
-                        mov.tipo === 'INGRESO' ? 'text-green-600'
-                          : mov.tipo === 'TRANSFERENCIA' ? 'text-blue-600'
-                          : 'text-red-600'
-                      }`}>
-                        {mov.tipo === 'INGRESO' ? '+'
-                          : mov.tipo === 'TRANSFERENCIA' ? ''
-                          : '-'}{formatCurrency(mov.monto)}
+                      <td className="px-5 py-4 text-gray-600">{conceptoNombre(mov.conceptoId)}</td>
+                      <td className="px-5 py-4 text-gray-600">{mov.descripcion || '—'}</td>
+                      <td
+                        className={`px-5 py-4 text-right font-medium ${
+                          mov.tipo === 'INGRESO'
+                            ? 'text-green-600'
+                            : mov.tipo === 'TRANSFERENCIA'
+                              ? 'text-blue-600'
+                              : 'text-red-600'
+                        }`}
+                      >
+                        {mov.tipo === 'INGRESO' ? '+' : mov.tipo === 'TRANSFERENCIA' ? '' : '-'}
+                        {formatCurrency(mov.monto, caja.moneda)}
                       </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={mov.estado === 'CONFIRMADO' ? 'green' : mov.estado === 'ANULADO' ? 'red' : 'yellow'}>
+                      <td className="px-5 py-4">
+                        <Badge
+                          variant={
+                            mov.estado === 'CONFIRMADO'
+                              ? 'green'
+                              : mov.estado === 'ANULADO'
+                                ? 'red'
+                                : 'yellow'
+                          }
+                        >
                           {mov.estado}
                         </Badge>
                       </td>
@@ -376,27 +450,45 @@ export default function CajaDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Fecha</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500">Saldo Sistema</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500">Saldo Físico</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500">Diferencia</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Estado</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Acciones</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Fecha
+                    </th>
+                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Saldo Sistema
+                    </th>
+                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Saldo Físico
+                    </th>
+                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Diferencia
+                    </th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Estado
+                    </th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Acciones
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-gray-100">
                   {arqueos.data.map((arqueo: ArqueoCaja) => (
-                    <tr key={arqueo.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-600">
+                    <tr key={arqueo.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-4 text-gray-600">
                         {new Date(arqueo.fechaArqueo).toLocaleDateString('es-PE')}
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(arqueo.saldoSistema)}</td>
-                      <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(arqueo.saldoFisico)}</td>
-                      <td className={`px-4 py-3 text-right font-medium ${arqueo.diferencia !== 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {formatCurrency(arqueo.diferencia)}
+                      <td className="px-5 py-4 text-right text-gray-600">
+                        {formatCurrency(arqueo.saldoSistema, caja.moneda)}
                       </td>
-                      <td className="px-4 py-3">{estadoArqueoBadge(arqueo.estado)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-4 text-right text-gray-600">
+                        {formatCurrency(arqueo.saldoFisico, caja.moneda)}
+                      </td>
+                      <td
+                        className={`px-5 py-4 text-right font-medium ${arqueo.diferencia !== 0 ? 'text-red-600' : 'text-green-600'}`}
+                      >
+                        {formatCurrency(arqueo.diferencia, caja.moneda)}
+                      </td>
+                      <td className="px-5 py-4">{estadoArqueoBadge(arqueo.estado)}</td>
+                      <td className="px-5 py-4">
                         {arqueo.estado === 'PENDIENTE' && (
                           <Button
                             size="sm"
@@ -430,7 +522,10 @@ export default function CajaDetailPage() {
               options={tipoMovimientoOptions}
               value={tipoSeleccionado}
               onChange={(e) => {
-                movimientoForm.setValue('tipo', e.target.value as any)
+                movimientoForm.setValue(
+                  'tipo',
+                  e.target.value as 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA' | 'AJUSTE'
+                )
                 movimientoForm.setValue('conceptoId', 0, { shouldValidate: true })
               }}
             />
@@ -454,25 +549,31 @@ export default function CajaDetailPage() {
             />
           </FormField>
 
-          <FormField label="Descripción" error={movimientoForm.formState.errors.descripcion?.message}>
+          <FormField
+            label="Descripción"
+            error={movimientoForm.formState.errors.descripcion?.message}
+          >
             <Input
               {...movimientoForm.register('descripcion')}
               placeholder="Descripción del movimiento"
             />
           </FormField>
 
-          <FormField label="Comprobante (N° recibo, boleta, etc.)" error={movimientoForm.formState.errors.comprobante?.message}>
+          <FormField
+            label="Comprobante (N° recibo, boleta, etc.)"
+            error={movimientoForm.formState.errors.comprobante?.message}
+          >
             <Input
               {...movimientoForm.register('comprobante')}
               placeholder="Obligatorio para este concepto"
             />
           </FormField>
 
-          <FormField label="Referencia (opcional)" error={movimientoForm.formState.errors.referencia?.message}>
-            <Input
-              {...movimientoForm.register('referencia')}
-              placeholder="Referencia interna"
-            />
+          <FormField
+            label="Referencia (opcional)"
+            error={movimientoForm.formState.errors.referencia?.message}
+          >
+            <Input {...movimientoForm.register('referencia')} placeholder="Referencia interna" />
           </FormField>
 
           <div className="flex justify-end gap-3 pt-4">
@@ -493,7 +594,10 @@ export default function CajaDetailPage() {
         maxWidth="md"
       >
         <form onSubmit={arqueoForm.handleSubmit(onSubmitArqueo)} className="p-6 space-y-4">
-          <FormField label="Saldo Físico (contado)" error={arqueoForm.formState.errors.saldoFisico?.message}>
+          <FormField
+            label="Saldo Físico (contado)"
+            error={arqueoForm.formState.errors.saldoFisico?.message}
+          >
             <Input
               type="number"
               step="0.01"
@@ -503,10 +607,7 @@ export default function CajaDetailPage() {
           </FormField>
 
           <FormField label="Observaciones" error={arqueoForm.formState.errors.observacion?.message}>
-            <Input
-              {...arqueoForm.register('observacion')}
-              placeholder="Observaciones del arqueo"
-            />
+            <Input {...arqueoForm.register('observacion')} placeholder="Observaciones del arqueo" />
           </FormField>
 
           <div className="flex justify-end gap-3 pt-4">
@@ -567,10 +668,14 @@ export default function CajaDetailPage() {
       >
         <form onSubmit={transferForm.handleSubmit(onSubmitTransferir)} className="p-6 space-y-4">
           <p className="text-sm text-gray-600">
-            {formatCurrency(caja.saldoActual)} disponibles en <strong>{caja.nombre}</strong>.
+            {formatCurrency(caja.saldoActual, caja.moneda)} disponibles en{' '}
+            <strong>{caja.nombre}</strong>.
           </p>
 
-          <FormField label="Caja destino" error={transferForm.formState.errors.cajaDestinoId?.message}>
+          <FormField
+            label="Caja destino"
+            error={transferForm.formState.errors.cajaDestinoId?.message}
+          >
             <Select
               options={cajasDestinoOptions}
               placeholder="Seleccionar caja destino"
@@ -589,11 +694,11 @@ export default function CajaDetailPage() {
             />
           </FormField>
 
-          <FormField label="Descripción (opcional)" error={transferForm.formState.errors.descripcion?.message}>
-            <Input
-              {...transferForm.register('descripcion')}
-              placeholder="Motivo del traspaso"
-            />
+          <FormField
+            label="Descripción (opcional)"
+            error={transferForm.formState.errors.descripcion?.message}
+          >
+            <Input {...transferForm.register('descripcion')} placeholder="Motivo del traspaso" />
           </FormField>
 
           <div className="flex justify-end gap-3 pt-4">

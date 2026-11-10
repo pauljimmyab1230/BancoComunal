@@ -5,7 +5,16 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, Save, User } from 'lucide-react'
 import { socioFormSchema, type SocioFormValues } from '../schemas/socioSchema'
 import { useSocio, useCreateSocio, useUpdateSocio } from '../hooks/useSocios'
-import { Button, Card, FormField, Input, Select, ImageUpload, SectionHeader, LoadingSpinner } from '@/components/ui'
+import {
+  Button,
+  Card,
+  FormField,
+  Input,
+  Select,
+  ImageUpload,
+  SectionHeader,
+  LoadingSpinner,
+} from '@/components/ui'
 
 const generoOptions = [
   { value: 'M', label: 'Masculino' },
@@ -40,6 +49,7 @@ export default function SocioFormPage() {
     control,
     formState: { errors, isSubmitting },
   } = useForm<SocioFormValues>({
+    mode: 'onBlur',
     resolver: zodResolver(socioFormSchema),
     defaultValues: {
       dni: '',
@@ -57,10 +67,16 @@ export default function SocioFormPage() {
     },
   })
 
-  const { field: fotoField } = useController({ name: 'foto' as any, control })
-  const handleFotoChange = useCallback((file: File | null) => {
-    fotoField.onChange(file)
-  }, [fotoField])
+  const { field: fotoField } = useController({
+    name: 'foto' as unknown as import('react-hook-form').FieldPath<SocioFormValues>,
+    control,
+  })
+  const handleFotoChange = useCallback(
+    (file: File | null) => {
+      fotoField.onChange(file)
+    },
+    [fotoField]
+  )
 
   useEffect(() => {
     if (socioData?.data && isEditing) {
@@ -85,13 +101,18 @@ export default function SocioFormPage() {
   const onSubmit = async (values: SocioFormValues) => {
     const formData = new FormData()
     Object.entries(values).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        formData.append(key, String(value))
-      }
+      if (key === 'foto') return
+      const vacio = value === undefined || value === null || value === ''
+      // En edicion se envian los vacios para poder limpiar campos opcionales.
+      if (vacio && !isEditing) return
+      formData.append(key, value === undefined || value === null ? '' : String(value))
     })
 
-    if (fotoField.value instanceof File) {
-      formData.append('foto', fotoField.value)
+    const fotoValue: unknown = fotoField.value
+    if (fotoValue instanceof File) {
+      formData.append('foto', fotoValue)
+    } else if (isEditing && fotoValue === null && socioData?.data?.fotoUrl) {
+      formData.append('quitarFoto', 'true')
     }
 
     if (isEditing) {
@@ -112,99 +133,155 @@ export default function SocioFormPage() {
   return (
     <div>
       <div className="flex items-center gap-4 mb-8">
-        <Button variant="ghost" onClick={() => navigate(-1)} iconLeft={<ArrowLeft className="h-4 w-4" />}>
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          iconLeft={<ArrowLeft className="h-4 w-4" />}
+        >
           Volver
         </Button>
         <SectionHeader
           title={isEditing ? 'Editar Socio' : 'Nuevo Socio'}
-          description={isEditing ? 'Actualiza los datos del socio' : 'Registra un nuevo socio en la organización'}
+          description={
+            isEditing
+              ? 'Actualiza los datos del socio'
+              : 'Registra un nuevo socio en la organización'
+          }
         />
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         <Card padding="lg">
           <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
               <User className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-[#111827]">Datos Personales</h3>
+              <h3 className="text-base font-semibold text-gray-900">Datos Personales</h3>
               <p className="text-xs text-gray-500">Información principal del socio</p>
             </div>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FormField label="DNI" required error={errors.dni?.message}>
-              <Input {...register('dni')} placeholder="12345678" maxLength={8} error={errors.dni?.message} />
-            </FormField>
-
-            <FormField label="Fecha de Ingreso" required error={errors.fechaIngreso?.message}>
-              <Input type="date" {...register('fechaIngreso')} error={errors.fechaIngreso?.message} />
-            </FormField>
-
-            <FormField label="Estado" required error={errors.estado?.message}>
-              <Select {...register('estado')} options={estadoOptions} error={errors.estado?.message} />
+              <Input
+                {...register('dni')}
+                placeholder="12345678"
+                maxLength={8}
+                inputMode="numeric"
+                autoComplete="off"
+                error={errors.dni?.message}
+              />
             </FormField>
 
             <FormField label="Nombres" required error={errors.nombres?.message}>
-              <Input {...register('nombres')} placeholder="Nombres" error={errors.nombres?.message} />
+              <Input
+                {...register('nombres')}
+                placeholder="Nombres"
+                autoComplete="given-name"
+                error={errors.nombres?.message}
+              />
             </FormField>
 
             <FormField label="Apellido Paterno" required error={errors.apellidoPaterno?.message}>
-              <Input {...register('apellidoPaterno')} placeholder="Apellido paterno" error={errors.apellidoPaterno?.message} />
+              <Input
+                {...register('apellidoPaterno')}
+                placeholder="Apellido paterno"
+                autoComplete="family-name"
+                error={errors.apellidoPaterno?.message}
+              />
             </FormField>
 
             <FormField label="Apellido Materno" required error={errors.apellidoMaterno?.message}>
-              <Input {...register('apellidoMaterno')} placeholder="Apellido materno" error={errors.apellidoMaterno?.message} />
+              <Input
+                {...register('apellidoMaterno')}
+                placeholder="Apellido materno"
+                error={errors.apellidoMaterno?.message}
+              />
             </FormField>
 
             <FormField label="Género" required error={errors.genero?.message}>
-              <Select {...register('genero')} options={generoOptions} error={errors.genero?.message} />
+              <Select
+                {...register('genero')}
+                options={generoOptions}
+                error={errors.genero?.message}
+              />
             </FormField>
 
             <FormField label="Fecha de Nacimiento" required error={errors.fechaNacimiento?.message}>
-              <Input type="date" {...register('fechaNacimiento')} error={errors.fechaNacimiento?.message} />
+              <Input
+                type="date"
+                {...register('fechaNacimiento')}
+                autoComplete="bday"
+                error={errors.fechaNacimiento?.message}
+              />
             </FormField>
 
             <FormField label="Estado Civil" required error={errors.estadoCivil?.message}>
-              <Select {...register('estadoCivil')} options={estadoCivilOptions} error={errors.estadoCivil?.message} />
+              <Select
+                {...register('estadoCivil')}
+                options={estadoCivilOptions}
+                error={errors.estadoCivil?.message}
+              />
             </FormField>
           </div>
         </Card>
 
         <Card padding="lg">
           <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
               <User className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-[#111827]">Contacto</h3>
+              <h3 className="text-base font-semibold text-gray-900">Contacto</h3>
               <p className="text-xs text-gray-500">Información de contacto del socio</p>
             </div>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FormField label="Teléfono" error={errors.telefono?.message}>
-              <Input {...register('telefono')} placeholder="987654321" maxLength={9} error={errors.telefono?.message} />
+              <Input
+                {...register('telefono')}
+                placeholder="987654321"
+                maxLength={9}
+                inputMode="numeric"
+                autoComplete="tel"
+                error={errors.telefono?.message}
+              />
             </FormField>
 
             <FormField label="Correo Electrónico" error={errors.email?.message}>
-              <Input {...register('email')} type="email" placeholder="correo@ejemplo.com" error={errors.email?.message} />
+              <Input
+                {...register('email')}
+                type="email"
+                placeholder="correo@ejemplo.com"
+                autoComplete="email"
+                error={errors.email?.message}
+              />
             </FormField>
 
-            <FormField label="Dirección" error={errors.direccion?.message} className="sm:col-span-2 lg:col-span-1">
-              <Input {...register('direccion')} placeholder="Dirección completa" error={errors.direccion?.message} />
+            <FormField
+              label="Dirección"
+              error={errors.direccion?.message}
+              className="sm:col-span-2 lg:col-span-1"
+            >
+              <Input
+                {...register('direccion')}
+                placeholder="Dirección completa"
+                autoComplete="street-address"
+                error={errors.direccion?.message}
+              />
             </FormField>
           </div>
         </Card>
 
         <Card padding="lg">
           <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
               <User className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-[#111827]">Fotografía</h3>
+              <h3 className="text-base font-semibold text-gray-900">Fotografía</h3>
               <p className="text-xs text-gray-500">Foto del socio para identificación</p>
             </div>
           </div>
@@ -214,15 +291,51 @@ export default function SocioFormPage() {
             onChange={(file) => {
               handleFotoChange(file)
             }}
+            accept="image/jpeg,image/png,image/webp"
+            maxSizeMB={10}
             className="max-w-sm"
           />
+        </Card>
+
+        <Card padding="lg">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Afiliación</h3>
+              <p className="text-xs text-gray-500">Datos de ingreso a la organización</p>
+            </div>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <FormField label="Fecha de Ingreso" required error={errors.fechaIngreso?.message}>
+              <Input
+                type="date"
+                {...register('fechaIngreso')}
+                error={errors.fechaIngreso?.message}
+              />
+            </FormField>
+
+            <FormField label="Estado" required error={errors.estado?.message}>
+              <Select
+                {...register('estado')}
+                options={estadoOptions}
+                error={errors.estado?.message}
+              />
+            </FormField>
+          </div>
         </Card>
 
         <div className="flex justify-end gap-3">
           <Button variant="ghost" type="button" onClick={() => navigate('/socios')}>
             Cancelar
           </Button>
-          <Button type="submit" loading={isSubmitting || createMutation.isPending || updateMutation.isPending} iconLeft={<Save className="h-4 w-4" />}>
+          <Button
+            type="submit"
+            loading={isSubmitting || createMutation.isPending || updateMutation.isPending}
+            iconLeft={<Save className="h-4 w-4" />}
+          >
             {isEditing ? 'Guardar Cambios' : 'Registrar Socio'}
           </Button>
         </div>

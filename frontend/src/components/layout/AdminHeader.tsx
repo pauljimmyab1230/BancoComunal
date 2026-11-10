@@ -1,17 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+﻿import { useState, useRef, useEffect } from 'react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Menu,
-  Bell,
-  ChevronRight,
-  User,
-  Settings,
-  LogOut,
-  Key,
-  Eye,
-  EyeOff,
-} from 'lucide-react'
+import { Menu, Bell, ChevronRight, User, Settings, LogOut, Key, Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useChangeOwnPassword } from '@/modules/configuracion/hooks/useConfiguracion'
 import { Button, FormField, Input, Modal } from '@/components/ui'
@@ -26,16 +16,35 @@ export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const logout = useAuthStore((s) => s.logout)
   const user = useAuthStore((s) => s.user)
 
   const displayName = user?.name || 'Admin'
   const displayEmail = user?.email || 'usuario@banquito.com'
+  const { pathname } = useLocation()
+  const [prevPathname, setPrevPathname] = useState(pathname)
 
-  const handleLogout = () => {
-    logout()
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname)
+    setUserMenuOpen(false)
+  }
+
+  const handleLogout = async () => {
+    await logout()
     setUserMenuOpen(false)
     navigate('/login', { replace: true })
+  }
+
+  const cambioPasswordForzado = searchParams.get('changePassword') === 'true'
+
+  const cerrarModalPassword = () => {
+    setPasswordModalOpen(false)
+    if (cambioPasswordForzado) {
+      const restantes = new URLSearchParams(searchParams)
+      restantes.delete('changePassword')
+      setSearchParams(restantes, { replace: true })
+    }
   }
 
   useEffect(() => {
@@ -47,10 +56,6 @@ export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
-
-  useEffect(() => {
-    setUserMenuOpen(false)
-  }, [useLocation().pathname])
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center border-b border-gray-200 bg-white/80 px-4 backdrop-blur-xl sm:px-6">
@@ -66,11 +71,11 @@ export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps
 
         {title && (
           <nav className="flex items-center gap-1 text-sm text-gray-500">
-            <Link to="/" className="transition-colors hover:text-[#2563EB]">
+            <Link to="/" className="transition-colors hover:text-secondary">
               Dashboard
             </Link>
             <ChevronRight className="h-3.5 w-3.5" />
-            <span className="text-[#111827]">{title}</span>
+            <span className="text-gray-900">{title}</span>
           </nav>
         )}
 
@@ -89,7 +94,7 @@ export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps
               onClick={() => setUserMenuOpen(!userMenuOpen)}
               className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-gray-100"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-xs font-semibold text-white">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-white">
                 {displayName.charAt(0).toUpperCase()}
               </div>
             </button>
@@ -104,7 +109,7 @@ export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps
                   className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
                 >
                   <div className="border-b border-gray-100 px-4 py-3">
-                    <p className="text-sm font-medium text-[#111827]">{displayName}</p>
+                    <p className="text-sm font-medium text-gray-900">{displayName}</p>
                     <p className="text-xs text-gray-500">{displayEmail}</p>
                   </div>
                   <div className="py-1">
@@ -117,7 +122,10 @@ export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps
                     </Link>
                     <button
                       type="button"
-                      onClick={() => { setPasswordModalOpen(true); setUserMenuOpen(false) }}
+                      onClick={() => {
+                        setPasswordModalOpen(true)
+                        setUserMenuOpen(false)
+                      }}
                       className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-50"
                     >
                       <Key className="h-4 w-4" />
@@ -146,7 +154,10 @@ export default function AdminHeader({ onToggleSidebar, title }: AdminHeaderProps
         </div>
       </div>
 
-      <ChangePasswordModal open={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} />
+      <ChangePasswordModal
+        open={passwordModalOpen || cambioPasswordForzado}
+        onClose={cerrarModalPassword}
+      />
     </header>
   )
 }
@@ -164,7 +175,7 @@ function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => 
     if (newPassword !== confirmPassword) {
       return
     }
-    if (newPassword.length < 6) return
+    if (newPassword.length < 8) return
 
     changePassword.mutate(
       { currentPassword, newPassword },
@@ -183,39 +194,49 @@ function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => 
     <Modal open={open} onClose={onClose} title="Cambiar Contraseña" maxWidth="sm">
       <div className="space-y-4">
         <FormField label="Contraseña Actual" required>
-          <div className="relative">
-            <Input
-              type={showCurrent ? 'text' : 'password'}
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Ingrese su contraseña actual"
-            />
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              onClick={() => setShowCurrent(!showCurrent)}
-            >
-              {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
+          {({ id, 'aria-describedby': descritoPor, 'aria-invalid': invalido }) => (
+            <div className="relative">
+              <Input
+                id={id}
+                aria-describedby={descritoPor}
+                aria-invalid={invalido}
+                type={showCurrent ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Ingrese su contraseña actual"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                onClick={() => setShowCurrent(!showCurrent)}
+              >
+                {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          )}
         </FormField>
 
         <FormField label="Nueva Contraseña" required>
-          <div className="relative">
-            <Input
-              type={showNew ? 'text' : 'password'}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
-            />
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              onClick={() => setShowNew(!showNew)}
-            >
-              {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
+          {({ id, 'aria-describedby': descritoPor, 'aria-invalid': invalido }) => (
+            <div className="relative">
+              <Input
+                id={id}
+                aria-describedby={descritoPor}
+                aria-invalid={invalido}
+                type={showNew ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                onClick={() => setShowNew(!showNew)}
+              >
+                {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          )}
         </FormField>
 
         <FormField label="Confirmar Nueva Contraseña" required>
@@ -237,7 +258,12 @@ function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => 
           <Button
             onClick={handleSubmit}
             loading={changePassword.isPending}
-            disabled={!currentPassword || !newPassword || newPassword !== confirmPassword || newPassword.length < 6}
+            disabled={
+              !currentPassword ||
+              !newPassword ||
+              newPassword !== confirmPassword ||
+              newPassword.length < 8
+            }
           >
             Guardar
           </Button>

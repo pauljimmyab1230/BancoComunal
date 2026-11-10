@@ -55,7 +55,11 @@ export const aportesFondoPdfService = {
 
     if (!fondo) throw new HttpError(404, 'Fondo no encontrado')
 
-    const where: any = { fondoSocio: { fondoId } }
+    const where: {
+      fondoSocio: { fondoId: number }
+      periodo?: string
+      fechaAporte?: { gte: Date; lte: Date }
+    } = { fondoSocio: { fondoId } }
 
     if (periodo) {
       where.periodo = periodo
@@ -74,18 +78,23 @@ export const aportesFondoPdfService = {
 
     const moneda = fondo.moneda
 
-    const totalAportado = Math.round(aportes
-      .filter((a) => a.estado === 'ACTIVO')
-      .reduce((a, x) => a + Number(x.monto), 0) * 100) / 100
+    const totalAportado =
+      Math.round(
+        aportes.filter((a) => a.estado === 'ACTIVO').reduce((a, x) => a + Number(x.monto), 0) * 100
+      ) / 100
     const activos = aportes.filter((a) => a.estado === 'ACTIVO').length
     const anulados = aportes.length - activos
 
     const estadoFondo = (() => {
       switch (fondo.estado) {
-        case 'ACTIVO': return 'Activo'
-        case 'INACTIVO': return 'Inactivo'
-        case 'CERRADO': return 'Cerrado'
-        default: return fondo.estado
+        case 'ACTIVO':
+          return 'Activo'
+        case 'INACTIVO':
+          return 'Inactivo'
+        case 'CERRADO':
+          return 'Cerrado'
+        default:
+          return fondo.estado
       }
     })()
 
@@ -107,7 +116,20 @@ export const aportesFondoPdfService = {
     const periodoLabel = periodo
       ? (() => {
           const [anio, mes] = periodo.split('-')
-          const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+          const meses = [
+            'Enero',
+            'Febrero',
+            'Marzo',
+            'Abril',
+            'Mayo',
+            'Junio',
+            'Julio',
+            'Agosto',
+            'Septiembre',
+            'Octubre',
+            'Noviembre',
+            'Diciembre',
+          ]
           return `${meses[Number(mes) - 1]} ${anio}`
         })()
       : String(anio ?? new Date().getFullYear())

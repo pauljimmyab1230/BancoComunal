@@ -34,7 +34,7 @@ export default function ImageUpload({
       }
       return true
     },
-    [maxSizeMB],
+    [maxSizeMB]
   )
 
   const handleFile = (file: File) => {
@@ -64,12 +64,14 @@ export default function ImageUpload({
 
   if (preview) {
     return (
-      <div className={`relative inline-block overflow-hidden rounded-xl border border-gray-200 ${className}`}>
+      <div
+        className={`relative inline-block overflow-hidden rounded-xl border border-gray-200 ${className}`}
+      >
         <img src={preview} alt="Preview" className="h-40 w-full object-cover" />
         <button
           type="button"
           onClick={handleRemove}
-          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#0F172A]/70 text-white transition-colors hover:bg-[#0F172A]"
+          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary/70 text-white transition-colors hover:bg-primary"
           aria-label="Eliminar imagen"
         >
           <X className="h-4 w-4" />
@@ -80,37 +82,38 @@ export default function ImageUpload({
 
   return (
     <div className={className}>
-      <div
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+      <label
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragOver(true)
+        }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-all ${
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-all focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20 ${
           dragOver
-            ? 'border-[#2563EB] bg-[#2563EB]/5'
-            : 'border-gray-300 bg-gray-50/50 hover:border-[#2563EB]/50 hover:bg-[#2563EB]/5'
+            ? 'border-secondary bg-secondary/5'
+            : 'border-gray-300 bg-gray-50/50 hover:border-secondary/50 hover:bg-secondary/5'
         }`}
       >
-        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
           {dragOver ? <Upload className="h-6 w-6" /> : <ImageIcon className="h-6 w-6" />}
         </div>
-        <p className="text-sm font-medium text-[#111827]">
+        <p className="text-sm font-medium text-gray-900">
           Arrastra una imagen o haz clic para subir
         </p>
-        <p className="mt-1 text-xs text-gray-500">
-          PNG, JPG, WEBP (máx. {maxSizeMB}MB)
-        </p>
+        <p className="mt-1 text-xs text-gray-500">PNG, JPG, WEBP (máx. {maxSizeMB}MB)</p>
         <input
           ref={inputRef}
           type="file"
           accept={accept}
+          aria-label="Seleccionar imagen"
           onChange={(e) => {
             const file = e.target.files?.[0]
             if (file) handleFile(file)
           }}
-          className="hidden"
+          className="sr-only"
         />
-      </div>
+      </label>
       {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
     </div>
   )

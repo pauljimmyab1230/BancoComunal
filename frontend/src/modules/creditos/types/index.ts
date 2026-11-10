@@ -68,6 +68,13 @@ export interface PagoCuotaForm {
   comprobante?: string
 }
 
+export interface ResultadoLiquidacion {
+  success: boolean
+  total: number
+  capital: number
+  interes: number
+}
+
 export interface CreditosListResponse extends PaginatedResponse<Prestamo> {
   totalPrestado: number
   totalPrestadoPorMoneda: Record<string, number>

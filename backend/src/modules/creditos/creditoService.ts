@@ -1,10 +1,16 @@
-import prisma from '../../config/prisma'
+﻿import prisma from '../../config/prisma'
 import { HttpError } from '../../middleware/httpError'
 import { createAuditLog } from '../../config/auditLog'
 import { registrarMovimientoFondo } from '../caja/movimientoHelper'
+import type { Prisma } from '@prisma/client'
 
 const socioSelect = {
-  id: true, codigo: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, dni: true,
+  id: true,
+  codigo: true,
+  nombres: true,
+  apellidoPaterno: true,
+  apellidoMaterno: true,
+  dni: true,
 } as const
 
 const fondoSocioSelect = {
@@ -17,7 +23,6 @@ const fondoSocioSelect = {
 const MAX_CUOTAS = 60
 const MAX_TASA = 100
 const ESTADOS_PRESTAMO = ['ACTIVO', 'PAGADO', 'ANULADO'] as const
-const ESTADOS_CUOTA = ['PENDIENTE', 'VENCIDO', 'PAGADO', 'PARCIAL', 'ANULADO'] as const
 
 function inicioDelDia(fecha: Date): Date {
   const d = new Date(fecha)
@@ -26,15 +31,13 @@ function inicioDelDia(fecha: Date): Date {
 }
 
 function round2(n: number): number {
-  return Math.round(n * 100) / 100
+  return Math.round((n + Math.sign(n || 1) * 1e-9) * 100) / 100
 }
 
 function calcularAmortizacion(monto: number, tasaInteres: number, numeroCuotas: number) {
   const i = tasaInteres / 100
   const n = numeroCuotas
-  const montoCuota = i > 0
-    ? (monto * i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1)
-    : monto / n
+  const montoCuota = i > 0 ? (monto * i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1) : monto / n
   const totalInteres = montoCuota * n - monto
   return { montoCuota, totalInteres }
 }
@@ -48,14 +51,14 @@ function generarCuotas(p: {
 }) {
   const i = p.tasaInteres / 100
   const montoC = round2(p.montoCuota)
-  const cuotasData: any[] = []
+  const cuotasData: Omit<Prisma.CuotaPrestamoCreateManyInput, 'prestamoId'>[] = []
   let saldoRestante = p.monto
   for (let idx = 1; idx <= p.numeroCuotas; idx++) {
     const fechaVenc = new Date(p.fechaPrimerVencimiento)
     fechaVenc.setMonth(fechaVenc.getMonth() + (idx - 1))
     const interesCuota = round2(saldoRestante * i)
     const esUltima = idx === p.numeroCuotas
-    // La última cuota absorbe la diferencia de redondeo para que la suma
+    // La Ãºltima cuota absorbe la diferencia de redondeo para que la suma
     // de amortizaciones sea exactamente igual al monto desembolsado.
     const amortizacionCuota = esUltima ? round2(saldoRestante) : round2(montoC - interesCuota)
     const montoCuotaReal = round2(amortizacionCuota + interesCuota)
@@ -76,7 +79,7 @@ function generarCuotas(p: {
   return cuotasData
 }
 
-/** Marca como VENCIDO las cuotas pendientes o parciales cuya fecha ya pasó. */
+/** Marca como VENCIDO las cuotas pendientes o parciales cuya fecha ya pasÃ³. */
 export async function marcarCuotasVencidas() {
   const hoy = inicioDelDia(new Date())
   const result = await prisma.cuotaPrestamo.updateMany({
@@ -90,7 +93,17 @@ export async function marcarCuotasVencidas() {
   return result.count
 }
 
-function serializePrestamo(p: any) {
+function serializePrestamo(p: {
+  fondoSocio?: {
+    socio?: Record<string, unknown> | null
+    fondo?: Record<string, unknown> | null
+  } | null
+  monto: unknown
+  tasaInteres: unknown
+  montoCuota: unknown
+  totalInteres: unknown
+  [key: string]: unknown
+}) {
   const { fondoSocio, ...rest } = p
   return {
     ...rest,
@@ -103,7 +116,15 @@ function serializePrestamo(p: any) {
   }
 }
 
-function serializeCuota(c: any) {
+function serializeCuota(c: {
+  monto: unknown
+  interes: unknown
+  amortizacion: unknown
+  saldo: unknown
+  montoPagado: unknown
+  saldoPendiente: unknown
+  [key: string]: unknown
+}) {
   return {
     ...c,
     monto: Number(c.monto),
@@ -116,18 +137,25 @@ function serializeCuota(c: any) {
 }
 
 export const creditoService = {
-  async list(params: { search?: string; page?: number; limit?: number; fondoId?: number; socioId?: number; estado?: string }) {
+  async list(params: {
+    search?: string
+    page?: number
+    limit?: number
+    fondoId?: number
+    socioId?: number
+    estado?: string
+  }) {
     const { search, page = 1, limit = 10, fondoId, socioId, estado } = params
     const skip = (page - 1) * limit
 
     if (estado && !(ESTADOS_PRESTAMO as readonly string[]).includes(estado)) {
-      throw new HttpError(400, 'Estado inválido. Debe ser ACTIVO, PAGADO o ANULADO')
+      throw new HttpError(400, 'Estado invÃ¡lido. Debe ser ACTIVO, PAGADO o ANULADO')
     }
 
-    const where: any = {}
+    const where: Prisma.PrestamoWhereInput = {}
     if (estado) where.estado = estado
 
-    const fondoSocioWhere: any = {}
+    const fondoSocioWhere: Prisma.FondoSocioWhereInput = {}
     if (fondoId) fondoSocioWhere.fondoId = fondoId
     if (socioId) fondoSocioWhere.socioId = socioId
     if (Object.keys(fondoSocioWhere).length > 0) where.fondoSocio = fondoSocioWhere
@@ -226,37 +254,43 @@ export const creditoService = {
     }))
   },
 
-  async crear(data: {
-    monto: number
-    tasaInteres: number
-    numeroCuotas: number
-    fechaPrimerVencimiento: string
-    fondoId: number
-    socioId: number
-  }) {
+  async crear(
+    data: {
+      monto: number
+      tasaInteres: number
+      numeroCuotas: number
+      fechaPrimerVencimiento: string
+      fondoId: number
+      socioId: number
+    },
+    usuarioId?: number
+  ) {
     if (data.monto <= 0) throw new HttpError(400, 'El monto debe ser mayor a 0')
     if (data.numeroCuotas < 1 || data.numeroCuotas > MAX_CUOTAS) {
-      throw new HttpError(400, `El número de cuotas debe estar entre 1 y ${MAX_CUOTAS}`)
+      throw new HttpError(400, `El nÃºmero de cuotas debe estar entre 1 y ${MAX_CUOTAS}`)
     }
     if (data.tasaInteres < 0 || data.tasaInteres > MAX_TASA) {
-      throw new HttpError(400, `La tasa de interés debe estar entre 0 y ${MAX_TASA}%`)
+      throw new HttpError(400, `La tasa de interÃ©s debe estar entre 0 y ${MAX_TASA}%`)
     }
 
     const fechaPrimerVencimiento = new Date(data.fechaPrimerVencimiento)
-    if (isNaN(fechaPrimerVencimiento.getTime())) throw new HttpError(400, 'Fecha de primer vencimiento inválida')
+    if (isNaN(fechaPrimerVencimiento.getTime()))
+      throw new HttpError(400, 'Fecha de primer vencimiento invÃ¡lida')
     if (inicioDelDia(fechaPrimerVencimiento) < inicioDelDia(new Date())) {
       throw new HttpError(400, 'La fecha del primer vencimiento no puede ser anterior a hoy')
     }
 
     const socioEnFondo = await prisma.fondoSocio.findUnique({
       where: { fondoId_socioId: { fondoId: data.fondoId, socioId: data.socioId } },
-      include: { fondo: true },
+      include: { fondo: true, socio: { select: { estado: true } } },
     })
     if (!socioEnFondo) throw new HttpError(400, 'El socio no pertenece a este fondo')
-    if (socioEnFondo.fechaSalida) throw new HttpError(400, 'El socio no está activo en este fondo')
-    if (socioEnFondo.fondo.estado !== 'ACTIVO') throw new HttpError(400, 'El fondo no está activo')
+    if (socioEnFondo.socio.estado !== 'A')
+      throw new HttpError(400, 'El socio est\u00e1 inactivo y no puede recibir cr\u00e9ditos')
+    if (socioEnFondo.fechaSalida) throw new HttpError(400, 'El socio no estÃ¡ activo en este fondo')
+    if (socioEnFondo.fondo.estado !== 'ACTIVO') throw new HttpError(400, 'El fondo no estÃ¡ activo')
 
-    // Regla de sobreendeudamiento: no otorgar un nuevo crédito si el socio tiene uno activo.
+    // Regla de sobreendeudamiento: no otorgar un nuevo crÃ©dito si el socio tiene uno activo.
     const prestamoActivoExistente = await prisma.prestamo.findFirst({
       where: {
         estado: 'ACTIVO',
@@ -265,7 +299,10 @@ export const creditoService = {
       select: { id: true },
     })
     if (prestamoActivoExistente) {
-      throw new HttpError(400, 'El socio ya tiene un crédito activo. Debe regularizarlo antes de solicitar otro.')
+      throw new HttpError(
+        400,
+        'El socio ya tiene un crÃ©dito activo. Debe regularizarlo antes de solicitar otro.'
+      )
     }
 
     if (Number(socioEnFondo.fondo.capitalDisponible) < data.monto) {
@@ -284,7 +321,7 @@ export const creditoService = {
     const totalInteres = round2(cuotasData.reduce((a, c) => a + Number(c.interes), 0))
 
     const prestamo = await prisma.$transaction(async (tx) => {
-      // Decremento atómico del capital para evitar sobregirar el fondo (race condition).
+      // Decremento atÃ³mico del capital para evitar sobregirar el fondo (race condition).
       const decrementado = await tx.fondoRotatorio.updateMany({
         where: { id: socioEnFondo.fondoId, capitalDisponible: { gte: data.monto } },
         data: { capitalDisponible: { decrement: data.monto } },
@@ -314,7 +351,7 @@ export const creditoService = {
       await registrarMovimientoFondo(tx, socioEnFondo.fondoId, 'ING-PRESTAMO', {
         tipo: 'EGRESO',
         monto: data.monto,
-        descripcion: `Desembolso de préstamo #${p.id}`,
+        descripcion: `Desembolso de prÃ©stamo #${p.id}`,
         referencia: `PRESTAMO-${p.id}`,
       })
 
@@ -332,6 +369,7 @@ export const creditoService = {
         fondoId: data.fondoId,
         socioId: data.socioId,
       },
+      usuarioId,
     })
 
     return serializePrestamo(prestamo)
@@ -345,6 +383,7 @@ export const creditoService = {
       numeroCuotas: number
       fechaPrimerVencimiento: string
     }>,
+    usuarioId?: number
   ) {
     const prestamo = await prisma.prestamo.findUnique({
       where: { id },
@@ -353,27 +392,32 @@ export const creditoService = {
         fondoSocio: { select: { fondoId: true } },
       },
     })
-    if (!prestamo) throw new HttpError(404, 'Préstamo no encontrado')
-    if (prestamo.estado !== 'ACTIVO') throw new HttpError(400, 'Solo se puede modificar un préstamo activo')
+    if (!prestamo) throw new HttpError(404, 'PrÃ©stamo no encontrado')
+    if (prestamo.estado !== 'ACTIVO')
+      throw new HttpError(400, 'Solo se puede modificar un prÃ©stamo activo')
 
     const tienePagos = prestamo.cuotas.some((c) => Number(c.montoPagado) > 0)
-    if (tienePagos) throw new HttpError(400, 'No se puede modificar un préstamo con cuotas pagadas')
+    if (tienePagos)
+      throw new HttpError(400, 'No se puede modificar un prÃ©stamo con cuotas pagadas')
 
     const monto = data.monto !== undefined ? Number(data.monto) : Number(prestamo.monto)
-    const tasaInteres = data.tasaInteres !== undefined ? Number(data.tasaInteres) : Number(prestamo.tasaInteres)
-    const numeroCuotas = data.numeroCuotas !== undefined ? Number(data.numeroCuotas) : prestamo.numeroCuotas
+    const tasaInteres =
+      data.tasaInteres !== undefined ? Number(data.tasaInteres) : Number(prestamo.tasaInteres)
+    const numeroCuotas =
+      data.numeroCuotas !== undefined ? Number(data.numeroCuotas) : prestamo.numeroCuotas
     const fechaPrimerVencimiento = data.fechaPrimerVencimiento
       ? new Date(data.fechaPrimerVencimiento)
       : prestamo.fechaPrimerVencimiento
 
     if (monto <= 0) throw new HttpError(400, 'El monto debe ser mayor a 0')
     if (numeroCuotas < 1 || numeroCuotas > MAX_CUOTAS) {
-      throw new HttpError(400, `El número de cuotas debe estar entre 1 y ${MAX_CUOTAS}`)
+      throw new HttpError(400, `El nÃºmero de cuotas debe estar entre 1 y ${MAX_CUOTAS}`)
     }
     if (tasaInteres < 0 || tasaInteres > MAX_TASA) {
-      throw new HttpError(400, `La tasa de interés debe estar entre 0 y ${MAX_TASA}%`)
+      throw new HttpError(400, `La tasa de interÃ©s debe estar entre 0 y ${MAX_TASA}%`)
     }
-    if (isNaN(fechaPrimerVencimiento.getTime())) throw new HttpError(400, 'Fecha de primer vencimiento inválida')
+    if (isNaN(fechaPrimerVencimiento.getTime()))
+      throw new HttpError(400, 'Fecha de primer vencimiento invÃ¡lida')
     if (inicioDelDia(fechaPrimerVencimiento) < inicioDelDia(new Date())) {
       throw new HttpError(400, 'La fecha del primer vencimiento no puede ser anterior a hoy')
     }
@@ -397,7 +441,10 @@ export const creditoService = {
           data: { capitalDisponible: { decrement: delta } },
         })
         if (ok.count === 0) {
-          throw new HttpError(400, 'El fondo no tiene capital disponible suficiente para el nuevo monto')
+          throw new HttpError(
+            400,
+            'El fondo no tiene capital disponible suficiente para el nuevo monto'
+          )
         }
       } else if (delta < 0) {
         await tx.fondoRotatorio.update({
@@ -428,14 +475,14 @@ export const creditoService = {
         await registrarMovimientoFondo(tx, prestamo.fondoSocio.fondoId, 'ING-PRESTAMO', {
           tipo: 'EGRESO',
           monto: delta,
-          descripcion: `Ajuste de desembolso de préstamo #${id}`,
+          descripcion: `Ajuste de desembolso de prÃ©stamo #${id}`,
           referencia: `PRESTAMO-${id}`,
         })
       } else if (delta < 0) {
         await registrarMovimientoFondo(tx, prestamo.fondoSocio.fondoId, 'ING-CUOTA', {
           tipo: 'INGRESO',
           monto: -delta,
-          descripcion: `Ajuste de desembolso de préstamo #${id} (reducción)`,
+          descripcion: `Ajuste de desembolso de prÃ©stamo #${id} (reducciÃ³n)`,
           referencia: `PRESTAMO-${id}`,
         })
       }
@@ -454,21 +501,25 @@ export const creditoService = {
         fechaPrimerVencimiento: prestamo.fechaPrimerVencimiento,
       },
       datosNuevos: { monto, tasaInteres, numeroCuotas, fechaPrimerVencimiento },
+      usuarioId,
     })
 
     return serializePrestamo(updated)
   },
 
-  async pagarCuota(data: {
-    cuotaId: number
-    monto: number
-    fechaPago?: string
-    metodoPago: string
-    comprobante?: string | null
-  }) {
+  async pagarCuota(
+    data: {
+      cuotaId: number
+      monto: number
+      fechaPago?: string
+      metodoPago: string
+      comprobante?: string | null
+    },
+    usuarioId?: number
+  ) {
     if (data.monto <= 0) throw new HttpError(400, 'El monto debe ser mayor a 0')
     if (!['EFECTIVO', 'TRANSFERENCIA', 'DEPOSITO'].includes(data.metodoPago)) {
-      throw new HttpError(400, 'Método de pago inválido')
+      throw new HttpError(400, 'MÃ©todo de pago invÃ¡lido')
     }
 
     await marcarCuotasVencidas()
@@ -485,50 +536,64 @@ export const creditoService = {
       },
     })
     if (!cuota) throw new HttpError(404, 'Cuota no encontrada')
-    if (cuota.estado === 'PAGADO') throw new HttpError(400, 'La cuota ya está pagada')
-    if (cuota.estado === 'ANULADO') throw new HttpError(400, 'La cuota está anulada')
-    if (cuota.prestamo.estado !== 'ACTIVO') throw new HttpError(400, 'El préstamo no está activo')
+    if (cuota.estado === 'PAGADO') throw new HttpError(400, 'La cuota ya estÃ¡ pagada')
+    if (cuota.estado === 'ANULADO') throw new HttpError(400, 'La cuota estÃ¡ anulada')
+    if (cuota.prestamo.estado !== 'ACTIVO') throw new HttpError(400, 'El prÃ©stamo no estÃ¡ activo')
 
-    // Orden de pago: primero la cuota impaga más antigua.
-    const primeraImpaga = cuota.prestamo.cuotas.find((c) => c.estado !== 'PAGADO' && c.estado !== 'ANULADO')
+    // Orden de pago: primero la cuota impaga mÃ¡s antigua.
+    const primeraImpaga = cuota.prestamo.cuotas.find(
+      (c) => c.estado !== 'PAGADO' && c.estado !== 'ANULADO'
+    )
     if (!primeraImpaga) throw new HttpError(400, 'No hay cuotas pendientes por pagar')
     if (primeraImpaga.id !== cuota.id) {
-      throw new HttpError(400, `Debe pagar primero la cuota ${primeraImpaga.numero} (${primeraImpaga.fechaVencimiento.toISOString().slice(0, 10)})`)
+      throw new HttpError(
+        400,
+        `Debe pagar primero la cuota ${primeraImpaga.numero} (${primeraImpaga.fechaVencimiento.toISOString().slice(0, 10)})`
+      )
     }
 
-    // Separar el pago en capital (amortización) e interés de forma proporcional.
+    // Separar el pago en capital (amortizaciÃ³n) e interÃ©s de forma proporcional.
     const cuotaMonto = Number(cuota.monto)
     const cuotaInteres = Number(cuota.interes)
     const proporcionInteres = cuotaMonto > 0 ? cuotaInteres / cuotaMonto : 0
-    const interesPagado = round2(data.monto * proporcionInteres)
-    const capitalPagado = round2(data.monto - interesPagado)
+    const montoRedondeado = round2(data.monto)
+    const interesPagado = round2(montoRedondeado * proporcionInteres)
+    const capitalPagado = round2(montoRedondeado - interesPagado)
 
     const result = await prisma.$transaction(async (tx) => {
-      // Re-lectura dentro de la transacción para evitar pagos concurrentes
-      // sobre el mismo saldo pendiente (race condition).
+      // Guarda atomica: el WHERE exige que la cuota siga impaga y con saldo
+      // suficiente, de modo que dos pagos concurrentes no pueden dejar saldo negativo.
       const cuotaActual = await tx.cuotaPrestamo.findUnique({ where: { id: data.cuotaId } })
       if (!cuotaActual) throw new HttpError(404, 'Cuota no encontrada')
       if (cuotaActual.estado === 'PAGADO' || cuotaActual.estado === 'ANULADO') {
-        throw new HttpError(400, 'La cuota no está pendiente de pago')
+        throw new HttpError(400, 'La cuota no estÃ¡ pendiente de pago')
       }
       if (data.monto > Number(cuotaActual.saldoPendiente)) {
         throw new HttpError(400, 'El monto excede el saldo pendiente de la cuota')
       }
 
       const esPagoCompleto = data.monto >= Number(cuotaActual.saldoPendiente)
-      const updated = await tx.cuotaPrestamo.update({
-        where: { id: data.cuotaId },
+      const { count } = await tx.cuotaPrestamo.updateMany({
+        where: {
+          id: data.cuotaId,
+          estado: { notIn: ['PAGADO', 'ANULADO'] },
+          saldoPendiente: { gte: montoRedondeado },
+        },
         data: {
-          montoPagado: { increment: data.monto },
-          saldoPendiente: { decrement: data.monto },
+          montoPagado: { increment: montoRedondeado },
+          saldoPendiente: { decrement: montoRedondeado },
           fechaPago: data.fechaPago ? new Date(data.fechaPago) : new Date(),
           metodoPago: data.metodoPago,
           comprobante: data.comprobante || null,
           estado: esPagoCompleto ? 'PAGADO' : 'PARCIAL',
         },
       })
+      if (count === 0) {
+        throw new HttpError(409, 'La cuota fue modificada por otro proceso. Intente de nuevo.')
+      }
+      const updated = await tx.cuotaPrestamo.findUniqueOrThrow({ where: { id: data.cuotaId } })
 
-      // El capital disponible recupera solo la parte de amortización (no el interés).
+      // El capital disponible recupera solo la parte de amortizaciÃ³n (no el interÃ©s).
       if (capitalPagado > 0) {
         await tx.fondoRotatorio.update({
           where: { id: cuota.prestamo.fondoSocio.fondoId },
@@ -536,7 +601,7 @@ export const creditoService = {
         })
       }
 
-      // Verificar si todas las cuotas están pagadas.
+      // Verificar si todas las cuotas estÃ¡n pagadas.
       const pendientes = await tx.cuotaPrestamo.count({
         where: { prestamoId: cuota.prestamoId, estado: { notIn: ['PAGADO'] } },
       })
@@ -547,12 +612,12 @@ export const creditoService = {
         })
       }
 
-      // Movimientos de caja: el capital y el interés se registran por separado.
+      // Movimientos de caja: el capital y el interÃ©s se registran por separado.
       if (capitalPagado > 0) {
         await registrarMovimientoFondo(tx, cuota.prestamo.fondoSocio.fondoId, 'ING-CUOTA', {
           tipo: 'INGRESO',
           monto: capitalPagado,
-          descripcion: `Pago de cuota ${cuota.numero} del préstamo #${cuota.prestamoId} (capital)`,
+          descripcion: `Pago de cuota ${cuota.numero} del prÃ©stamo #${cuota.prestamoId} (capital)`,
           metodoPago: data.metodoPago,
           comprobante: data.comprobante || undefined,
           referencia: `CUOTA-${cuota.id}`,
@@ -562,7 +627,7 @@ export const creditoService = {
         await registrarMovimientoFondo(tx, cuota.prestamo.fondoSocio.fondoId, 'ING-INTERES', {
           tipo: 'INGRESO',
           monto: interesPagado,
-          descripcion: `Pago de cuota ${cuota.numero} del préstamo #${cuota.prestamoId} (intereses)`,
+          descripcion: `Pago de cuota ${cuota.numero} del prÃ©stamo #${cuota.prestamoId} (intereses)`,
           metodoPago: data.metodoPago,
           comprobante: data.comprobante || undefined,
           referencia: `CUOTA-${cuota.id}`,
@@ -584,6 +649,7 @@ export const creditoService = {
         metodoPago: data.metodoPago,
         comprobante: data.comprobante || null,
       },
+      usuarioId,
     })
 
     return {
@@ -593,9 +659,13 @@ export const creditoService = {
     }
   },
 
-  async liquidar(prestamoId: number, data: { fechaPago?: string; metodoPago: string; comprobante?: string | null }) {
+  async liquidar(
+    prestamoId: number,
+    data: { fechaPago?: string; metodoPago: string; comprobante?: string | null },
+    usuarioId?: number
+  ) {
     if (!['EFECTIVO', 'TRANSFERENCIA', 'DEPOSITO'].includes(data.metodoPago)) {
-      throw new HttpError(400, 'Método de pago inválido')
+      throw new HttpError(400, 'MÃ©todo de pago invÃ¡lido')
     }
 
     const prestamo = await prisma.prestamo.findUnique({
@@ -605,33 +675,42 @@ export const creditoService = {
         fondoSocio: { select: { fondoId: true } },
       },
     })
-    if (!prestamo) throw new HttpError(404, 'Préstamo no encontrado')
-    if (prestamo.estado !== 'ACTIVO') throw new HttpError(400, 'Solo se puede liquidar un préstamo activo')
+    if (!prestamo) throw new HttpError(404, 'PrÃ©stamo no encontrado')
+    if (prestamo.estado !== 'ACTIVO')
+      throw new HttpError(400, 'Solo se puede liquidar un prÃ©stamo activo')
 
-    const pendientes = prestamo.cuotas.filter((c) => c.estado !== 'PAGADO' && c.estado !== 'ANULADO')
-    if (pendientes.length === 0) throw new HttpError(400, 'El préstamo no tiene cuotas pendientes')
+    const pendientes = prestamo.cuotas.filter(
+      (c) => c.estado !== 'PAGADO' && c.estado !== 'ANULADO'
+    )
+    if (pendientes.length === 0) throw new HttpError(400, 'El prÃ©stamo no tiene cuotas pendientes')
 
     let capitalTotal = 0
     let interesTotal = 0
-    for (const c of pendientes) {
-      const cMonto = Number(c.monto)
-      const cInteres = Number(c.interes)
-      const proporcion = cMonto > 0 ? cInteres / cMonto : 0
-      const pendiente = Number(c.saldoPendiente)
-      const iPart = round2(pendiente * proporcion)
-      capitalTotal += round2(pendiente - iPart)
-      interesTotal += iPart
-    }
-    capitalTotal = round2(capitalTotal)
-    interesTotal = round2(interesTotal)
     const fechaPago = data.fechaPago ? new Date(data.fechaPago) : new Date()
 
     await prisma.$transaction(async (tx) => {
+      // Re-lectura y guarda atomica por cuota: solo se cobra si sigue impaga,
+      // evitando que un pago concurrente quede perdido o duplicado.
+      let capitalTx = 0
+      let interesTx = 0
       for (const c of pendientes) {
-        await tx.cuotaPrestamo.update({
-          where: { id: c.id },
+        const cMonto = Number(c.monto)
+        const cInteres = Number(c.interes)
+        const proporcion = cMonto > 0 ? cInteres / cMonto : 0
+        const actual = await tx.cuotaPrestamo.findUnique({ where: { id: c.id } })
+        if (!actual || actual.estado === 'PAGADO' || actual.estado === 'ANULADO') continue
+        const pendiente = Number(actual.saldoPendiente)
+        if (pendiente <= 0) continue
+        const iPart = round2(pendiente * proporcion)
+        const cPart = round2(pendiente - iPart)
+        const { count } = await tx.cuotaPrestamo.updateMany({
+          where: {
+            id: c.id,
+            estado: { notIn: ['PAGADO', 'ANULADO'] },
+            saldoPendiente: { gt: 0 },
+          },
           data: {
-            montoPagado: { increment: Number(c.saldoPendiente) },
+            montoPagado: { increment: pendiente },
             saldoPendiente: 0,
             fechaPago,
             metodoPago: data.metodoPago,
@@ -639,6 +718,14 @@ export const creditoService = {
             estado: 'PAGADO',
           },
         })
+        if (count === 0) continue
+        capitalTx += cPart
+        interesTx += iPart
+      }
+      capitalTotal = round2(capitalTx)
+      interesTotal = round2(interesTx)
+      if (capitalTotal === 0 && interesTotal === 0) {
+        throw new HttpError(409, 'Las cuotas fueron liquidadas por otro proceso. Intente de nuevo.')
       }
 
       if (capitalTotal > 0) {
@@ -657,7 +744,7 @@ export const creditoService = {
         await registrarMovimientoFondo(tx, prestamo.fondoSocio.fondoId, 'ING-CUOTA', {
           tipo: 'INGRESO',
           monto: capitalTotal,
-          descripcion: `Liquidación total de préstamo #${prestamoId} (capital)`,
+          descripcion: `LiquidaciÃ³n total de prÃ©stamo #${prestamoId} (capital)`,
           metodoPago: data.metodoPago,
           comprobante: data.comprobante || undefined,
           referencia: `PRESTAMO-${prestamoId}`,
@@ -667,7 +754,7 @@ export const creditoService = {
         await registrarMovimientoFondo(tx, prestamo.fondoSocio.fondoId, 'ING-INTERES', {
           tipo: 'INGRESO',
           monto: interesTotal,
-          descripcion: `Liquidación total de préstamo #${prestamoId} (intereses)`,
+          descripcion: `LiquidaciÃ³n total de prÃ©stamo #${prestamoId} (intereses)`,
           metodoPago: data.metodoPago,
           comprobante: data.comprobante || undefined,
           referencia: `PRESTAMO-${prestamoId}`,
@@ -680,6 +767,7 @@ export const creditoService = {
       registroId: prestamoId,
       operacion: 'LIQUIDAR',
       datosNuevos: { capital: capitalTotal, interes: interesTotal, fechaPago },
+      usuarioId,
     })
 
     return {
@@ -690,16 +778,17 @@ export const creditoService = {
     }
   },
 
-  async anular(id: number) {
+  async anular(id: number, usuarioId?: number) {
     const prestamo = await prisma.prestamo.findUnique({
       where: { id },
       include: { cuotas: true, fondoSocio: { select: { fondoId: true } } },
     })
-    if (!prestamo) throw new HttpError(404, 'Préstamo no encontrado')
-    if (prestamo.estado === 'ANULADO') throw new HttpError(400, 'El préstamo ya está anulado')
+    if (!prestamo) throw new HttpError(404, 'PrÃ©stamo no encontrado')
+    if (prestamo.estado === 'ANULADO') throw new HttpError(400, 'El prÃ©stamo ya estÃ¡ anulado')
 
     const cuotasPagadas = prestamo.cuotas.some((c) => Number(c.montoPagado) > 0)
-    if (cuotasPagadas) throw new HttpError(400, 'No se puede anular un préstamo con cuotas pagadas')
+    if (cuotasPagadas)
+      throw new HttpError(400, 'No se puede anular un prÃ©stamo con cuotas pagadas')
 
     await prisma.$transaction(async (tx) => {
       await tx.fondoRotatorio.update({
@@ -717,11 +806,11 @@ export const creditoService = {
         data: { estado: 'ANULADO' },
       })
 
-      // Devolución del desembolso a la caja.
+      // DevoluciÃ³n del desembolso a la caja.
       await registrarMovimientoFondo(tx, prestamo.fondoSocio.fondoId, 'ING-REINTEGRO', {
         tipo: 'INGRESO',
         monto: Number(prestamo.monto),
-        descripcion: `Anulación de préstamo #${id}: devolución del desembolso`,
+        descripcion: `AnulaciÃ³n de prÃ©stamo #${id}: devoluciÃ³n del desembolso`,
         referencia: `PRESTAMO-${id}`,
       })
     })
@@ -732,6 +821,7 @@ export const creditoService = {
       operacion: 'ANULAR',
       datosAnteriores: { estado: prestamo.estado },
       datosNuevos: { estado: 'ANULADO' },
+      usuarioId,
     })
 
     return { success: true }

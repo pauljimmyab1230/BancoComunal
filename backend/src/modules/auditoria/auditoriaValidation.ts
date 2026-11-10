@@ -1,12 +1,29 @@
 import { z } from 'zod'
 
+export const TABLAS_AUDITABLES = [
+  'Socio',
+  'Prestamo',
+  'CuotaPrestamo',
+  'Aporte',
+  'FondoRotatorio',
+  'FondoSocio',
+  'Usuario',
+] as const
+export const OPERACIONES_AUDITABLES = [
+  'CREATE',
+  'UPDATE',
+  'DELETE',
+  'PAYMENT',
+  'LIQUIDAR',
+  'ANULAR',
+] as const
+
 export const auditLogSchema = z.object({
-  tabla: z.string().min(1, 'La tabla es requerida'),
+  tabla: z.enum(TABLAS_AUDITABLES, { message: 'Tabla no válida' }),
   registroId: z.number().int().positive('El ID del registro debe ser positivo'),
-  operacion: z.enum(['CREATE', 'UPDATE', 'DELETE'], { message: 'Operación requerida' }),
-  datosAnteriores: z.any().optional(),
-  datosNuevos: z.any().optional(),
-  ip: z.string().max(45).optional(),
+  operacion: z.enum(OPERACIONES_AUDITABLES, { message: 'Operación no válida' }),
+  datosAnteriores: z.record(z.string(), z.unknown()).optional(),
+  datosNuevos: z.record(z.string(), z.unknown()).optional(),
 })
 
 export const auditLogQuerySchema = z.object({

@@ -29,7 +29,7 @@ function Loading() {
   return (
     <div className="flex h-screen items-center justify-center bg-[#F8FAFC]">
       <div className="flex flex-col items-center gap-4">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#2563EB] border-t-transparent" />
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-secondary border-t-transparent" />
         <p className="text-sm text-gray-500">Cargando...</p>
       </div>
     </div>
@@ -59,7 +59,9 @@ export const routes = [
       </RequireAuth>
     ),
     children: [
-      { index: true, element: (
+      {
+        index: true,
+        element: (
           <SuspenseWrapper>
             <DashboardPage />
           </SuspenseWrapper>

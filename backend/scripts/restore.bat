@@ -6,8 +6,18 @@ REM Restaurar Base de Datos - Banquito Solidario
 REM ========================================
 
 set DB_NAME=banquito_solidario
-set DB_USER=root
-set DB_PASS=pauljimmyAB1230
+set DB_USER=%DB_USER%
+set DB_PASS=%DB_PASS%
+if "%DB_USER%"=="" (
+    echo [ERROR] Variable DB_USER no configurada. Ejecute: set DB_USER=root
+    pause
+    exit /b 1
+)
+if "%DB_PASS%"=="" (
+    echo [ERROR] Variable DB_PASS no configurada. Ejecute: set DB_PASS=su_password
+    pause
+    exit /b 1
+)
 
 echo.
 echo ========================================

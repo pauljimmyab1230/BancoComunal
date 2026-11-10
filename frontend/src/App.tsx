@@ -1,6 +1,8 @@
 import { useRoutes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
+import { MotionConfig } from 'framer-motion'
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { routes } from '@/routes'
 
 const queryClient = new QueryClient({
@@ -17,19 +19,23 @@ export default function App() {
   const element = useRoutes(routes)
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {element}
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: '#0F172A',
-            color: '#fff',
-            borderRadius: '12px',
-          },
-        }}
-      />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <MotionConfig reducedMotion="user">
+        <QueryClientProvider client={queryClient}>
+          {element}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: '#0F172A',
+                color: '#fff',
+                borderRadius: '12px',
+              },
+            }}
+          />
+        </QueryClientProvider>
+      </MotionConfig>
+    </ErrorBoundary>
   )
 }

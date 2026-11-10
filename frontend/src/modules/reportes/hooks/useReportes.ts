@@ -18,7 +18,9 @@ export function useCarteraCreditos(params?: CarteraCreditosQuery) {
   })
 }
 
-export function useEstadoResultados(params: { fondoId?: number; fechaInicio: string; fechaFin: string } | null) {
+export function useEstadoResultados(
+  params: { fondoId?: number; fechaInicio: string; fechaFin: string } | null
+) {
   return useQuery({
     queryKey: ['estadoResultados', params],
     queryFn: () => reportesApi.getEstadoResultados(params!),
@@ -47,7 +49,9 @@ export function useResumenEjecutivo() {
   })
 }
 
-export function useFlujoCaja(params: { cajaId?: number; fechaInicio: string; fechaFin: string } | null) {
+export function useFlujoCaja(
+  params: { cajaId?: number; fechaInicio: string; fechaFin: string } | null
+) {
   return useQuery({
     queryKey: ['flujoCaja', params],
     queryFn: () => reportesApi.getFlujoCaja(params!),
@@ -69,7 +73,9 @@ export function useAntiguedadCartera(params?: { fondoId?: number }) {
   })
 }
 
-export function useLibroDiario(params: { cajaId?: number; fechaInicio: string; fechaFin: string; limit?: number } | null) {
+export function useLibroDiario(
+  params: { cajaId?: number; fechaInicio: string; fechaFin: string; limit?: number } | null
+) {
   return useQuery({
     queryKey: ['libroDiario', params],
     queryFn: () => reportesApi.getLibroDiario(params!),
@@ -77,16 +83,27 @@ export function useLibroDiario(params: { cajaId?: number; fechaInicio: string; f
   })
 }
 
-export function useReporteArqueos(params?: { cajaId?: number; fechaInicio?: string; fechaFin?: string; limit?: number }) {
+export function useReporteArqueos(params?: {
+  cajaId?: number
+  fechaInicio?: string
+  fechaFin?: string
+  limit?: number
+}) {
   return useQuery({
     queryKey: ['reporteArqueos', params],
     queryFn: () => reportesApi.getReporteArqueos(params),
   })
 }
 
-export function useMovimientosCaja(params?: { cajaId?: number; fechaInicio?: string; fechaFin?: string; tipo?: string; limit?: number }) {
+export function useMovimientosCaja(params?: {
+  cajaId?: number
+  fechaInicio?: string
+  fechaFin?: string
+  tipo?: string
+  limit?: number
+}) {
   return useQuery({
-    queryKey: ['movimientosCaja', params],
+    queryKey: ['reportes', 'movimientos', params],
     queryFn: () => reportesApi.getMovimientosCaja(params),
   })
 }

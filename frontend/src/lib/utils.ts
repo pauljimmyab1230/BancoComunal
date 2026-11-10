@@ -36,11 +36,7 @@ export function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-export function formatCurrency(
-  amount: number,
-  currency = 'PEN',
-  locale = 'es-PE'
-): string {
+export function formatCurrency(amount: number, currency = 'PEN', locale = 'es-PE'): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
@@ -54,9 +50,13 @@ export function formatSaldosPorMoneda(saldos?: Record<string, number>): string {
     .join(' · ')
 }
 
-export function exportCsv(filename: string, headers: string[], rows: (string | number | null | undefined)[][]): void {
+export function exportCsv(
+  filename: string,
+  headers: string[],
+  rows: (string | number | null | undefined)[][]
+): void {
   const csv = [headers, ...rows]
-    .map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
+    .map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
     .join('\n')
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
@@ -67,7 +67,14 @@ export function exportCsv(filename: string, headers: string[], rows: (string | n
   URL.revokeObjectURL(url)
 }
 
-export function exportXlsx(filename: string, headers: string[], rows: (string | number | null | undefined)[][]): void {
+export function exportXlsx(
+  filename: string,
+  headers: string[],
+  rows: (string | number | null | undefined)[][]
+): void {
+  const escapeHtml = (str: string): string =>
+    str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
   const html = `
     <html xmlns:o="urn:schemas-microsoft-com:office:office"
           xmlns:x="urn:schemas-microsoft-com:office:excel"
@@ -98,10 +105,10 @@ export function exportXlsx(filename: string, headers: string[], rows: (string | 
     <body>
       <table>
         <thead>
-          <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+          <tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr>
         </thead>
         <tbody>
-          ${rows.map(r => `<tr>${r.map(c => `<td>${String(c ?? '')}</td>`).join('')}</tr>`).join('')}
+          ${rows.map((r) => `<tr>${r.map((c) => `<td>${escapeHtml(String(c ?? ''))}</td>`).join('')}</tr>`).join('')}
         </tbody>
       </table>
     </body>

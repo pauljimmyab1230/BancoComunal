@@ -41,3 +41,6 @@ coverage/
 
 # Misc
 *.local
+
+# Admin credentials (generated on first run)
+.admin-credentials

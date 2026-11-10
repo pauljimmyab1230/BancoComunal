@@ -1,8 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Save, ArrowLeft } from 'lucide-react'
 import { useAporte, useCreateAporte, useUpdateAporte } from '../hooks/useAportes'
-import { Button, SectionHeader, Card, FormField, Input, Select, LoadingSpinner } from '@/components/ui'
+import {
+  Button,
+  SectionHeader,
+  Card,
+  FormField,
+  Input,
+  Textarea,
+  Select,
+  LoadingSpinner,
+} from '@/components/ui'
 import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import api from '@/lib/api'
@@ -32,7 +41,7 @@ export default function AporteFormPage() {
   })
 
   const { data: fondosData } = useQuery({
-    queryKey: ['fondos-select'],
+    queryKey: ['fondos-select', { estado: 'ACTIVO' }],
     queryFn: async () => {
       const { data } = await api.get('/fondos', { params: { limit: 100, estado: 'ACTIVO' } })
       return data.data as { id: number; nombre: string; moneda: string }[]
@@ -46,36 +55,57 @@ export default function AporteFormPage() {
     queryFn: async () => {
       if (!selectedFondo) return []
       const { data } = await api.get(`/fondos/${selectedFondo}/socios`)
-      return (data.data || []).map((fs: any) => fs.socio) as { id: number; codigo: string; nombres: string; apellidoPaterno: string; apellidoMaterno: string }[]
+      return (data.data || []).map(
+        (fs: import('@/modules/fondos/types').FondoSocio) => fs.socio
+      ) as {
+        id: number
+        codigo: string
+        nombres: string
+        apellidoPaterno: string
+        apellidoMaterno: string
+      }[]
     },
     enabled: !!selectedFondo,
   })
 
-  useEffect(() => {
-    if (aporteData?.data) {
-      const a = aporteData.data
-      setForm({
-        tipo: a.tipo,
-        monto: a.monto,
-        periodo: a.periodo,
-        fechaAporte: a.fechaAporte?.slice(0, 10) || toLocalDateString(new Date()),
-        metodoPago: a.metodoPago,
-        comprobante: a.comprobante || '',
-        observacion: a.observacion || '',
-        fondoId: a.fondoId,
-        socioId: a.socioId,
-      })
-      setSelectedFondo(String(a.fondoId))
-    }
-  }, [aporteData])
+  const [prevAporte, setPrevAporte] = useState(aporteData?.data)
+
+  if (aporteData?.data && aporteData.data !== prevAporte) {
+    setPrevAporte(aporteData.data)
+    const a = aporteData.data
+    setForm({
+      tipo: a.tipo,
+      monto: a.monto,
+      periodo: a.periodo,
+      fechaAporte: a.fechaAporte?.slice(0, 10) || toLocalDateString(new Date()),
+      metodoPago: a.metodoPago,
+      comprobante: a.comprobante || '',
+      observacion: a.observacion || '',
+      fondoId: a.fondoId,
+      socioId: a.socioId,
+    })
+    setSelectedFondo(String(a.fondoId))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!form.fondoId) { toast.error('Seleccione un fondo'); return }
-    if (!form.socioId) { toast.error('Seleccione un socio'); return }
-    if (!form.monto || form.monto <= 0) { toast.error('Ingrese un monto válido'); return }
-    if (!form.periodo) { toast.error('Ingrese el período'); return }
+    if (!form.fondoId) {
+      toast.error('Seleccione un fondo')
+      return
+    }
+    if (!form.socioId) {
+      toast.error('Seleccione un socio')
+      return
+    }
+    if (!form.monto || form.monto <= 0) {
+      toast.error('Ingrese un monto válido')
+      return
+    }
+    if (!form.periodo) {
+      toast.error('Ingrese el período')
+      return
+    }
 
     if (isEdit) {
       updateMutation.mutate(form)
@@ -84,7 +114,7 @@ export default function AporteFormPage() {
     }
   }
 
-  const update = (field: keyof AporteFormData, value: any) => {
+  const update = (field: keyof AporteFormData, value: AporteFormData[keyof AporteFormData]) => {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -94,18 +124,22 @@ export default function AporteFormPage() {
 
   return (
     <div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-4 mb-8">
+        <Button
+          variant="ghost"
+          onClick={() => window.history.back()}
+          iconLeft={<ArrowLeft className="h-4 w-4" />}
+        >
+          Volver
+        </Button>
         <SectionHeader
           title={isEdit ? 'Editar Aporte' : 'Nuevo Aporte'}
           description={isEdit ? 'Modificar datos del aporte' : 'Registrar un nuevo aporte'}
         />
-        <Button as="link" to="/aportes" variant="secondary" iconLeft={<ArrowLeft className="h-4 w-4" />}>
-          Volver
-        </Button>
       </div>
 
-      <Card className="mx-auto max-w-2xl" padding="lg">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <Card padding="lg">
+        <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid gap-6 sm:grid-cols-2">
             <FormField label="Tipo de Aporte" required>
               <Select
@@ -202,8 +236,7 @@ export default function AporteFormPage() {
             </FormField>
 
             <FormField label="Observación" className="sm:col-span-2">
-              <textarea
-                className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-2.5 text-sm text-[#111827] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 placeholder:text-gray-400"
+              <Textarea
                 value={form.observacion || ''}
                 onChange={(e) => update('observacion', e.target.value)}
                 placeholder="Notas adicionales..."
@@ -213,10 +246,14 @@ export default function AporteFormPage() {
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button as="link" to="/aportes" variant="secondary">
+            <Button as="link" to="/aportes" variant="ghost">
               Cancelar
             </Button>
-            <Button type="submit" iconLeft={<Save className="h-4 w-4" />} disabled={createMutation.isPending || updateMutation.isPending}>
+            <Button
+              type="submit"
+              iconLeft={<Save className="h-4 w-4" />}
+              loading={createMutation.isPending || updateMutation.isPending}
+            >
               {isEdit ? 'Guardar Cambios' : 'Registrar Aporte'}
             </Button>
           </div>

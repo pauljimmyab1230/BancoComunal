@@ -1,5 +1,10 @@
 import { z } from 'zod'
 
+function validaMonto(v: number): boolean {
+  return v > 0 && v <= 99999999.99 && Math.abs(v * 100 - Math.round(v * 100)) < 1e-6
+}
+const MSG_MONTO = 'El monto debe ser mayor a 0 y con hasta 2 decimales'
+
 function emptyToUndefined(val: unknown) {
   return val === '' || val === null || val === undefined ? undefined : val
 }
@@ -33,10 +38,12 @@ export const createMovimientoSchema = z.object({
   cajaId: z.coerce.number().int().positive(),
   conceptoId: z.coerce.number().int().positive(),
   tipo: z.enum(['INGRESO', 'EGRESO', 'TRANSFERENCIA', 'AJUSTE']),
-  monto: z.coerce.number().positive(),
+  monto: z.coerce.number().refine(validaMonto, MSG_MONTO),
   descripcion: z.string().max(500).optional(),
   comprobante: z.string().max(100).optional(),
-  metodoPago: z.enum(['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE', 'TARJETA', 'OTRO']).default('EFECTIVO'),
+  metodoPago: z
+    .enum(['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE', 'TARJETA', 'OTRO'])
+    .default('EFECTIVO'),
   referencia: z.string().max(100).optional(),
   fechaMovimiento: z.string().optional(),
 })
@@ -56,7 +63,7 @@ export const aprobarArqueoSchema = z.object({
 export const transferirSchema = z.object({
   cajaOrigenId: z.coerce.number().int().positive(),
   cajaDestinoId: z.coerce.number().int().positive(),
-  monto: z.coerce.number().positive('El monto debe ser mayor a 0'),
+  monto: z.coerce.number().refine(validaMonto, MSG_MONTO),
   descripcion: z.string().max(500).optional(),
 })
 

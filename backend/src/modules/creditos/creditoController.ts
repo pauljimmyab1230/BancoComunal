@@ -1,6 +1,11 @@
 import { Request, Response, NextFunction } from 'express'
 import { creditoService } from './creditoService'
-import { createPrestamoSchema, updatePrestamoSchema, pagoCuotaSchema, liquidarSchema } from './creditoValidation'
+import {
+  createPrestamoSchema,
+  updatePrestamoSchema,
+  pagoCuotaSchema,
+  liquidarSchema,
+} from './creditoValidation'
 import { toInt } from '../../middleware/parseHelpers'
 
 export const creditoController = {
@@ -24,7 +29,10 @@ export const creditoController = {
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const id = toInt(req.params.id)
-      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      if (id === undefined) {
+        res.status(400).json({ success: false, message: 'ID inválido' })
+        return
+      }
 
       const prestamo = await creditoService.getById(id)
       if (!prestamo) {
@@ -55,8 +63,10 @@ export const creditoController = {
   async crear(req: Request, res: Response, next: NextFunction) {
     try {
       const data = createPrestamoSchema.parse(req.body)
-      const prestamo = await creditoService.crear(data)
-      res.status(201).json({ success: true, data: prestamo, message: 'Préstamo creado correctamente' })
+      const prestamo = await creditoService.crear(data, req.user?.userId)
+      res
+        .status(201)
+        .json({ success: true, data: prestamo, message: 'Préstamo creado correctamente' })
     } catch (error) {
       next(error)
     }
@@ -65,10 +75,13 @@ export const creditoController = {
   async actualizar(req: Request, res: Response, next: NextFunction) {
     try {
       const id = toInt(req.params.id)
-      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      if (id === undefined) {
+        res.status(400).json({ success: false, message: 'ID inválido' })
+        return
+      }
 
       const data = updatePrestamoSchema.parse(req.body)
-      const prestamo = await creditoService.actualizar(id, data)
+      const prestamo = await creditoService.actualizar(id, data, req.user?.userId)
       res.json({ success: true, data: prestamo, message: 'Préstamo actualizado correctamente' })
     } catch (error) {
       next(error)
@@ -78,7 +91,7 @@ export const creditoController = {
   async pagarCuota(req: Request, res: Response, next: NextFunction) {
     try {
       const data = pagoCuotaSchema.parse(req.body)
-      const result = await creditoService.pagarCuota(data)
+      const result = await creditoService.pagarCuota(data, req.user?.userId)
       res.json({ success: true, data: result, message: 'Pago registrado correctamente' })
     } catch (error) {
       next(error)
@@ -88,7 +101,7 @@ export const creditoController = {
   async liquidar(req: Request, res: Response, next: NextFunction) {
     try {
       const { prestamoId, ...data } = liquidarSchema.parse(req.body)
-      const result = await creditoService.liquidar(prestamoId, data)
+      const result = await creditoService.liquidar(prestamoId, data, req.user?.userId)
       res.json({ success: true, data: result, message: 'Préstamo liquidado correctamente' })
     } catch (error) {
       next(error)
@@ -98,9 +111,12 @@ export const creditoController = {
   async anular(req: Request, res: Response, next: NextFunction) {
     try {
       const id = toInt(req.params.id)
-      if (id === undefined) { res.status(400).json({ success: false, message: 'ID inválido' }); return }
+      if (id === undefined) {
+        res.status(400).json({ success: false, message: 'ID inválido' })
+        return
+      }
 
-      const result = await creditoService.anular(id)
+      await creditoService.anular(id, req.user?.userId)
       res.json({ success: true, message: 'Préstamo anulado correctamente' })
     } catch (error) {
       next(error)

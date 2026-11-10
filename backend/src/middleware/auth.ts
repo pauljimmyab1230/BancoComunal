@@ -8,29 +8,28 @@ export interface AuthPayload {
   rol: string
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: AuthPayload
-    }
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: AuthPayload
   }
 }
 
-export function authenticate(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization
-  if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({ success: false, message: 'Token requerido' })
-    return
-  }
+const OPCIONES_VERIFICACION: jwt.VerifyOptions = { algorithms: ['HS256'] }
 
-  const token = authHeader.split(' ')[1]
+export function authenticate(req: Request, res: Response, next: NextFunction) {
+  // Intentar obtener token de cookie o Authorization header
+  const tokenFromCookie = req.cookies?.accessToken
+  const authHeader = req.headers.authorization
+  const token =
+    tokenFromCookie || (authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null)
+
   if (!token) {
     res.status(401).json({ success: false, message: 'Token requerido' })
     return
   }
 
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as AuthPayload
+    const decoded = jwt.verify(token, env.JWT_SECRET, OPCIONES_VERIFICACION) as AuthPayload
     req.user = decoded
     next()
   } catch {
@@ -43,21 +42,23 @@ export function extractTokenFromRequest(req: Request): string | null {
   if (authHeader?.startsWith('Bearer ')) {
     return authHeader.split(' ')[1]
   }
-  if (typeof req.query?.token === 'string' && req.query.token) {
-    return req.query.token
-  }
   return null
 }
 
 export function authenticateUploads(req: Request, res: Response, next: NextFunction) {
-  const token = extractTokenFromRequest(req)
+  // Intentar obtener token de cookie o Authorization header
+  const tokenFromCookie = req.cookies?.accessToken
+  const authHeader = req.headers.authorization
+  const token =
+    tokenFromCookie || (authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null)
+
   if (!token) {
     res.status(401).json({ success: false, message: 'Token requerido' })
     return
   }
 
   try {
-    jwt.verify(token, env.JWT_SECRET)
+    jwt.verify(token, env.JWT_SECRET, OPCIONES_VERIFICACION)
     next()
   } catch {
     res.status(401).json({ success: false, message: 'Token inválido o expirado' })

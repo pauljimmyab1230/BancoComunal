@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { creditosApi, type PrestamosQuery } from '../api/creditosApi'
+import type { PrestamoFormData, PagoCuotaForm } from '../types'
 
 export function useCreditos(params?: PrestamosQuery) {
   return useQuery({
@@ -23,7 +24,7 @@ export function useCrearCredito() {
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: (data: any) => creditosApi.create(data),
+    mutationFn: (data: PrestamoFormData) => creditosApi.create(data),
     onSuccess: (res) => {
       toast.success(res.message || 'Préstamo creado correctamente')
       queryClient.invalidateQueries({ queryKey: ['creditos'] })
@@ -41,7 +42,7 @@ export function useActualizarCredito(id: number) {
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: (data: any) => creditosApi.update(id, data),
+    mutationFn: (data: Partial<PrestamoFormData>) => creditosApi.update(id, data),
     onSuccess: (res) => {
       toast.success(res.message || 'Préstamo actualizado correctamente')
       queryClient.invalidateQueries({ queryKey: ['creditos'] })
@@ -59,7 +60,7 @@ export function usePagarCuota() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: any) => creditosApi.pagarCuota(data),
+    mutationFn: (data: PagoCuotaForm) => creditosApi.pagarCuota(data),
     onSuccess: (res) => {
       toast.success(res.message || 'Pago registrado correctamente')
       queryClient.invalidateQueries({ queryKey: ['credito'] })
@@ -95,8 +96,12 @@ export function useLiquidarCredito() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: { prestamoId: number; metodoPago: string; fechaPago?: string; comprobante?: string }) =>
-      creditosApi.liquidar(data),
+    mutationFn: (data: {
+      prestamoId: number
+      metodoPago: string
+      fechaPago?: string
+      comprobante?: string
+    }) => creditosApi.liquidar(data),
     onSuccess: (res) => {
       toast.success(res.message || 'Préstamo liquidado correctamente')
       queryClient.invalidateQueries({ queryKey: ['creditos'] })

@@ -1,12 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import { getErrorMessage } from '@/lib/api'
 import { aportesApi, type AportesQuery } from '../api/aportesApi'
-
-function getErrorMessage(error: unknown, fallback: string): string {
-  const err = error as { response?: { data?: { message?: string } }; message?: string }
-  return err?.response?.data?.message || err?.message || fallback
-}
+import type { AporteFormData } from '../types'
 
 export function useAportes(params?: AportesQuery) {
   return useQuery({
@@ -28,7 +25,7 @@ export function useCreateAporte() {
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: (data: any) => aportesApi.create(data),
+    mutationFn: (data: AporteFormData) => aportesApi.create(data),
     onSuccess: (res) => {
       toast.success(res.message || 'Aporte registrado correctamente')
       queryClient.invalidateQueries({ queryKey: ['aportes'] })
@@ -46,7 +43,7 @@ export function useUpdateAporte(id: number) {
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: (data: any) => aportesApi.update(id, data),
+    mutationFn: (data: Partial<AporteFormData>) => aportesApi.update(id, data),
     onSuccess: (res) => {
       toast.success(res.message || 'Aporte actualizado correctamente')
       queryClient.invalidateQueries({ queryKey: ['aportes'] })
