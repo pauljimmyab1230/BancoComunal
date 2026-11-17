@@ -83,3 +83,36 @@ export interface DashboardData {
   prestamosTop5: DashboardPrestamoTop[]
   actividadReciente: DashboardAuditEntry[]
 }
+
+export interface SerieIngresosEgresos {
+  etiqueta: string
+  ingresos: number
+  egresos: number
+  neto: number
+}
+
+export interface SerieMensualMonto {
+  etiqueta: string
+  monto: number
+  cantidad: number
+}
+
+export interface SerieMensualConteo {
+  etiqueta: string
+  cantidad: number
+}
+
+export interface MorosidadFondo {
+  fondo: string
+  vencidas: number
+  montoAdeudado: number
+}
+
+export interface DashboardEvolucion {
+  periodo: { inicio: string; fin: string }
+  ingresosEgresos: SerieIngresosEgresos[]
+  aportes: SerieMensualMonto[]
+  desembolsos: SerieMensualMonto[]
+  altasSocios: SerieMensualConteo[]
+  morosidadPorFondo: MorosidadFondo[]
+}

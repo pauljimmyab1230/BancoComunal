@@ -62,9 +62,10 @@ export function useDeleteAporte() {
 
   return useMutation({
     mutationFn: (id: number) => aportesApi.delete(id),
-    onSuccess: (res) => {
+    onSuccess: (res, id) => {
       toast.success(res.message || 'Aporte anulado correctamente')
       queryClient.invalidateQueries({ queryKey: ['aportes'] })
+      queryClient.invalidateQueries({ queryKey: ['aporte', id] })
       queryClient.invalidateQueries({ queryKey: ['fondos'] })
     },
     onError: (error: Error) => {

@@ -18,12 +18,23 @@ import {
 import type { AuditLogEntry } from '../types'
 
 const operacionLabels: Record<
-  AuditLogEntry['operacion'],
+  string,
   { label: string; variant: 'green' | 'blue' | 'red'; icon: typeof Plus }
 > = {
   CREATE: { label: 'Creación', variant: 'green', icon: Plus },
   UPDATE: { label: 'Actualización', variant: 'blue', icon: Pencil },
   DELETE: { label: 'Eliminación', variant: 'red', icon: Trash2 },
+}
+
+/** Devuelve la etiqueta y el estilo de una operación, con un fallback seguro. */
+function obtenerOperacion(operacion: string) {
+  return (
+    operacionLabels[operacion] ?? {
+      label: operacion,
+      variant: 'blue' as const,
+      icon: Activity,
+    }
+  )
 }
 
 const tablaLabels: Record<string, string> = {
@@ -50,45 +61,51 @@ function StatsCards() {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       <Card padding="md">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
-            <Activity className="h-5 w-5 text-blue-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-500/15">
+            <Activity className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <p className="text-xs text-gray-500">Total Registros</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+            <p className="text-xs text-muted">Total Registros</p>
+            <p className="text-2xl font-bold text-foreground">{stats.total}</p>
           </div>
         </div>
       </Card>
       <Card padding="md">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50">
-            <Plus className="h-5 w-5 text-green-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-500/15">
+            <Plus className="h-5 w-5 text-green-600 dark:text-green-400" />
           </div>
           <div>
-            <p className="text-xs text-gray-500">Creaciones</p>
-            <p className="text-2xl font-bold text-green-600">{stats.byOperacion.CREATE || 0}</p>
+            <p className="text-xs text-muted">Creaciones</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+              {stats.byOperacion.CREATE || 0}
+            </p>
           </div>
         </div>
       </Card>
       <Card padding="md">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
-            <Pencil className="h-5 w-5 text-blue-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-500/15">
+            <Pencil className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <p className="text-xs text-gray-500">Actualizaciones</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.byOperacion.UPDATE || 0}</p>
+            <p className="text-xs text-muted">Actualizaciones</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {stats.byOperacion.UPDATE || 0}
+            </p>
           </div>
         </div>
       </Card>
       <Card padding="md">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50">
-            <Trash2 className="h-5 w-5 text-red-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-500/15">
+            <Trash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
           </div>
           <div>
-            <p className="text-xs text-gray-500">Eliminaciones</p>
-            <p className="text-2xl font-bold text-red-600">{stats.byOperacion.DELETE || 0}</p>
+            <p className="text-xs text-muted">Eliminaciones</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+              {stats.byOperacion.DELETE || 0}
+            </p>
           </div>
         </div>
       </Card>
@@ -107,22 +124,22 @@ function DetailModal({
 }) {
   if (!entry) return null
 
-  const op = operacionLabels[entry.operacion]
+  const op = obtenerOperacion(entry.operacion)
   const mod = tablaLabels[entry.tabla] || entry.tabla
 
   const renderJson = (obj: Record<string, unknown> | undefined) => {
-    if (!obj) return <span className="text-gray-400 italic">N/A</span>
+    if (!obj) return <span className="text-subtle italic">N/A</span>
     const entries = Object.entries(obj)
-    if (entries.length === 0) return <span className="text-gray-400 italic">Sin datos</span>
+    if (entries.length === 0) return <span className="text-subtle italic">Sin datos</span>
     return (
       <div className="space-y-1">
         {entries.map(([key, value]) => (
           <div
             key={key}
-            className="flex justify-between text-sm py-1 border-b border-gray-50 last:border-0"
+            className="flex justify-between text-sm py-1 border-b border-border-subtle last:border-0"
           >
-            <span className="text-gray-500 font-mono text-xs">{key}</span>
-            <span className="text-gray-900 text-right max-w-[60%] truncate" title={String(value)}>
+            <span className="text-muted font-mono text-xs">{key}</span>
+            <span className="text-foreground text-right max-w-[60%] truncate" title={String(value)}>
               {String(value ?? '—')}
             </span>
           </div>
@@ -134,34 +151,34 @@ function DetailModal({
   return (
     <Modal open={open} onClose={onClose} title="Detalle del Registro" maxWidth="lg">
       <div className="space-y-4">
-        <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+        <div className="flex items-center gap-3 pb-3 border-b border-border-subtle">
           <Badge variant={op.variant}>{op.label}</Badge>
-          <span className="text-sm font-medium text-gray-700">{mod}</span>
-          <span className="text-xs text-gray-400">#{entry.registroId}</span>
+          <span className="text-sm font-medium text-foreground">{mod}</span>
+          <span className="text-xs text-subtle">#{entry.registroId}</span>
         </div>
 
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <p className="text-xs text-gray-500 mb-1">Fecha</p>
-            <p className="text-gray-900">{new Date(entry.createdAt).toLocaleString('es-PE')}</p>
+            <p className="text-xs text-muted mb-1">Fecha</p>
+            <p className="text-foreground">{new Date(entry.createdAt).toLocaleString('es-PE')}</p>
           </div>
         </div>
 
         {entry.operacion === 'UPDATE' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+              <p className="text-xs font-semibold text-muted mb-2 uppercase tracking-wide">
                 Valores Anteriores
               </p>
-              <div className="bg-red-50/50 rounded-lg p-3 border border-red-100">
+              <div className="bg-red-50/50 dark:bg-red-500/10 rounded-lg p-3 border border-red-200 dark:border-red-500/30">
                 {renderJson(entry.datosAnteriores)}
               </div>
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+              <p className="text-xs font-semibold text-muted mb-2 uppercase tracking-wide">
                 Valores Nuevos
               </p>
-              <div className="bg-green-50/50 rounded-lg p-3 border border-green-100">
+              <div className="bg-green-50/50 dark:bg-green-500/10 rounded-lg p-3 border border-green-200 dark:border-green-500/30">
                 {renderJson(entry.datosNuevos)}
               </div>
             </div>
@@ -170,10 +187,10 @@ function DetailModal({
 
         {entry.operacion === 'CREATE' && (
           <div>
-            <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+            <p className="text-xs font-semibold text-muted mb-2 uppercase tracking-wide">
               Datos Creados
             </p>
-            <div className="bg-green-50/50 rounded-lg p-3 border border-green-100">
+            <div className="bg-green-50/50 dark:bg-green-500/10 rounded-lg p-3 border border-green-200 dark:border-green-500/30">
               {renderJson(entry.datosNuevos)}
             </div>
           </div>
@@ -181,17 +198,19 @@ function DetailModal({
 
         {entry.operacion === 'DELETE' && (
           <div>
-            <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+            <p className="text-xs font-semibold text-muted mb-2 uppercase tracking-wide">
               Datos Eliminados
             </p>
-            <div className="bg-red-50/50 rounded-lg p-3 border border-red-100">
+            <div className="bg-red-50/50 dark:bg-red-500/10 rounded-lg p-3 border border-red-200 dark:border-red-500/30">
               {renderJson(entry.datosAnteriores)}
             </div>
           </div>
         )}
 
         {entry.ip && (
-          <div className="text-xs text-gray-400 pt-2 border-t border-gray-100">IP: {entry.ip}</div>
+          <div className="text-xs text-subtle pt-2 border-t border-border-subtle">
+            IP: {entry.ip}
+          </div>
         )}
       </div>
     </Modal>
@@ -294,38 +313,38 @@ export default function AuditoriaPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <tr className="border-b border-border-subtle bg-surface-muted/60">
+                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
                     Fecha
                   </th>
-                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
                     Operación
                   </th>
-                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
                     Módulo
                   </th>
-                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
                     Registro #
                   </th>
-                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
                     Detalle
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border-subtle">
                 {data.data.map((entry) => {
-                  const op = operacionLabels[entry.operacion]
+                  const op = obtenerOperacion(entry.operacion)
                   const mod = tablaLabels[entry.tabla] || entry.tabla
                   return (
-                    <tr key={entry.id} className="hover:bg-gray-50">
-                      <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">
+                    <tr key={entry.id} className="hover:bg-surface-hover">
+                      <td className="px-5 py-3 text-sm text-muted whitespace-nowrap">
                         {new Date(entry.createdAt).toLocaleString('es-PE')}
                       </td>
                       <td className="px-5 py-3 text-center">
                         <Badge variant={op.variant}>{op.label}</Badge>
                       </td>
-                      <td className="px-5 py-3 text-sm text-gray-700">{mod}</td>
-                      <td className="px-5 py-3 text-center font-mono text-xs text-gray-500">
+                      <td className="px-5 py-3 text-sm text-foreground">{mod}</td>
+                      <td className="px-5 py-3 text-center font-mono text-xs text-muted">
                         #{entry.registroId}
                       </td>
                       <td className="px-5 py-3 text-center">
@@ -340,7 +359,7 @@ export default function AuditoriaPage() {
             </table>
           </div>
           {data.totalPages > 1 && (
-            <div className="border-t border-gray-100 px-5 py-3">
+            <div className="border-t border-border-subtle px-5 py-3">
               <Pagination currentPage={page} totalPages={data.totalPages} onPageChange={setPage} />
             </div>
           )}

@@ -19,14 +19,16 @@ export default function Card({
   children,
   className = '',
   padding = 'md',
-  hover = true,
+  hover = false,
   onClick,
 }: CardProps) {
   return (
     <div
       onClick={onClick}
-      className={`overflow-hidden rounded-2xl border border-gray-200 bg-white transition-all duration-300 ${
-        hover ? 'hover:-translate-y-1 hover:shadow-xl hover:shadow-gray-200/50' : ''
+      className={`overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] transition-all duration-300 ${
+        hover
+          ? 'hover:-translate-y-0.5 hover:border-secondary/30 hover:shadow-[var(--shadow-pop)]'
+          : ''
       } ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       <div className={paddingStyles[padding]}>{children}</div>

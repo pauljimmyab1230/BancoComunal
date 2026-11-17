@@ -1,43 +1,49 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import crypto from 'crypto'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../config/prisma', () => ({
-  default: {
+const { prismaMock, auditMock } = vi.hoisted(() => ({
+  prismaMock: {
     usuario: {
       findUnique: vi.fn(),
       update: vi.fn(),
+      count: vi.fn(),
     },
     refreshToken: {
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      delete: vi.fn(),
       deleteMany: vi.fn(),
     },
+    configuracionOrganizacion: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+    },
+    fondoRotatorio: {
+      findFirst: vi.fn(),
+    },
+    conceptoCaja: {
+      findMany: vi.fn(),
+      count: vi.fn(),
+    },
   },
+  auditMock: vi.fn(),
 }))
 
-vi.mock('bcryptjs', () => ({
-  default: {
-    compare: vi.fn(),
-    hash: vi.fn(),
-  },
-}))
-
-vi.mock('jsonwebtoken', () => ({
-  default: {
-    sign: vi.fn(),
-    verify: vi.fn(),
-  },
-}))
-
+vi.mock('../../config/prisma', () => ({ default: prismaMock }))
+vi.mock('../../config/auditLog', () => ({ createAuditLog: auditMock }))
 vi.mock('../../config/env', () => ({
   env: {
+    PORT: 3000,
+    DATABASE_URL: 'mysql://test',
     JWT_SECRET: 'test-jwt-secret',
     JWT_EXPIRES_IN: '8h',
     JWT_REFRESH_SECRET: 'test-refresh-secret',
+    UPLOAD_DIR: 'uploads',
+    CORS_ORIGINS: 'http://localhost:5173',
   },
 }))
-
+vi.mock('bcryptjs', () => ({
+  default: {
+    compare: vi.fn(),
+    hash: vi.fn().mockResolvedValue('$2a$12$hash'),
+  },
+}))
 vi.mock('../caja/cajaService', () => ({
   cajaService: {
     getConceptoById: vi.fn(),
@@ -48,291 +54,169 @@ vi.mock('../caja/cajaService', () => ({
 }))
 
 import { configuracionService } from './configuracionService'
-import prisma from '../../config/prisma'
-import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
-import { HttpError } from '../../middleware/httpError'
 
-const mockPrisma = vi.mocked(prisma)
-const mockBcrypt = vi.mocked(bcrypt)
-const mockJwt = vi.mocked(jwt)
+const ADMIN_ACTIVO = {
+  id: 1,
+  username: 'admin',
+  nombres: 'Admin',
+  apellidoPaterno: 'Sistema',
+  apellidoMaterno: null,
+  rol: 'ADMIN',
+  estado: 'ACTIVO',
+}
 
-const hashearToken = (token: string) => crypto.createHash('sha256').update(token).digest('hex')
+const VOCAL = {
+  id: 2,
+  username: 'vocal',
+  nombres: 'Vocal',
+  apellidoPaterno: 'Prueba',
+  apellidoMaterno: null,
+  rol: 'VOCAL',
+  estado: 'ACTIVO',
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.useFakeTimers()
-  vi.setSystemTime(new Date('2026-01-15T12:00:00Z'))
 })
 
-afterEach(() => {
-  vi.useRealTimers()
-})
+describe('deleteUsuario', () => {
+  it('impide que un usuario se desactive a sí mismo', async () => {
+    prismaMock.usuario.findUnique.mockResolvedValue(ADMIN_ACTIVO)
 
-const mockUsuario = {
-  id: 1,
-  nombres: 'Juan',
-  apellidoPaterno: 'Perez',
-  apellidoMaterno: 'Lopez',
-  username: 'juanperez',
-  correo: 'juan@test.com',
-  telefono: '999888777',
-  rol: 'ADMIN',
-  estado: 'ACTIVO',
-  password: '$2a$12$hashedpassword',
-  intentosFallidos: 0,
-  bloqueadoHasta: null,
-  ultimoAcceso: null,
-  cambiarPassword: false,
-  createdAt: new Date('2026-01-01'),
-}
+    await expect(configuracionService.deleteUsuario(1, 1)).rejects.toThrow(
+      'No puedes desactivar tu propia cuenta'
+    )
+    expect(prismaMock.usuario.update).not.toHaveBeenCalled()
+  })
 
-describe('configuracionService.login', () => {
-  it('should login successfully with valid credentials', async () => {
-    mockPrisma.usuario.findUnique.mockResolvedValue(mockUsuario as any)
-    mockBcrypt.compare.mockResolvedValue(true as never)
-    mockPrisma.usuario.update.mockResolvedValue(mockUsuario as any)
-    mockJwt.sign.mockReturnValue('mock-token' as any)
-    mockPrisma.refreshToken.create.mockResolvedValue({} as any)
+  it('impide desactivar al último administrador activo', async () => {
+    prismaMock.usuario.findUnique.mockResolvedValue(ADMIN_ACTIVO)
+    prismaMock.usuario.count.mockResolvedValue(0)
 
-    const result = await configuracionService.login('juanperez', 'correctPassword')
+    await expect(configuracionService.deleteUsuario(1, 9)).rejects.toThrow(
+      'Debe existir al menos un administrador activo'
+    )
+    expect(prismaMock.usuario.update).not.toHaveBeenCalled()
+  })
 
-    expect(mockPrisma.usuario.findUnique).toHaveBeenCalledWith({ where: { username: 'juanperez' } })
-    expect(mockBcrypt.compare).toHaveBeenCalledWith('correctPassword', mockUsuario.password)
-    expect(mockPrisma.usuario.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: { ultimoAcceso: expect.any(Date), intentosFallidos: 0, bloqueadoHasta: null },
+  it('aplica baja lógica y revoca las sesiones', async () => {
+    prismaMock.usuario.findUnique.mockResolvedValue(VOCAL)
+    prismaMock.usuario.update.mockResolvedValue({ ...VOCAL, estado: 'INACTIVO' })
+
+    const resultado = await configuracionService.deleteUsuario(2, 9, '127.0.0.1')
+
+    expect(resultado).toBe(true)
+    expect(prismaMock.usuario.update).toHaveBeenCalledWith({
+      where: { id: 2 },
+      data: { estado: 'INACTIVO' },
     })
-    expect(mockJwt.sign).toHaveBeenCalledTimes(2)
-    expect(result).toHaveProperty('token')
-    expect(result).toHaveProperty('refreshToken')
-    expect(result.user).toEqual({
+    expect(prismaMock.refreshToken.deleteMany).toHaveBeenCalledWith({ where: { usuarioId: 2 } })
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ operacion: 'DELETE', registroId: 2 })
+    )
+  })
+})
+
+describe('updateUsuario', () => {
+  it('impide que un administrador se quite su propio rol', async () => {
+    prismaMock.usuario.findUnique.mockResolvedValue(ADMIN_ACTIVO)
+
+    await expect(configuracionService.updateUsuario(1, { rol: 'VOCAL' }, 1)).rejects.toThrow(
+      'No puedes quitarte el rol de administrador'
+    )
+    expect(prismaMock.usuario.update).not.toHaveBeenCalled()
+  })
+
+  it('impide dejar el sistema sin administradores activos', async () => {
+    prismaMock.usuario.findUnique.mockResolvedValue(ADMIN_ACTIVO)
+    prismaMock.usuario.count.mockResolvedValue(0)
+
+    await expect(configuracionService.updateUsuario(1, { estado: 'INACTIVO' }, 9)).rejects.toThrow(
+      'Debe existir al menos un administrador activo'
+    )
+    expect(prismaMock.usuario.update).not.toHaveBeenCalled()
+  })
+
+  it('permite degradar a un administrador cuando existe otro activo', async () => {
+    prismaMock.usuario.findUnique.mockResolvedValue(ADMIN_ACTIVO)
+    prismaMock.usuario.count.mockResolvedValue(1)
+    prismaMock.usuario.update.mockResolvedValue({ ...ADMIN_ACTIVO, rol: 'TESORERO' })
+
+    const resultado = await configuracionService.updateUsuario(1, { rol: 'TESORERO' }, 9)
+
+    expect(resultado?.rol).toBe('TESORERO')
+    expect(prismaMock.usuario.update).toHaveBeenCalled()
+  })
+})
+
+describe('organización', () => {
+  it('guarda la configuración institucional sin tocar los fondos', async () => {
+    const configuracion = {
       id: 1,
-      nombres: 'Juan',
-      apellidoPaterno: 'Perez',
-      username: 'juanperez',
-      correo: 'juan@test.com',
-      rol: 'ADMIN',
-      cambiarPassword: false,
-    })
-  })
-
-  it('should throw error for non-existent user', async () => {
-    mockPrisma.usuario.findUnique.mockResolvedValue(null)
-
-    await expect(configuracionService.login('unknown', 'pass')).rejects.toThrow(
-      new HttpError(400, 'Usuario o contraseña incorrectos')
-    )
-    expect(mockPrisma.usuario.update).not.toHaveBeenCalled()
-  })
-
-  it('should increment intentosFallidos on invalid password', async () => {
-    const usuarioWithAttempts = { ...mockUsuario, intentosFallidos: 2 }
-    mockPrisma.usuario.findUnique.mockResolvedValue(usuarioWithAttempts as any)
-    mockBcrypt.compare.mockResolvedValue(false as never)
-    mockPrisma.usuario.update.mockResolvedValue({} as any)
-
-    await expect(configuracionService.login('juanperez', 'wrongPassword')).rejects.toThrow(
-      new HttpError(400, 'Usuario o contraseña incorrectos')
-    )
-    expect(mockPrisma.usuario.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: { intentosFallidos: 3 },
-    })
-  })
-
-  it('should lock account after 5 failed attempts', async () => {
-    const usuarioWith4Attempts = { ...mockUsuario, intentosFallidos: 4 }
-    mockPrisma.usuario.findUnique.mockResolvedValue(usuarioWith4Attempts as any)
-    mockBcrypt.compare.mockResolvedValue(false as never)
-    mockPrisma.usuario.update.mockResolvedValue({} as any)
-
-    await expect(configuracionService.login('juanperez', 'wrongPassword')).rejects.toThrow(
-      new HttpError(400, 'Usuario o contraseña incorrectos')
-    )
-
-    expect(mockPrisma.usuario.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: {
-        intentosFallidos: 5,
-        bloqueadoHasta: expect.any(Date),
-      },
-    })
-    const updateCall = mockPrisma.usuario.update.mock.calls[0][0] as any
-    expect(updateCall.data.bloqueadoHasta.getTime()).toBe(Date.now() + 15 * 60 * 1000)
-  })
-
-  it('should reject login when account is locked', async () => {
-    const futureDate = new Date(Date.now() + 10 * 60 * 1000)
-    const lockedUser = { ...mockUsuario, bloqueadoHasta: futureDate }
-    mockPrisma.usuario.findUnique.mockResolvedValue(lockedUser as any)
-
-    await expect(configuracionService.login('juanperez', 'password')).rejects.toThrow(
-      expect.objectContaining({ status: 423 }) as any
-    )
-    expect(mockBcrypt.compare).not.toHaveBeenCalled()
-  })
-
-  it('should allow login after lockout expires', async () => {
-    const pastDate = new Date(Date.now() - 1 * 60 * 1000)
-    const expiredLockUser = { ...mockUsuario, bloqueadoHasta: pastDate, intentosFallidos: 5 }
-    mockPrisma.usuario.findUnique.mockResolvedValue(expiredLockUser as any)
-    mockBcrypt.compare.mockResolvedValue(true as never)
-    mockPrisma.usuario.update.mockResolvedValue({} as any)
-    mockJwt.sign.mockReturnValue('mock-token' as any)
-    mockPrisma.refreshToken.create.mockResolvedValue({} as any)
-
-    const result = await configuracionService.login('juanperez', 'correctPassword')
-
-    expect(result).toHaveProperty('token')
-    expect(mockPrisma.usuario.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: { ultimoAcceso: expect.any(Date), intentosFallidos: 0, bloqueadoHasta: null },
-    })
-  })
-
-  it('should reject login for inactive account', async () => {
-    const inactiveUser = { ...mockUsuario, estado: 'INACTIVO' }
-    mockPrisma.usuario.findUnique.mockResolvedValue(inactiveUser as any)
-    mockBcrypt.compare.mockResolvedValue(true as never)
-
-    await expect(configuracionService.login('juanperez', 'password')).rejects.toThrow(
-      new HttpError(400, 'La cuenta está desactivada')
-    )
-    expect(mockPrisma.usuario.update).not.toHaveBeenCalled()
-  })
-
-  it('should reset intentosFallidos and bloqueadoHasta on successful login', async () => {
-    const userWithFailedAttempts = {
-      ...mockUsuario,
-      intentosFallidos: 3,
-      bloqueadoHasta: new Date(Date.now() - 1000),
+      organizacion: 'Banquito Solidario',
+      ruc: null,
+      direccion: null,
+      telefono: null,
+      email: null,
+      monedaDefault: 'PEN',
+      createdAt: new Date('2026-01-01'),
+      updatedAt: new Date('2026-01-01'),
     }
-    mockPrisma.usuario.findUnique.mockResolvedValue(userWithFailedAttempts as any)
-    mockBcrypt.compare.mockResolvedValue(true as never)
-    mockPrisma.usuario.update.mockResolvedValue({} as any)
-    mockJwt.sign.mockReturnValue('mock-token' as any)
-    mockPrisma.refreshToken.create.mockResolvedValue({} as any)
-
-    await configuracionService.login('juanperez', 'correctPassword')
-
-    expect(mockPrisma.usuario.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: { ultimoAcceso: expect.any(Date), intentosFallidos: 0, bloqueadoHasta: null },
+    prismaMock.configuracionOrganizacion.findUnique.mockResolvedValue(configuracion)
+    prismaMock.configuracionOrganizacion.upsert.mockResolvedValue({
+      ...configuracion,
+      organizacion: 'Cooperativa Solidaria',
+      ruc: '20123456789',
     })
-  })
 
-  it('should store refresh token in database on successful login', async () => {
-    mockPrisma.usuario.findUnique.mockResolvedValue(mockUsuario as any)
-    mockBcrypt.compare.mockResolvedValue(true as never)
-    mockPrisma.usuario.update.mockResolvedValue({} as any)
-    mockJwt.sign
-      .mockReturnValueOnce('access-token' as any)
-      .mockReturnValueOnce('refresh-token' as any)
-    mockPrisma.refreshToken.create.mockResolvedValue({} as any)
-
-    await configuracionService.login('juanperez', 'correctPassword')
-
-    expect(mockPrisma.refreshToken.create).toHaveBeenCalledWith({
-      data: {
-        token: hashearToken('refresh-token'),
-        usuarioId: 1,
-        expiresAt: expect.any(Date),
+    const resultado = await configuracionService.updateOrganizacion(
+      {
+        organizacion: 'Cooperativa Solidaria',
+        ruc: '20123456789',
+        direccion: '',
+        telefono: '',
+        email: '',
+        monedaDefault: 'PEN',
       },
-    })
+      7,
+      '127.0.0.1'
+    )
+
+    expect(resultado.organizacion).toBe('Cooperativa Solidaria')
+    expect(prismaMock.fondoRotatorio.findFirst).not.toHaveBeenCalled()
+    expect(prismaMock.configuracionOrganizacion.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 1 } })
+    )
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tabla: 'ConfiguracionOrganizacion',
+        operacion: 'UPDATE',
+        usuarioId: 7,
+      })
+    )
   })
 })
 
-describe('configuracionService.refreshToken', () => {
-  const mockStoredToken = {
-    id: 10,
-    token: 'valid-refresh-token',
-    usuarioId: 1,
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-  }
-
-  it('should rotate refresh token successfully', async () => {
-    mockJwt.verify.mockReturnValue({ userId: 1, type: 'refresh' } as any)
-    mockPrisma.refreshToken.findUnique.mockResolvedValue(mockStoredToken as any)
-    mockPrisma.usuario.findUnique.mockResolvedValue(mockUsuario as any)
-    mockPrisma.refreshToken.delete.mockResolvedValue({} as any)
-    mockPrisma.refreshToken.create.mockResolvedValue({} as any)
-    mockJwt.sign.mockReturnValueOnce('new-access' as any).mockReturnValueOnce('new-refresh' as any)
-
-    const result = await configuracionService.refreshToken('valid-refresh-token')
-
-    expect(mockJwt.verify).toHaveBeenCalledWith('valid-refresh-token', 'test-refresh-secret', {
-      algorithms: ['HS256'],
-    })
-    expect(mockPrisma.refreshToken.delete).toHaveBeenCalledWith({ where: { id: 10 } })
-    expect(mockPrisma.refreshToken.create).toHaveBeenCalledWith({
-      data: {
-        token: hashearToken('new-refresh'),
-        usuarioId: 1,
-        expiresAt: expect.any(Date),
+describe('listConceptos', () => {
+  it('incluye la cantidad de movimientos de cada concepto', async () => {
+    prismaMock.conceptoCaja.findMany.mockResolvedValue([
+      {
+        id: 10,
+        codigo: 'ING-01',
+        nombre: 'Ingreso',
+        tipo: 'INGRESO',
+        afectaSaldo: 'AUMENTA',
+        requiereComprobante: true,
+        orden: 1,
+        estado: 'ACTIVO',
+        _count: { movimientos: 3 },
       },
-    })
-    expect(result).toMatchObject({ token: 'new-access', refreshToken: 'new-refresh' })
-    expect(result.user).toMatchObject({ id: 1, username: 'juanperez', rol: 'ADMIN' })
-  })
+    ])
+    prismaMock.conceptoCaja.count.mockResolvedValue(1)
 
-  it('should reject expired refresh token', async () => {
-    const expiredToken = { ...mockStoredToken, expiresAt: new Date(Date.now() - 1000) }
-    mockJwt.verify.mockReturnValue({ userId: 1, type: 'refresh' } as any)
-    mockPrisma.refreshToken.findUnique.mockResolvedValue(expiredToken as any)
-    mockPrisma.refreshToken.delete.mockResolvedValue({} as any)
+    const resultado = await configuracionService.listConceptos({})
 
-    await expect(configuracionService.refreshToken('expired-token')).rejects.toThrow(
-      new HttpError(401, 'Token expirado')
-    )
-    expect(mockPrisma.refreshToken.delete).toHaveBeenCalledWith({ where: { id: 10 } })
-  })
-
-  it('should reject revoked refresh token', async () => {
-    mockJwt.verify.mockReturnValue({ userId: 1, type: 'refresh' } as any)
-    mockPrisma.refreshToken.findUnique.mockResolvedValue(null)
-
-    await expect(configuracionService.refreshToken('revoked-token')).rejects.toThrow(
-      new HttpError(401, 'Token revocado o no válido')
-    )
-  })
-
-  it('should reject non-refresh type token', async () => {
-    mockJwt.verify.mockReturnValue({ userId: 1, type: 'access' } as any)
-
-    await expect(configuracionService.refreshToken('wrong-type-token')).rejects.toThrow(
-      new HttpError(401, 'Token inválido')
-    )
-  })
-
-  it('should reject when user is not found', async () => {
-    mockJwt.verify.mockReturnValue({ userId: 999, type: 'refresh' } as any)
-    mockPrisma.refreshToken.findUnique.mockResolvedValue(mockStoredToken as any)
-    mockPrisma.usuario.findUnique.mockResolvedValue(null)
-
-    await expect(configuracionService.refreshToken('valid-refresh-token')).rejects.toThrow(
-      new HttpError(401, 'Usuario no encontrado')
-    )
-  })
-
-  it('should reject when user account is inactive', async () => {
-    const inactiveUser = { ...mockUsuario, estado: 'INACTIVO' }
-    mockJwt.verify.mockReturnValue({ userId: 1, type: 'refresh' } as any)
-    mockPrisma.refreshToken.findUnique.mockResolvedValue(mockStoredToken as any)
-    mockPrisma.usuario.findUnique.mockResolvedValue(inactiveUser as any)
-
-    await expect(configuracionService.refreshToken('valid-refresh-token')).rejects.toThrow(
-      new HttpError(401, 'Cuenta desactivada')
-    )
-  })
-
-  it('should handle malformed JWT gracefully', async () => {
-    mockJwt.verify.mockImplementation(() => {
-      throw new Error('invalid signature')
-    })
-
-    await expect(configuracionService.refreshToken('malformed-token')).rejects.toThrow(
-      new HttpError(401, 'Refresh token inválido o expirado')
-    )
+    expect(resultado.data[0]).toMatchObject({ id: 10, movimientos: 3 })
+    expect(resultado.data[0]).not.toHaveProperty('_count')
   })
 })

@@ -125,8 +125,8 @@ export default function FondoFormPage() {
               <Building2 className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-gray-900">Información del Fondo</h3>
-              <p className="text-xs text-gray-500">Datos generales del fondo rotatorio</p>
+              <h3 className="text-base font-semibold text-foreground">Información del Fondo</h3>
+              <p className="text-xs text-muted">Datos generales del fondo rotatorio</p>
             </div>
           </div>
 
@@ -233,7 +233,7 @@ export default function FondoFormPage() {
           </div>
         </Card>
 
-        <div className="flex justify-end gap-3">
+        <div className="sticky bottom-0 z-10 mt-2 flex items-center justify-end gap-3 rounded-2xl border border-border bg-surface/90 px-4 py-3 shadow-[var(--shadow-pop)] backdrop-blur-xl">
           <Button variant="ghost" type="button" onClick={() => navigate('/fondos')}>
             Cancelar
           </Button>

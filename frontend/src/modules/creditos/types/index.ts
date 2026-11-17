@@ -31,6 +31,8 @@ export interface Prestamo {
     moneda: string
   }
   totalCuotas?: number
+  cuotasPagadas?: number
+  cuotasVencidas?: number
   cuotas?: CuotaPrestamo[]
 }
 
@@ -79,4 +81,6 @@ export interface CreditosListResponse extends PaginatedResponse<Prestamo> {
   totalPrestado: number
   totalPrestadoPorMoneda: Record<string, number>
   totalActivos: number
+  saldoPorCobrarPorMoneda: Record<string, number>
+  totalEnMora: number
 }

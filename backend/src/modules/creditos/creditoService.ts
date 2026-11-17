@@ -93,17 +93,18 @@ export async function marcarCuotasVencidas() {
   return result.count
 }
 
-function serializePrestamo(p: {
-  fondoSocio?: {
-    socio?: Record<string, unknown> | null
-    fondo?: Record<string, unknown> | null
-  } | null
-  monto: unknown
-  tasaInteres: unknown
-  montoCuota: unknown
-  totalInteres: unknown
-  [key: string]: unknown
-}) {
+function serializePrestamo<
+  T extends {
+    fondoSocio?: {
+      socio?: Record<string, unknown> | null
+      fondo?: Record<string, unknown> | null
+    } | null
+    monto: unknown
+    tasaInteres: unknown
+    montoCuota: unknown
+    totalInteres: unknown
+  },
+>(p: T) {
   const { fondoSocio, ...rest } = p
   return {
     ...rest,
@@ -168,30 +169,59 @@ export const creditoService = {
       ]
     }
 
-    const [data, total, aggregates, activosData] = await Promise.all([
-      prisma.prestamo.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          fondoSocio: { select: fondoSocioSelect },
-          _count: { select: { cuotas: true } },
-        },
-      }),
-      prisma.prestamo.count({ where }),
-      prisma.prestamo.aggregate({
-        where,
-        _sum: { monto: true },
-      }),
-      prisma.prestamo.findMany({
-        where: { ...where, estado: 'ACTIVO' },
-        select: {
-          monto: true,
-          fondoSocio: { select: { fondo: { select: { moneda: true } } } },
-        },
-      }),
-    ])
+    // Filtros de "activos" (se fuerza estado ACTIVO para los agregados).
+    const activoWhere: Prisma.PrestamoWhereInput = { ...where, estado: 'ACTIVO' }
+
+    const condSaldo: string[] = []
+    const paramsSaldo: number[] = []
+    if (fondoId) {
+      condSaldo.push('fs.fondorotatorio_id = ?')
+      paramsSaldo.push(fondoId)
+    }
+    if (socioId) {
+      condSaldo.push('fs.socio_id = ?')
+      paramsSaldo.push(socioId)
+    }
+    const whereSaldo = condSaldo.length > 0 ? `AND ${condSaldo.join(' AND ')}` : ''
+
+    const [data, total, aggregates, activosData, saldoPorCobrarRows, totalEnMora] =
+      await Promise.all([
+        prisma.prestamo.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            fondoSocio: { select: fondoSocioSelect },
+            cuotas: { select: { id: true, estado: true } },
+          },
+        }),
+        prisma.prestamo.count({ where }),
+        prisma.prestamo.aggregate({
+          where,
+          _sum: { monto: true },
+        }),
+        prisma.prestamo.findMany({
+          where: activoWhere,
+          select: {
+            monto: true,
+            fondoSocio: { select: { fondo: { select: { moneda: true } } } },
+          },
+        }),
+        prisma.$queryRawUnsafe<Array<{ moneda: string; total: string | number }>>(
+          `SELECT f.moneda AS moneda, SUM(c.saldoPendiente) AS total
+         FROM cuotaprestamo c
+         JOIN prestamo p ON c.prestamo_id = p.id
+         JOIN FondoSocio fs ON p.FondoSocio_Id = fs.id
+         JOIN fondorotatorio f ON fs.fondorotatorio_id = f.id
+         WHERE p.estado = 'ACTIVO' AND c.estado != 'ANULADO' ${whereSaldo}
+         GROUP BY f.moneda`,
+          ...paramsSaldo
+        ),
+        prisma.prestamo.count({
+          where: { ...activoWhere, cuotas: { some: { estado: 'VENCIDO' } } },
+        }),
+      ])
 
     const totalPrestadoPorMoneda: Record<string, number> = {}
     for (const p of activosData) {
@@ -199,19 +229,29 @@ export const creditoService = {
       totalPrestadoPorMoneda[moneda] = (totalPrestadoPorMoneda[moneda] || 0) + Number(p.monto)
     }
 
+    const saldoPorCobrarPorMoneda: Record<string, number> = {}
+    for (const r of saldoPorCobrarRows) {
+      saldoPorCobrarPorMoneda[r.moneda] = Number(r.total)
+    }
+
     return {
       data: data.map((p) => {
         const base = serializePrestamo(p)
+        const cuotas = (p.cuotas as { id: number; estado: string }[]) || []
         return {
           ...base,
-          _count: undefined,
-          totalCuotas: p._count.cuotas,
+          cuotas: undefined,
+          totalCuotas: cuotas.length,
+          cuotasPagadas: cuotas.filter((c) => c.estado === 'PAGADO').length,
+          cuotasVencidas: cuotas.filter((c) => c.estado === 'VENCIDO').length,
         }
       }),
       total,
       totalPrestado: Number(aggregates._sum.monto || 0),
       totalPrestadoPorMoneda,
       totalActivos: activosData.length,
+      saldoPorCobrarPorMoneda,
+      totalEnMora,
       page,
       limit,
       totalPages: Math.ceil(total / limit),

@@ -19,27 +19,24 @@ export default function EmptyState({
   onAction,
   actionTo,
 }: EmptyStateProps) {
+  const ctaClass =
+    'inline-flex items-center justify-center rounded-xl bg-secondary px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-secondary/30 transition-all hover:bg-secondary-strong active:scale-[0.98]'
+
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50/50 px-6 py-16 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface-muted/50 px-6 py-16 text-center">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-hover text-subtle">
         {icon || <Inbox className="h-8 w-8" />}
       </div>
-      <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-      {description && <p className="mt-2 max-w-sm text-sm text-gray-500">{description}</p>}
+      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+      {description && <p className="mt-2 max-w-sm text-sm text-muted">{description}</p>}
       {actionLabel && (onAction || actionTo) && (
         <div className="mt-6">
           {actionTo ? (
-            <Link
-              to={actionTo}
-              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-secondary to-accent px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-secondary/25 transition-all hover:shadow-lg hover:shadow-secondary/30 active:scale-[0.98]"
-            >
+            <Link to={actionTo} className={ctaClass}>
               {actionLabel}
             </Link>
           ) : (
-            <button
-              onClick={onAction}
-              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-secondary to-accent px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-secondary/25 transition-all hover:shadow-lg hover:shadow-secondary/30 active:scale-[0.98]"
-            >
+            <button onClick={onAction} className={ctaClass}>
               {actionLabel}
             </button>
           )}

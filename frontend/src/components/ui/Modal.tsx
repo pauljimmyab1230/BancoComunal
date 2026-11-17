@@ -107,17 +107,17 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'md' 
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            className={`relative flex max-h-[85vh] w-full ${widthMap[maxWidth]} flex-col overflow-hidden rounded-2xl bg-white shadow-2xl outline-none`}
+            className={`relative flex max-h-[85vh] w-full ${widthMap[maxWidth]} flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-pop)] outline-none`}
           >
             {title && (
-              <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
-                <h3 id={tituloId} className="text-lg font-semibold text-gray-900">
+              <div className="flex shrink-0 items-center justify-between border-b border-border-subtle px-6 py-4">
+                <h3 id={tituloId} className="text-lg font-semibold text-foreground">
                   {title}
                 </h3>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                  className="flex items-center justify-center rounded-lg p-1.5 text-subtle transition-colors hover:bg-surface-hover hover:text-foreground"
                   aria-label="Cerrar"
                 >
                   <X className="h-5 w-5" />

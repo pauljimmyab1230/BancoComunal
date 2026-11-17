@@ -39,6 +39,10 @@ vi.mock('../../config/prisma', () => ({
       count: vi.fn(),
       upsert: vi.fn(),
     },
+    configuracionOrganizacion: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+    },
   },
 }))
 

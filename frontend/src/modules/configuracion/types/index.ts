@@ -2,7 +2,7 @@ export interface Usuario {
   id: number
   nombres: string
   apellidoPaterno: string
-  apellidoMaterno: string
+  apellidoMaterno?: string
   username: string
   correo?: string
   telefono?: string
@@ -22,11 +22,33 @@ export interface ConceptoCajaItem {
   requiereComprobante: boolean
   orden: number
   estado: string
+  /** Cantidad de movimientos de caja asociados al concepto. */
+  movimientos?: number
 }
 
 export interface Organizacion {
   organizacion: string
+  ruc: string
+  direccion: string
+  telefono: string
+  email: string
   monedaDefault: string
+  updatedAt?: string
+}
+
+export interface ResumenConfiguracion {
+  usuarios: {
+    total: number
+    activos: number
+    inactivos: number
+    admins: number
+  }
+  conceptos: {
+    total: number
+    activos: number
+    requierenComprobante: number
+    afectanSaldo: number
+  }
 }
 
 export interface PaginationParams {

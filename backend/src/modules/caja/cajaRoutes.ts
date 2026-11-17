@@ -7,7 +7,14 @@ const router = Router()
 // Rutas fijas ANTES de /:id para evitar captura por Express
 router.get('/', cajaController.list)
 router.post('/', authorize('ADMIN', 'TESORERO'), cajaController.create)
+router.get('/resumen-general', cajaController.getResumenGeneral)
 router.get('/resumen/:cajaId', cajaController.getResumen)
+
+// Conceptos (rutas fijas ANTES de /:id)
+router.get('/conceptos', cajaController.listConceptos)
+router.post('/conceptos', authorize('ADMIN', 'TESORERO'), cajaController.createConcepto)
+router.put('/conceptos/:id', authorize('ADMIN', 'TESORERO'), cajaController.updateConcepto)
+router.delete('/conceptos/:id', authorize('ADMIN'), cajaController.deleteConcepto)
 
 // Transferencias entre cajas
 router.post('/transferencias', authorize('ADMIN', 'TESORERO'), cajaController.transferir)
@@ -16,7 +23,11 @@ router.post('/transferencias', authorize('ADMIN', 'TESORERO'), cajaController.tr
 router.get('/movimientos', cajaController.listMovimientos)
 router.get('/movimientos/:id', cajaController.getMovimientoById)
 router.post('/movimientos', authorize('ADMIN', 'TESORERO'), cajaController.createMovimiento)
-router.post('/movimientos/:id/anular', authorize('ADMIN', 'TESORERO'), cajaController.anularMovimiento)
+router.post(
+  '/movimientos/:id/anular',
+  authorize('ADMIN', 'TESORERO'),
+  cajaController.anularMovimiento
+)
 
 // Arqueos
 router.get('/arqueos', cajaController.listArqueos)
@@ -26,11 +37,20 @@ router.post('/arqueos/:id/aprobar', authorize('ADMIN', 'TESORERO'), cajaControll
 
 // Flujo Proyectado
 router.get('/flujo-proyectado', cajaController.listFlujoProyectado)
-router.post('/flujo-proyectado', authorize('ADMIN', 'TESORERO'), cajaController.createFlujoProyectado)
-router.put('/flujo-proyectado/:id', authorize('ADMIN', 'TESORERO'), cajaController.updateFlujoProyectado)
+router.post(
+  '/flujo-proyectado',
+  authorize('ADMIN', 'TESORERO'),
+  cajaController.createFlujoProyectado
+)
+router.put(
+  '/flujo-proyectado/:id',
+  authorize('ADMIN', 'TESORERO'),
+  cajaController.updateFlujoProyectado
+)
 router.delete('/flujo-proyectado/:id', authorize('ADMIN'), cajaController.deleteFlujoProyectado)
 
 // /:id DESPUÉS de todas las rutas fijas
+router.get('/:id/libro', cajaController.getLibroCaja)
 router.get('/:id', cajaController.getById)
 router.put('/:id', authorize('ADMIN'), cajaController.update)
 router.delete('/:id', authorize('ADMIN'), cajaController.delete)

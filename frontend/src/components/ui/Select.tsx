@@ -184,11 +184,11 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       if (e.key === 'Tab') setOpen(false)
     }
 
-    const triggerStyles = `flex w-full items-center justify-between gap-2 rounded-xl border bg-white px-4 py-2.5 text-left text-sm outline-none transition-all
+    const triggerStyles = `flex w-full items-center justify-between gap-2 rounded-xl border bg-surface px-4 py-2.5 text-left text-sm outline-none transition-all
       ${
         error
           ? 'border-red-400 focus-visible:border-red-500 focus-visible:ring-2 focus-visible:ring-red-500/20'
-          : 'border-gray-200 focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/20'
+          : 'border-border focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/20'
       }
       ${open ? 'border-secondary ring-2 ring-secondary/20' : ''}
       disabled:opacity-50 disabled:cursor-not-allowed`
@@ -207,11 +207,11 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           aria-invalid={ariaInvalid}
           className={triggerStyles}
         >
-          <span className={`truncate ${selectedOption ? 'text-gray-900' : 'text-gray-600'}`}>
+          <span className={`truncate ${selectedOption ? 'text-foreground' : 'text-muted'}`}>
             {selectedOption ? selectedOption.label : placeholder || 'Seleccionar'}
           </span>
           <ChevronDown
-            className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+            className={`h-4 w-4 shrink-0 text-subtle transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
           />
         </button>
 
@@ -245,12 +245,12 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.12 }}
-              className="fixed z-[120] rounded-xl border border-gray-200 bg-white py-1.5 shadow-xl shadow-gray-200/60"
+              className="fixed z-[120] rounded-xl border border-border bg-surface py-1.5 shadow-[var(--shadow-pop)]"
               style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width }}
             >
               <ul role="listbox" className="max-h-60 overflow-auto">
                 {options.length === 0 && (
-                  <li className="px-4 py-2.5 text-sm text-gray-600">Sin opciones</li>
+                  <li className="px-4 py-2.5 text-sm text-muted">Sin opciones</li>
                 )}
                 {options.map((opt, i) => {
                   const selected = String(opt.value) === currentValue
@@ -269,8 +269,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                         selected
                           ? 'bg-secondary/10 font-medium text-secondary'
                           : active
-                            ? 'bg-gray-100 text-gray-900'
-                            : 'text-gray-900'
+                            ? 'bg-surface-hover text-foreground'
+                            : 'text-foreground'
                       }`}
                     >
                       <span className="truncate">{opt.label}</span>

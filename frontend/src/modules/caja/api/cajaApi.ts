@@ -14,6 +14,8 @@ import type {
   AprobarArqueoInput,
   TransferirInput,
   CreateFlujoProyectadoInput,
+  ResumenGeneralCaja,
+  LibroCaja,
 } from '../types'
 
 export const cajaApi = {
@@ -47,17 +49,35 @@ export const cajaApi = {
     return data.data
   },
 
+  getResumenGeneral: async (): Promise<ResumenGeneralCaja> => {
+    const { data } = await api.get('/caja/resumen-general')
+    return data.data
+  },
+
+  getLibroCaja: async (
+    id: number,
+    params?: { fechaInicio?: string; fechaFin?: string }
+  ): Promise<LibroCaja> => {
+    const { data } = await api.get(`/caja/${id}/libro`, { params })
+    return data.data
+  },
+
   listConceptos: async (params?: { estado?: string; tipo?: string }): Promise<ConceptoCaja[]> => {
     const { data } = await api.get('/caja/conceptos', { params })
     return data.data
   },
 
-  createConcepto: async (data: Omit<ConceptoCaja, 'id' | 'estado'>): Promise<{ message: string; data: ConceptoCaja }> => {
+  createConcepto: async (
+    data: Omit<ConceptoCaja, 'id' | 'estado'>
+  ): Promise<{ message: string; data: ConceptoCaja }> => {
     const res = await api.post('/caja/conceptos', data)
     return res.data
   },
 
-  updateConcepto: async (id: number, data: Partial<ConceptoCaja>): Promise<{ message: string; data: ConceptoCaja }> => {
+  updateConcepto: async (
+    id: number,
+    data: Partial<ConceptoCaja>
+  ): Promise<{ message: string; data: ConceptoCaja }> => {
     const res = await api.put(`/caja/conceptos/${id}`, data)
     return res.data
   },
@@ -67,7 +87,9 @@ export const cajaApi = {
     return res.data
   },
 
-  listMovimientos: async (params?: PaginationParams): Promise<PaginatedResponse<MovimientoCaja>> => {
+  listMovimientos: async (
+    params?: PaginationParams
+  ): Promise<PaginatedResponse<MovimientoCaja>> => {
     const { data } = await api.get('/caja/movimientos', { params })
     return data
   },
@@ -77,7 +99,9 @@ export const cajaApi = {
     return data.data
   },
 
-  createMovimiento: async (data: CreateMovimientoInput): Promise<{ message: string; data: MovimientoCaja }> => {
+  createMovimiento: async (
+    data: CreateMovimientoInput
+  ): Promise<{ message: string; data: MovimientoCaja }> => {
     const res = await api.post('/caja/movimientos', data)
     return res.data
   },
@@ -102,7 +126,10 @@ export const cajaApi = {
     return res.data
   },
 
-  aprobarArqueo: async (id: number, data: AprobarArqueoInput): Promise<{ message: string; data: ArqueoCaja }> => {
+  aprobarArqueo: async (
+    id: number,
+    data: AprobarArqueoInput
+  ): Promise<{ message: string; data: ArqueoCaja }> => {
     const res = await api.post(`/caja/arqueos/${id}/aprobar`, data)
     return res.data
   },
@@ -112,17 +139,27 @@ export const cajaApi = {
     return res.data
   },
 
-  listFlujoProyectado: async (params?: { cajaId?: number; estado?: string; fechaInicio?: string; fechaFin?: string }): Promise<FlujoCajaProyectado[]> => {
+  listFlujoProyectado: async (params?: {
+    cajaId?: number
+    estado?: string
+    fechaInicio?: string
+    fechaFin?: string
+  }): Promise<FlujoCajaProyectado[]> => {
     const { data } = await api.get('/caja/flujo-proyectado', { params })
     return data.data
   },
 
-  createFlujoProyectado: async (data: CreateFlujoProyectadoInput): Promise<{ message: string; data: FlujoCajaProyectado }> => {
+  createFlujoProyectado: async (
+    data: CreateFlujoProyectadoInput
+  ): Promise<{ message: string; data: FlujoCajaProyectado }> => {
     const res = await api.post('/caja/flujo-proyectado', data)
     return res.data
   },
 
-  updateFlujoProyectado: async (id: number, data: Partial<CreateFlujoProyectadoInput>): Promise<{ message: string; data: FlujoCajaProyectado }> => {
+  updateFlujoProyectado: async (
+    id: number,
+    data: Partial<CreateFlujoProyectadoInput>
+  ): Promise<{ message: string; data: FlujoCajaProyectado }> => {
     const res = await api.put(`/caja/flujo-proyectado/${id}`, data)
     return res.data
   },

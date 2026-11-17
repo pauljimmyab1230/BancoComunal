@@ -2,6 +2,7 @@ import prisma from '../../config/prisma'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import jwt from 'jsonwebtoken'
+import { generateSecret, generateURI, verifySync } from 'otplib'
 import { env } from '../../config/env'
 import { HttpError } from '../../middleware/httpError'
 import { createAuditLog } from '../../config/auditLog'
@@ -18,6 +19,79 @@ import type { Prisma } from '@prisma/client'
 
 function hashearToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
+}
+
+const CONFIGURACION_ORGANIZACION_ID = 1
+
+const NOMBRE_EMISOR_2FA = 'Banquito Solidario'
+
+/** Emite el par de tokens (access + refresh) y el perfil del usuario. */
+async function emitirTokens(usuario: {
+  id: number
+  nombres: string
+  apellidoPaterno: string
+  username: string
+  correo: string | null
+  rol: string
+  cambiarPassword: boolean
+  twoFactorEnabled: boolean
+}) {
+  const token = jwt.sign(
+    { userId: usuario.id, username: usuario.username, rol: usuario.rol },
+    env.JWT_SECRET,
+    { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] }
+  )
+
+  const refreshToken = jwt.sign({ userId: usuario.id, type: 'refresh' }, env.JWT_REFRESH_SECRET, {
+    expiresIn: '7d',
+  })
+
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  await prisma.refreshToken.create({
+    data: {
+      token: hashearToken(refreshToken),
+      usuarioId: usuario.id,
+      expiresAt,
+    },
+  })
+
+  return {
+    token,
+    refreshToken,
+    user: {
+      id: usuario.id,
+      nombres: usuario.nombres,
+      apellidoPaterno: usuario.apellidoPaterno,
+      username: usuario.username,
+      correo: usuario.correo,
+      rol: usuario.rol,
+      cambiarPassword: usuario.cambiarPassword,
+      twoFactorEnabled: usuario.twoFactorEnabled,
+    },
+  }
+}
+
+/**
+ * Devuelve la configuración institucional única. La primera vez la crea a partir
+ * del fondo más antiguo para no perder el nombre que ya se mostraba.
+ */
+async function obtenerConfiguracionOrganizacion() {
+  const existente = await prisma.configuracionOrganizacion.findUnique({
+    where: { id: CONFIGURACION_ORGANIZACION_ID },
+  })
+  if (existente) return existente
+
+  const fondo = await prisma.fondoRotatorio.findFirst({ orderBy: { createdAt: 'asc' } })
+
+  return prisma.configuracionOrganizacion.upsert({
+    where: { id: CONFIGURACION_ORGANIZACION_ID },
+    update: {},
+    create: {
+      id: CONFIGURACION_ORGANIZACION_ID,
+      organizacion: fondo?.organizacion || '',
+      monedaDefault: fondo?.moneda || 'PEN',
+    },
+  })
 }
 
 export const configuracionService = {
@@ -70,6 +144,46 @@ export const configuracionService = {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
   },
 
+  /**
+   * Conteos para el panel de configuración: usuarios por rol/estado y conceptos de caja.
+   */
+  async getResumen() {
+    const [
+      usuariosTotal,
+      usuariosActivos,
+      usuariosInactivos,
+      usuariosAdmins,
+      conceptosTotal,
+      conceptosActivos,
+      conceptosRequierenComprobante,
+      conceptosAfectanSaldo,
+    ] = await Promise.all([
+      prisma.usuario.count(),
+      prisma.usuario.count({ where: { estado: 'ACTIVO' } }),
+      prisma.usuario.count({ where: { estado: 'INACTIVO' } }),
+      prisma.usuario.count({ where: { estado: 'ACTIVO', rol: 'ADMIN' } }),
+      prisma.conceptoCaja.count(),
+      prisma.conceptoCaja.count({ where: { estado: 'ACTIVO' } }),
+      prisma.conceptoCaja.count({ where: { estado: 'ACTIVO', requiereComprobante: true } }),
+      prisma.conceptoCaja.count({ where: { estado: 'ACTIVO', afectaSaldo: { not: 'NO_AFECTA' } } }),
+    ])
+
+    return {
+      usuarios: {
+        total: usuariosTotal,
+        activos: usuariosActivos,
+        inactivos: usuariosInactivos,
+        admins: usuariosAdmins,
+      },
+      conceptos: {
+        total: conceptosTotal,
+        activos: conceptosActivos,
+        requierenComprobante: conceptosRequierenComprobante,
+        afectanSaldo: conceptosAfectanSaldo,
+      },
+    }
+  },
+
   async getUsuarioById(id: number) {
     return prisma.usuario.findUnique({
       where: { id },
@@ -104,7 +218,7 @@ export const configuracionService = {
       data: {
         nombres: data.nombres,
         apellidoPaterno: data.apellidoPaterno,
-        apellidoMaterno: data.apellidoMaterno,
+        apellidoMaterno: data.apellidoMaterno || null,
         username: data.username,
         password: hashedPassword,
         correo: data.correo || null,
@@ -147,6 +261,33 @@ export const configuracionService = {
     const existing = await prisma.usuario.findUnique({ where: { id } })
     if (!existing) return null
 
+    const esMismoUsuario = usuarioId === id
+    if (esMismoUsuario && data.estado === 'INACTIVO') {
+      throw new HttpError(400, 'No puedes desactivar tu propia cuenta')
+    }
+    if (
+      esMismoUsuario &&
+      existing.rol === 'ADMIN' &&
+      data.rol !== undefined &&
+      data.rol !== 'ADMIN'
+    ) {
+      throw new HttpError(400, 'No puedes quitarte el rol de administrador')
+    }
+
+    const dejaDeSerAdminActivo =
+      existing.rol === 'ADMIN' &&
+      existing.estado === 'ACTIVO' &&
+      ((data.rol !== undefined && data.rol !== 'ADMIN') || data.estado === 'INACTIVO')
+
+    if (dejaDeSerAdminActivo) {
+      const otrosAdmins = await prisma.usuario.count({
+        where: { id: { not: id }, rol: 'ADMIN', estado: 'ACTIVO' },
+      })
+      if (otrosAdmins === 0) {
+        throw new HttpError(400, 'Debe existir al menos un administrador activo')
+      }
+    }
+
     if (data.username && data.username !== existing.username) {
       const dup = await prisma.usuario.findUnique({ where: { username: data.username } })
       if (dup) throw new HttpError(400, 'El nombre de usuario ya existe')
@@ -160,7 +301,8 @@ export const configuracionService = {
     const updateData: Prisma.UsuarioUpdateInput = {}
     if (data.nombres !== undefined) updateData.nombres = data.nombres
     if (data.apellidoPaterno !== undefined) updateData.apellidoPaterno = data.apellidoPaterno
-    if (data.apellidoMaterno !== undefined) updateData.apellidoMaterno = data.apellidoMaterno
+    if (data.apellidoMaterno !== undefined)
+      updateData.apellidoMaterno = data.apellidoMaterno || null
     if (data.username !== undefined) updateData.username = data.username
     if (data.correo !== undefined) updateData.correo = data.correo || null
     if (data.telefono !== undefined) updateData.telefono = data.telefono || null
@@ -208,7 +350,7 @@ export const configuracionService = {
     const hashedPassword = await bcrypt.hash(newPassword, 12)
     const usuario = await prisma.usuario.update({
       where: { id },
-      data: { password: hashedPassword },
+      data: { password: hashedPassword, cambiarPassword: true },
       select: { id: true, username: true },
     })
 
@@ -261,15 +403,30 @@ export const configuracionService = {
   async deleteUsuario(id: number, usuarioId?: number, ip?: string) {
     const existing = await prisma.usuario.findUnique({ where: { id } })
     if (!existing) return false
-    if (existing.username === 'admin')
-      throw new HttpError(400, 'No se puede eliminar el usuario admin')
-    await prisma.usuario.delete({ where: { id } })
+
+    if (usuarioId === id) {
+      throw new HttpError(400, 'No puedes desactivar tu propia cuenta')
+    }
+
+    if (existing.rol === 'ADMIN' && existing.estado === 'ACTIVO') {
+      const otrosAdmins = await prisma.usuario.count({
+        where: { id: { not: id }, rol: 'ADMIN', estado: 'ACTIVO' },
+      })
+      if (otrosAdmins === 0) {
+        throw new HttpError(400, 'Debe existir al menos un administrador activo')
+      }
+    }
+
+    // Baja lógica: se conserva el histórico de auditoría y las referencias.
+    await prisma.usuario.update({ where: { id }, data: { estado: 'INACTIVO' } })
+    await configuracionService.logoutAll(id)
 
     await createAuditLog({
       tabla: 'Usuario',
       registroId: id,
       operacion: 'DELETE',
       datosAnteriores: { username: existing.username, rol: existing.rol, estado: existing.estado },
+      datosNuevos: { estado: 'INACTIVO', bajaLogica: true },
       usuarioId,
       ip,
     })
@@ -314,39 +471,130 @@ export const configuracionService = {
       data: { ultimoAcceso: new Date(), intentosFallidos: 0, bloqueadoHasta: null },
     })
 
-    const token = jwt.sign(
-      { userId: usuario.id, username: usuario.username, rol: usuario.rol },
-      env.JWT_SECRET,
-      { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] }
-    )
-
-    const refreshToken = jwt.sign({ userId: usuario.id, type: 'refresh' }, env.JWT_REFRESH_SECRET, {
-      expiresIn: '7d',
-    })
-
-    // Almacenar refresh token en la base de datos (solo su hash SHA-256)
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    await prisma.refreshToken.create({
-      data: {
-        token: hashearToken(refreshToken),
-        usuarioId: usuario.id,
-        expiresAt,
-      },
-    })
-
-    return {
-      token,
-      refreshToken,
-      user: {
-        id: usuario.id,
-        nombres: usuario.nombres,
-        apellidoPaterno: usuario.apellidoPaterno,
-        username: usuario.username,
-        correo: usuario.correo,
-        rol: usuario.rol,
-        cambiarPassword: usuario.cambiarPassword,
-      },
+    if (usuario.twoFactorEnabled) {
+      const twoFactorToken = jwt.sign({ userId: usuario.id, type: '2fa' }, env.JWT_SECRET, {
+        expiresIn: '5m',
+      })
+      return { requireTwoFactor: true, twoFactorToken, userId: usuario.id }
     }
+
+    return emitirTokens(usuario)
+  },
+
+  /** Segundo paso del login: verifica el código TOTP (o un código de respaldo). */
+  async verifyTwoFactorLogin(twoFactorToken: string, code: string) {
+    let decoded: { userId: number; type: string }
+    try {
+      decoded = jwt.verify(twoFactorToken, env.JWT_SECRET, { algorithms: ['HS256'] }) as {
+        userId: number
+        type: string
+      }
+    } catch {
+      throw new HttpError(401, 'La verificación expiró. Inicia sesión de nuevo.')
+    }
+    if (decoded.type !== '2fa') throw new HttpError(401, 'Token de verificación inválido')
+
+    const usuario = await prisma.usuario.findUnique({ where: { id: decoded.userId } })
+    if (!usuario || !usuario.twoFactorEnabled || !usuario.twoFactorSecret) {
+      throw new HttpError(401, 'Usuario no válido para verificación')
+    }
+
+    const codigoValido = verifySync({ secret: usuario.twoFactorSecret, token: code }).valid
+
+    if (!codigoValido) {
+      const respaldo = usuario.twoFactorBackupCodes
+        ? (JSON.parse(usuario.twoFactorBackupCodes) as string[])
+        : []
+      let usado = false
+      const restantes: string[] = []
+      for (const hash of respaldo) {
+        const coincide = !usado && (await bcrypt.compare(code, hash))
+        if (coincide) usado = true
+        else restantes.push(hash)
+      }
+      if (!usado) throw new HttpError(400, 'Código de verificación inválido')
+      await prisma.usuario.update({
+        where: { id: usuario.id },
+        data: { twoFactorBackupCodes: JSON.stringify(restantes) },
+      })
+    }
+
+    return emitirTokens(usuario)
+  },
+
+  // ==================== 2FA (gestión) ====================
+  async startTwoFactor(usuarioId: number) {
+    const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } })
+    if (!usuario) throw new HttpError(404, 'Usuario no encontrado')
+
+    const secret = generateSecret()
+    const otpauthUrl = generateURI({
+      secret,
+      issuer: NOMBRE_EMISOR_2FA,
+      label: usuario.username,
+    })
+
+    await prisma.usuario.update({
+      where: { id: usuarioId },
+      data: { twoFactorSecret: secret, twoFactorEnabled: false },
+    })
+
+    return { secret, otpauthUrl }
+  },
+
+  async confirmTwoFactor(usuarioId: number, code: string, ip?: string) {
+    const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } })
+    if (!usuario) throw new HttpError(404, 'Usuario no encontrado')
+    if (!usuario.twoFactorSecret) throw new HttpError(400, 'Inicia primero la activación de 2FA')
+
+    const codigoValido = verifySync({ secret: usuario.twoFactorSecret, token: code }).valid
+    if (!codigoValido) throw new HttpError(400, 'Código de verificación inválido')
+
+    const codigosRespaldo = Array.from({ length: 8 }, () =>
+      crypto.randomBytes(4).toString('hex').toUpperCase()
+    )
+    const hashes = await Promise.all(codigosRespaldo.map((codigo) => bcrypt.hash(codigo, 10)))
+
+    await prisma.usuario.update({
+      where: { id: usuarioId },
+      data: { twoFactorEnabled: true, twoFactorBackupCodes: JSON.stringify(hashes) },
+    })
+
+    await createAuditLog({
+      tabla: 'Usuario',
+      registroId: usuarioId,
+      operacion: 'UPDATE',
+      datosNuevos: { twoFactorEnabled: true },
+      usuarioId,
+      ip,
+    })
+
+    return { backupCodes: codigosRespaldo }
+  },
+
+  async disableTwoFactor(usuarioId: number, password: string, ip?: string) {
+    const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } })
+    if (!usuario) throw new HttpError(404, 'Usuario no encontrado')
+
+    const valido = await bcrypt.compare(password, usuario.password)
+    if (!valido) throw new HttpError(400, 'Contraseña incorrecta')
+
+    await prisma.usuario.update({
+      where: { id: usuarioId },
+      data: { twoFactorSecret: null, twoFactorEnabled: false, twoFactorBackupCodes: null },
+    })
+
+    await createAuditLog({
+      tabla: 'Usuario',
+      registroId: usuarioId,
+      operacion: 'UPDATE',
+      datosAnteriores: { twoFactorEnabled: true },
+      datosNuevos: { twoFactorEnabled: false },
+      usuarioId,
+      ip,
+    })
+
+    return { disabled: true }
   },
 
   async refreshToken(refreshToken: string) {
@@ -373,40 +621,7 @@ export const configuracionService = {
       // Rotar refresh token: eliminar el viejo y crear uno nuevo
       await prisma.refreshToken.delete({ where: { id: storedToken.id } })
 
-      const token = jwt.sign(
-        { userId: usuario.id, username: usuario.username, rol: usuario.rol },
-        env.JWT_SECRET,
-        { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] }
-      )
-
-      const newRefreshToken = jwt.sign(
-        { userId: usuario.id, type: 'refresh' },
-        env.JWT_REFRESH_SECRET,
-        { expiresIn: '7d' }
-      )
-
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-      await prisma.refreshToken.create({
-        data: {
-          token: hashearToken(newRefreshToken),
-          usuarioId: usuario.id,
-          expiresAt,
-        },
-      })
-
-      return {
-        token,
-        refreshToken: newRefreshToken,
-        user: {
-          id: usuario.id,
-          nombres: usuario.nombres,
-          apellidoPaterno: usuario.apellidoPaterno,
-          username: usuario.username,
-          correo: usuario.correo,
-          rol: usuario.rol,
-          cambiarPassword: usuario.cambiarPassword,
-        },
-      }
+      return emitirTokens(usuario)
     } catch (error) {
       if (error instanceof HttpError) throw error
       throw new HttpError(401, 'Refresh token inválido o expirado')
@@ -445,11 +660,26 @@ export const configuracionService = {
     }
 
     const [data, total] = await Promise.all([
-      prisma.conceptoCaja.findMany({ where, skip, take: limit, orderBy: { orden: 'asc' } }),
+      prisma.conceptoCaja.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { orden: 'asc' },
+        include: { _count: { select: { movimientos: true } } },
+      }),
       prisma.conceptoCaja.count({ where }),
     ])
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
+    return {
+      data: data.map(({ _count, ...concepto }) => ({
+        ...concepto,
+        movimientos: _count.movimientos,
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    }
   },
 
   async getConceptoById(id: number) {
@@ -472,21 +702,64 @@ export const configuracionService = {
 
   // ==================== ORGANIZACION ====================
   async getOrganizacion() {
-    const fondo = await prisma.fondoRotatorio.findFirst({ orderBy: { createdAt: 'asc' } })
+    const configuracion = await obtenerConfiguracionOrganizacion()
     return {
-      organizacion: fondo?.organizacion || '',
-      monedaDefault: fondo?.moneda || 'PEN',
+      organizacion: configuracion.organizacion,
+      ruc: configuracion.ruc || '',
+      direccion: configuracion.direccion || '',
+      telefono: configuracion.telefono || '',
+      email: configuracion.email || '',
+      monedaDefault: configuracion.monedaDefault,
+      updatedAt: configuracion.updatedAt,
     }
   },
 
-  async updateOrganizacion(data: z.infer<typeof organizacionUpdateSchema>) {
-    const fondos = await prisma.fondoRotatorio.findMany()
-    for (const fondo of fondos) {
-      await prisma.fondoRotatorio.update({
-        where: { id: fondo.id },
-        data: { organizacion: data.organizacion, moneda: data.monedaDefault || fondo.moneda },
-      })
+  async updateOrganizacion(
+    data: z.infer<typeof organizacionUpdateSchema>,
+    usuarioId?: number,
+    ip?: string
+  ) {
+    const anterior = await obtenerConfiguracionOrganizacion()
+    const datos = {
+      organizacion: data.organizacion,
+      ruc: data.ruc || null,
+      direccion: data.direccion || null,
+      telefono: data.telefono || null,
+      email: data.email || null,
+      monedaDefault: data.monedaDefault || 'PEN',
     }
-    return { organizacion: data.organizacion, monedaDefault: data.monedaDefault || 'PEN' }
+
+    const configuracion = await prisma.configuracionOrganizacion.upsert({
+      where: { id: CONFIGURACION_ORGANIZACION_ID },
+      update: datos,
+      create: { id: CONFIGURACION_ORGANIZACION_ID, ...datos },
+    })
+
+    await createAuditLog({
+      tabla: 'ConfiguracionOrganizacion',
+      registroId: configuracion.id,
+      operacion: 'UPDATE',
+      datosAnteriores: {
+        organizacion: anterior.organizacion,
+        ruc: anterior.ruc,
+        direccion: anterior.direccion,
+        telefono: anterior.telefono,
+        email: anterior.email,
+        monedaDefault: anterior.monedaDefault,
+      },
+      datosNuevos: datos,
+      usuarioId,
+      ip,
+    })
+
+    return {
+      organizacion: configuracion.organizacion,
+      ruc: configuracion.ruc || '',
+      direccion: configuracion.direccion || '',
+      telefono: configuracion.telefono || '',
+      email: configuracion.email || '',
+      monedaDefault: configuracion.monedaDefault,
+      updatedAt: configuracion.updatedAt,
+    }
   },
 }

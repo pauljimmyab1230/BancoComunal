@@ -5,6 +5,7 @@ import {
   Users,
   DollarSign,
   HandCoins,
+  Calculator,
   ScrollText,
   Wallet,
   Building2,
@@ -35,6 +36,7 @@ const navItems = [
   { to: '/fondos', icon: Building2, label: 'Fondos Rotatorios', roles: TODOS_LOS_ROLES },
   { to: '/aportes', icon: HandCoins, label: 'Aportes', roles: TODOS_LOS_ROLES },
   { to: '/creditos', icon: DollarSign, label: 'Créditos', roles: TODOS_LOS_ROLES },
+  { to: '/cotizaciones', icon: Calculator, label: 'Cotizaciones', roles: TODOS_LOS_ROLES },
   { to: '/caja', icon: Wallet, label: 'Caja', roles: TODOS_LOS_ROLES },
   { to: '/reportes', icon: ScrollText, label: 'Reportes', roles: TODOS_LOS_ROLES },
   { to: '/configuracion', icon: Settings, label: 'Configuración', roles: ['ADMIN'] },
@@ -70,17 +72,17 @@ export default function AdminSidebar({
   })
 
   const sidebarContent = (
-    <div className="flex h-full flex-col bg-white border-r border-gray-200">
+    <div className="flex h-full flex-col border-r border-border bg-surface">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 px-4 border-b border-gray-100">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary">
+      <div className="flex h-16 items-center gap-3 border-b border-border-subtle px-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-secondary to-accent shadow-sm shadow-secondary/30">
           <Landmark className="h-5 w-5 text-white" />
         </div>
         {isExpanded && (
           <motion.span
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-base font-bold text-gray-900 whitespace-nowrap"
+            className="whitespace-nowrap text-base font-bold text-foreground"
           >
             Banquito Solidario
           </motion.span>
@@ -101,8 +103,8 @@ export default function AdminSidebar({
                     !isExpanded ? 'justify-center' : ''
                   } ${
                     isActive
-                      ? 'bg-secondary/10 text-secondary'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-secondary/12 text-secondary shadow-sm shadow-secondary/10'
+                      : 'text-muted hover:bg-surface-hover hover:text-foreground'
                   }`
                 }
                 title={!isExpanded ? item.label : undefined}
@@ -124,21 +126,21 @@ export default function AdminSidebar({
       </nav>
 
       {/* User section */}
-      <div className="border-t border-gray-100 p-3">
+      <div className="border-t border-border-subtle p-3">
         {isExpanded ? (
           <div className="flex items-center gap-3 rounded-xl px-3 py-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-white">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-secondary to-accent text-sm font-semibold text-white">
               {user?.name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-gray-900">
+              <p className="truncate text-sm font-medium text-foreground">
                 {user?.name || 'Usuario'}
               </p>
-              <p className="truncate text-xs text-gray-500">{user?.email || ''}</p>
+              <p className="truncate text-xs text-muted">{user?.email || ''}</p>
             </div>
             <button
               type="button"
-              className="flex items-center justify-center rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600"
+              className="flex items-center justify-center rounded-lg p-2 text-subtle transition-colors hover:bg-surface-hover hover:text-red-600"
               aria-label="Cerrar sesión"
               onClick={handleLogout}
             >
@@ -148,7 +150,7 @@ export default function AdminSidebar({
         ) : (
           <button
             type="button"
-            className="flex w-full items-center justify-center rounded-xl p-2.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600"
+            className="flex w-full items-center justify-center rounded-xl p-2.5 text-subtle transition-colors hover:bg-surface-hover hover:text-red-600"
             aria-label="Cerrar sesión"
             onClick={handleLogout}
           >
@@ -162,7 +164,11 @@ export default function AdminSidebar({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:block" onMouseEnter={onHoverStart} onMouseLeave={onHoverEnd}>
+      <aside
+        className="hidden lg:block print:hidden"
+        onMouseEnter={onHoverStart}
+        onMouseLeave={onHoverEnd}
+      >
         <div
           className="fixed inset-y-0 left-0 z-30 transition-all duration-300 ease-in-out"
           style={{ width: sidebarWidth }}
@@ -175,7 +181,7 @@ export default function AdminSidebar({
       <button
         type="button"
         onClick={onToggle}
-        className="hidden lg:flex fixed z-40 top-4 items-center justify-center w-8 h-8 rounded-lg bg-white border border-gray-200 shadow-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-all duration-300"
+        className="fixed top-4 z-40 hidden h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted shadow-sm transition-all duration-300 hover:bg-surface-hover hover:text-foreground lg:flex"
         style={{ left: sidebarWidth + 8 }}
         aria-label={expanded ? 'Colapsar sidebar' : 'Expandir sidebar'}
       >
@@ -189,7 +195,7 @@ export default function AdminSidebar({
             className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
             onClick={onMobileClose}
           />
-          <aside className="fixed inset-y-0 left-0 z-40 w-[240px] lg:hidden">
+          <aside className="fixed inset-y-0 left-0 z-40 w-[240px] lg:hidden print:hidden">
             {sidebarContent}
           </aside>
         </>

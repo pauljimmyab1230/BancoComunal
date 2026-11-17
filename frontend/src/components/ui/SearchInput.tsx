@@ -41,14 +41,14 @@ export default function SearchInput({
 
   return (
     <div className={`relative ${className}`}>
-      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
       <input
         type="text"
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
         placeholder={placeholder}
         aria-label={ariaLabel || placeholder}
-        className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 outline-none transition-all focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/20"
+        className="w-full rounded-xl border border-border bg-surface py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-all placeholder:text-subtle focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/20"
       />
     </div>
   )

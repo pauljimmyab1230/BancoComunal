@@ -17,6 +17,8 @@ export interface AportesListResponse extends PaginatedResponse<Aporte> {
   totalAportado: number
   totalAportadoPorMoneda: Record<string, number>
   totalActivos: number
+  porTipo: Record<string, { cantidad: number; monto: number }>
+  porMetodo: Record<string, number>
 }
 
 export const aportesApi = {

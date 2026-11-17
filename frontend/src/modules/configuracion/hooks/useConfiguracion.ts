@@ -19,6 +19,49 @@ export function useLogin() {
   })
 }
 
+export function useVerifyTwoFactorLogin() {
+  return useMutation({
+    mutationFn: ({ twoFactorToken, code }: { twoFactorToken: string; code: string }) =>
+      configuracionApi.verifyTwoFactorLogin(twoFactorToken, code),
+    onError: (error: Error) => {
+      toast.error(error.message || 'Código de verificación inválido')
+    },
+  })
+}
+
+export function useStartTwoFactor() {
+  return useMutation({
+    mutationFn: () => configuracionApi.startTwoFactor(),
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al iniciar la activación de 2FA')
+    },
+  })
+}
+
+export function useConfirmTwoFactor() {
+  return useMutation({
+    mutationFn: (code: string) => configuracionApi.confirmTwoFactor(code),
+    onSuccess: (res) => {
+      toast.success(res.message || 'Autenticación en dos pasos activada')
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Código inválido')
+    },
+  })
+}
+
+export function useDisableTwoFactor() {
+  return useMutation({
+    mutationFn: (password: string) => configuracionApi.disableTwoFactor(password),
+    onSuccess: (res) => {
+      toast.success(res.message || 'Autenticación en dos pasos desactivada')
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al desactivar 2FA')
+    },
+  })
+}
+
 export function useUsuarios(params?: PaginationParams) {
   return useQuery({
     queryKey: ['usuarios', params],
@@ -34,6 +77,14 @@ export function useUsuario(id: number) {
   })
 }
 
+/** Conteos de usuarios y conceptos para las tarjetas y las pestañas del panel. */
+export function useResumenConfiguracion() {
+  return useQuery({
+    queryKey: ['configuracion', 'resumen'],
+    queryFn: () => configuracionApi.getResumen(),
+  })
+}
+
 export function useCreateUsuario() {
   const queryClient = useQueryClient()
 
@@ -42,6 +93,7 @@ export function useCreateUsuario() {
     onSuccess: (res) => {
       toast.success(res.message || 'Usuario creado')
       queryClient.invalidateQueries({ queryKey: ['usuarios'] })
+      queryClient.invalidateQueries({ queryKey: ['configuracion', 'resumen'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al crear usuario')
@@ -58,6 +110,7 @@ export function useUpdateUsuario() {
     onSuccess: (res) => {
       toast.success(res.message || 'Usuario actualizado')
       queryClient.invalidateQueries({ queryKey: ['usuarios'] })
+      queryClient.invalidateQueries({ queryKey: ['configuracion', 'resumen'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al actualizar usuario')
@@ -72,8 +125,11 @@ export function useUpdatePassword() {
     mutationFn: ({ id, password }: { id: number; password: string }) =>
       configuracionApi.updatePassword(id, password),
     onSuccess: (res) => {
-      toast.success(res.message || 'Contraseña actualizada')
+      toast.success(
+        res.message || 'Contraseña actualizada. El usuario deberá cambiarla al iniciar sesión.'
+      )
       queryClient.invalidateQueries({ queryKey: ['usuarios'] })
+      queryClient.invalidateQueries({ queryKey: ['configuracion', 'resumen'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al actualizar contraseña')
@@ -105,8 +161,9 @@ export function useDeleteUsuario() {
   return useMutation({
     mutationFn: (id: number) => configuracionApi.deleteUsuario(id),
     onSuccess: () => {
-      toast.success('Usuario eliminado')
+      toast.success('Usuario desactivado')
       queryClient.invalidateQueries({ queryKey: ['usuarios'] })
+      queryClient.invalidateQueries({ queryKey: ['configuracion', 'resumen'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al eliminar usuario')
@@ -129,6 +186,7 @@ export function useCreateConcepto() {
     onSuccess: (res) => {
       toast.success(res.message || 'Concepto creado')
       queryClient.invalidateQueries({ queryKey: ['configuracion', 'conceptos'] })
+      queryClient.invalidateQueries({ queryKey: ['configuracion', 'resumen'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al crear concepto')
@@ -145,6 +203,7 @@ export function useUpdateConcepto() {
     onSuccess: (res) => {
       toast.success(res.message || 'Concepto actualizado')
       queryClient.invalidateQueries({ queryKey: ['configuracion', 'conceptos'] })
+      queryClient.invalidateQueries({ queryKey: ['configuracion', 'resumen'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al actualizar concepto')
@@ -160,6 +219,7 @@ export function useDeleteConcepto() {
     onSuccess: () => {
       toast.success('Concepto eliminado')
       queryClient.invalidateQueries({ queryKey: ['configuracion', 'conceptos'] })
+      queryClient.invalidateQueries({ queryKey: ['configuracion', 'resumen'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al eliminar concepto')
@@ -171,6 +231,9 @@ export function useOrganizacion() {
   return useQuery({
     queryKey: ['organizacion'],
     queryFn: () => configuracionApi.getOrganizacion(),
+    // Evita que un refresco en segundo plano sobrescriba lo que el usuario está editando.
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   })
 }
 

@@ -1,17 +1,79 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Banquito Solidario — Sistema de diseño (temas claro y oscuro)
+   ============================================================
+   Tokens semánticos: cada color de la interfaz referencia una
+   variable CSS que cambia entre el tema claro (:root) y el oscuro
+   (.dark). Las utilidades de Tailwind se generan vía @theme inline.
+   ============================================================ */
+
+/* Variante `dark:` controlada por la clase `.dark` en <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
+  /* Tipografía */
   --font-heading: "Poppins", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
 
-  --color-primary: #0F172A;
-  --color-secondary: #2563EB;
-  --color-accent: #38BDF8;
-  --color-background: #F8FAFC;
-  --color-text: #111827;
-  --color-primary-light: #1E293B;
-  --color-secondary-light: #3B82F6;
-  --color-accent-light: #7DD3FC;
+  /* Marca (constante en ambos temas) */
+  --color-primary: #0b1120;
+  --color-secondary: #6366f1;
+  --color-accent: #22d3ee;
+
+  /* Estados de la marca (hover / énfasis) */
+  --color-secondary-strong: #4f46e5;
+}
+
+/* ---- Paleta semántica: TEMA CLARO ---- */
+:root {
+  --surface-background: #eef2f7;
+  --surface-card: #ffffff;
+  --surface-muted: #f5f7fb;
+  --surface-hover: #eef1f7;
+
+  --text-foreground: #0f172a;
+  --text-muted: #5b6472;
+  --text-subtle: #8a94a6;
+
+  --line-border: #e2e8f0;
+  --line-border-subtle: #edf1f7;
+
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
+  --shadow-pop: 0 10px 30px -10px rgb(15 23 42 / 0.18);
+}
+
+/* ---- Paleta semántica: TEMA OSCURO ---- */
+.dark {
+  --surface-background: #0b1120;
+  --surface-card: #131a2a;
+  --surface-muted: #1a2335;
+  --surface-hover: #212b40;
+
+  --text-foreground: #e6ebf4;
+  --text-muted: #9aa5b8;
+  --text-subtle: #6b7688;
+
+  --line-border: #263146;
+  --line-border-subtle: #1d2639;
+
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-pop: 0 14px 40px -12px rgb(0 0 0 / 0.6);
+}
+
+/* Expone los tokens como utilidades de Tailwind */
+@theme inline {
+  --color-background: var(--surface-background);
+  --color-surface: var(--surface-card);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-hover: var(--surface-hover);
+
+  --color-foreground: var(--text-foreground);
+  --color-muted: var(--text-muted);
+  --color-subtle: var(--text-subtle);
+
+  --color-border: var(--line-border);
+  --color-border-subtle: var(--line-border-subtle);
 }
 
 html {
@@ -34,8 +96,20 @@ html {
 
 body {
   font-family: var(--font-body);
+  background-color: var(--surface-background);
+  color: var(--text-foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
 }
 
 ::selection {
@@ -43,20 +117,98 @@ body {
   color: white;
 }
 
+/* ============================================================
+   Impresión de cotizaciones: solo se imprime el bloque marcado
+   ============================================================ */
+@media print {
+  body:has(.cotizacion-imprimible) * {
+    visibility: hidden;
+  }
+
+  .cotizacion-imprimible,
+  .cotizacion-imprimible * {
+    visibility: visible;
+  }
+
+  .cotizacion-imprimible {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    padding: 0;
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .cotizacion-imprimible .no-imprimir {
+    display: none !important;
+  }
+
+  .cotizacion-imprimible .cotizacion-encabezado {
+    background: #ffffff !important;
+    border: 1px solid #d4d4d4;
+    box-shadow: none !important;
+  }
+
+  .cotizacion-imprimible .cotizacion-encabezado * {
+    color: #000000 !important;
+    background: transparent !important;
+  }
+}
+
+/* ============================================================
+   Impresión general (reportes y listados): fuerza tema claro,
+   oculta la navegación y los controles interactivos.
+   ============================================================ */
+@media print {
+  :root,
+  .dark {
+    --surface-background: #ffffff;
+    --surface-card: #ffffff;
+    --surface-muted: #f5f7fb;
+    --surface-hover: #eef1f7;
+    --text-foreground: #000000;
+    --text-muted: #374151;
+    --text-subtle: #6b7280;
+    --line-border: #d1d5db;
+    --line-border-subtle: #e5e7eb;
+    --shadow-card: none;
+    --shadow-pop: none;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  button,
+  .no-imprimir {
+    display: none !important;
+  }
+
+  a {
+    color: #000000;
+    text-decoration: none;
+  }
+}
+
+/* Scrollbar sutil, coherente con el tema */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-background);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-secondary);
-  border-radius: 4px;
+  background: var(--text-subtle);
+  border-radius: 9999px;
+  border: 3px solid var(--surface-background);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-accent);
+  background: var(--color-secondary);
 }
+
+

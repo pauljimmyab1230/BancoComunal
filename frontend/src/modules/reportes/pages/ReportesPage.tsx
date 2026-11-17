@@ -30,6 +30,7 @@ import {
   useMovimientosCaja,
 } from '../hooks/useReportes'
 import { useCajas } from '@/modules/caja/hooks/useCajas'
+import { usePaginacionCliente } from '@/hooks/usePaginacionCliente'
 import {
   Button,
   Card,
@@ -41,6 +42,7 @@ import {
   LoadingSpinner,
   EmptyState,
   ErrorState,
+  Pagination,
 } from '@/components/ui'
 import { formatCurrency, formatSaldosPorMoneda, exportCsv, exportXlsx } from '@/lib/utils'
 import { useFondos } from '@/modules/fondos/hooks/useFondos'
@@ -122,11 +124,31 @@ const reportCards = [
 ]
 
 const colorMap: Record<string, { bg: string; icon: string; border: string }> = {
-  blue: { bg: 'bg-blue-50', icon: 'text-blue-600', border: 'hover:border-blue-300' },
-  purple: { bg: 'bg-purple-50', icon: 'text-purple-600', border: 'hover:border-purple-300' },
-  green: { bg: 'bg-green-50', icon: 'text-green-600', border: 'hover:border-green-300' },
-  orange: { bg: 'bg-orange-50', icon: 'text-orange-600', border: 'hover:border-orange-300' },
-  red: { bg: 'bg-red-50', icon: 'text-red-600', border: 'hover:border-red-300' },
+  blue: {
+    bg: 'bg-blue-100 dark:bg-blue-500/15',
+    icon: 'text-blue-600 dark:text-blue-400',
+    border: 'hover:border-blue-300 dark:hover:border-blue-500/40',
+  },
+  purple: {
+    bg: 'bg-purple-100 dark:bg-purple-500/15',
+    icon: 'text-purple-600 dark:text-purple-400',
+    border: 'hover:border-purple-300 dark:hover:border-purple-500/40',
+  },
+  green: {
+    bg: 'bg-green-100 dark:bg-green-500/15',
+    icon: 'text-green-600 dark:text-green-400',
+    border: 'hover:border-green-300 dark:hover:border-green-500/40',
+  },
+  orange: {
+    bg: 'bg-orange-100 dark:bg-orange-500/15',
+    icon: 'text-orange-600 dark:text-orange-400',
+    border: 'hover:border-orange-300 dark:hover:border-orange-500/40',
+  },
+  red: {
+    bg: 'bg-red-100 dark:bg-red-500/15',
+    icon: 'text-red-600 dark:text-red-400',
+    border: 'hover:border-red-300 dark:hover:border-red-500/40',
+  },
 }
 
 export function ResumenTab() {
@@ -149,25 +171,25 @@ export function ResumenTab() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card padding="md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
-              <Users className="h-5 w-5 text-blue-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-500/15">
+              <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Socios Activos</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {r.socios.activos} <span className="text-xs text-gray-400">/ {r.socios.total}</span>
+              <p className="text-xs text-muted">Socios Activos</p>
+              <p className="text-2xl font-bold text-foreground">
+                {r.socios.activos} <span className="text-xs text-subtle">/ {r.socios.total}</span>
               </p>
             </div>
           </div>
         </Card>
         <Card padding="md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50">
-              <Wallet className="h-5 w-5 text-green-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-500/15">
+              <Wallet className="h-5 w-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Saldo Total Cajas</p>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-xs text-muted">Saldo Total Cajas</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {formatSaldosPorMoneda(r.totalSaldoCajasPorMoneda)}
               </p>
             </div>
@@ -175,12 +197,12 @@ export function ResumenTab() {
         </Card>
         <Card padding="md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50">
-              <DollarSign className="h-5 w-5 text-purple-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-500/15">
+              <DollarSign className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Cartera Activa</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-xs text-muted">Cartera Activa</p>
+              <p className="text-2xl font-bold text-foreground">
                 {formatCurrency(r.creditos.saldoPendiente)}
               </p>
             </div>
@@ -188,14 +210,14 @@ export function ResumenTab() {
         </Card>
         <Card padding="md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-500/15">
+              <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Cuotas Vencidas</p>
-              <p className="text-2xl font-bold text-red-600">
+              <p className="text-xs text-muted">Cuotas Vencidas</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                 {r.creditos.cuotasVencidas}{' '}
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-subtle">
                   ({r.creditos.tasaMorosidad.toFixed(1)}%)
                 </span>
               </p>
@@ -206,45 +228,45 @@ export function ResumenTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Créditos</h3>
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <h3 className="text-sm font-semibold text-foreground">Créditos</h3>
           </div>
           <div className="p-5 space-y-3">
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Préstamos activos</span>
+              <span className="text-sm text-muted">Préstamos activos</span>
               <span className="text-sm font-medium">{r.creditos.activos}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Capital prestado</span>
+              <span className="text-sm text-muted">Capital prestado</span>
               <span className="text-sm font-medium">
                 {formatCurrency(r.creditos.capitalPrestado)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Capital recuperado</span>
-              <span className="text-sm font-medium text-green-600">
+              <span className="text-sm text-muted">Capital recuperado</span>
+              <span className="text-sm font-medium text-green-600 dark:text-green-400">
                 {formatCurrency(r.creditos.capitalRecuperado)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Saldo pendiente</span>
-              <span className="text-sm font-medium text-red-600">
+              <span className="text-sm text-muted">Saldo pendiente</span>
+              <span className="text-sm font-medium text-red-600 dark:text-red-400">
                 {formatCurrency(r.creditos.saldoPendiente)}
               </span>
             </div>
           </div>
         </Card>
         <Card>
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Aportes</h3>
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <h3 className="text-sm font-semibold text-foreground">Aportes</h3>
           </div>
           <div className="p-5 space-y-3">
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Aportes del mes</span>
+              <span className="text-sm text-muted">Aportes del mes</span>
               <span className="text-sm font-medium">{formatCurrency(r.aportes.mesActual)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Cuotas por vencer (7 días)</span>
+              <span className="text-sm text-muted">Cuotas por vencer (7 días)</span>
               <span className="text-sm font-medium">{r.cuotasPorVencer}</span>
             </div>
           </div>
@@ -253,8 +275,8 @@ export function ResumenTab() {
 
       {r.cajas.length > 0 && (
         <Card>
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900">Estado de Cajas</h3>
+          <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">Estado de Cajas</h3>
             <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
@@ -277,24 +299,24 @@ export function ResumenTab() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <tr className="border-b border-border-subtle">
+                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                     Código
                   </th>
-                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                     Nombre
                   </th>
-                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                     Moneda
                   </th>
-                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                     Saldo
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border-subtle">
                 {r.cajas.map((c, i) => (
-                  <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={i} className="hover:bg-surface-hover transition-colors">
                     <td className="px-5 py-3 font-mono text-xs">{c.codigo}</td>
                     <td className="px-5 py-3">{c.nombre}</td>
                     <td className="px-5 py-3">
@@ -327,6 +349,16 @@ function CarteraTab() {
     fechaFin: fechaFin || undefined,
   })
 
+  const prestamos = data?.prestamos ?? []
+  const {
+    datosPagina: prestamosPagina,
+    pagina,
+    setPagina,
+    totalPaginas,
+    desde,
+    hasta,
+  } = usePaginacionCliente(prestamos, 15)
+
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
   if (isLoading)
     return (
@@ -336,7 +368,7 @@ function CarteraTab() {
     )
   if (!data) return <EmptyState title="Sin datos" />
 
-  const { resumen, prestamos } = data
+  const { resumen } = data
   const fondosOptions = (fondosData?.data || []).map((f: { id: number; nombre: string }) => ({
     value: String(f.id),
     label: f.nombre,
@@ -346,20 +378,24 @@ function CarteraTab() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card padding="md">
-          <p className="text-xs text-gray-500">Préstamos Activos</p>
+          <p className="text-xs text-muted">Préstamos Activos</p>
           <p className="text-2xl font-bold">{resumen.prestamosActivos}</p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Monto Total</p>
+          <p className="text-xs text-muted">Monto Total</p>
           <p className="text-2xl font-bold">{formatCurrency(resumen.montoTotal)}</p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Saldo Pendiente</p>
-          <p className="text-2xl font-bold text-red-600">{formatCurrency(resumen.saldoTotal)}</p>
+          <p className="text-xs text-muted">Saldo Pendiente</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {formatCurrency(resumen.saldoTotal)}
+          </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Tasa Morosidad</p>
-          <p className="text-2xl font-bold text-red-600">{resumen.tasaMorosidad.toFixed(1)}%</p>
+          <p className="text-xs text-muted">Tasa Morosidad</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {resumen.tasaMorosidad.toFixed(1)}%
+          </p>
         </Card>
       </div>
 
@@ -441,53 +477,53 @@ function CarteraTab() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+              <tr className="border-b border-border-subtle bg-surface-muted/60">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Socio
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Fondo
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Moneda
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Monto
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Pagado
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Pendiente
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Cuotas
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Estado
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {prestamos.map((p: CarteraCreditoPrestamo) => (
-                <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+            <tbody className="divide-y divide-border-subtle">
+              {prestamosPagina.map((p: CarteraCreditoPrestamo) => (
+                <tr key={p.id} className="hover:bg-surface-hover transition-colors">
                   <td className="px-5 py-3">
                     <div className="font-medium">
                       {p.socio.nombres} {p.socio.apellidoPaterno}
                     </div>
-                    <div className="text-xs text-gray-500">{p.socio.codigo}</div>
+                    <div className="text-xs text-muted">{p.socio.codigo}</div>
                   </td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{p.fondo.nombre}</td>
+                  <td className="px-5 py-3 text-sm text-muted">{p.fondo.nombre}</td>
                   <td className="px-5 py-3">
                     <Badge variant="gray">{p.moneda || 'PEN'}</Badge>
                   </td>
                   <td className="px-5 py-3 text-right">
                     {formatCurrency(p.monto, p.moneda || 'PEN')}
                   </td>
-                  <td className="px-5 py-3 text-right text-green-600">
+                  <td className="px-5 py-3 text-right text-green-600 dark:text-green-400">
                     {formatCurrency(p.totalPagado, p.moneda || 'PEN')}
                   </td>
-                  <td className="px-5 py-3 text-right text-red-600 font-medium">
+                  <td className="px-5 py-3 text-right text-red-600 dark:text-red-400 font-medium">
                     {formatCurrency(p.saldoPendiente, p.moneda || 'PEN')}
                   </td>
                   <td className="px-5 py-3 text-center">
@@ -495,7 +531,7 @@ function CarteraTab() {
                       {p.cuotasPagadas}/{p.numeroCuotas}
                     </span>
                     {p.cuotasVencidas > 0 && (
-                      <span className="ml-1 text-xs text-red-500">
+                      <span className="ml-1 text-xs text-red-500 dark:text-red-400">
                         ({p.cuotasVencidas} vencidas)
                       </span>
                     )}
@@ -513,6 +549,12 @@ function CarteraTab() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex flex-col items-center gap-2 border-t border-border-subtle px-5 py-3 sm:flex-row sm:justify-between">
+          <p className="text-xs text-muted">
+            Mostrando {desde}–{hasta} de {prestamos.length}
+          </p>
+          <Pagination currentPage={pagina} totalPages={totalPaginas} onPageChange={setPagina} />
         </div>
       </Card>
     </div>
@@ -605,19 +647,21 @@ function ResultadosTab() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card padding="md">
-          <p className="text-xs text-gray-500">Total Ingresos</p>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-xs text-muted">Total Ingresos</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
             {formatCurrency(data.totales.ingresos)}
           </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Total Egresos</p>
-          <p className="text-2xl font-bold text-red-600">{formatCurrency(data.totales.egresos)}</p>
+          <p className="text-xs text-muted">Total Egresos</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {formatCurrency(data.totales.egresos)}
+          </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Resultado Neto</p>
+          <p className="text-xs text-muted">Resultado Neto</p>
           <p
-            className={`text-2xl font-bold ${data.totales.neto >= 0 ? 'text-green-600' : 'text-red-600'}`}
+            className={`text-2xl font-bold ${data.totales.neto >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
           >
             {formatCurrency(data.totales.neto)}
           </p>
@@ -626,8 +670,8 @@ function ResultadosTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Ingresos por concepto</h3>
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <h3 className="text-sm font-semibold text-foreground">Ingresos por concepto</h3>
           </div>
           <div className="p-5 space-y-2 text-sm">
             {data.fondos
@@ -648,15 +692,17 @@ function ResultadosTab() {
               )
               .map(([label, value]) => (
                 <div key={label} className="flex justify-between">
-                  <span className="text-gray-500">{label}</span>
-                  <span className="font-medium text-green-600">{formatCurrency(value)}</span>
+                  <span className="text-muted">{label}</span>
+                  <span className="font-medium text-green-600 dark:text-green-400">
+                    {formatCurrency(value)}
+                  </span>
                 </div>
               ))}
           </div>
         </Card>
         <Card>
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Egresos por concepto</h3>
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <h3 className="text-sm font-semibold text-foreground">Egresos por concepto</h3>
           </div>
           <div className="p-5 space-y-2 text-sm">
             {data.fondos
@@ -675,8 +721,10 @@ function ResultadosTab() {
               )
               .map(([label, value]) => (
                 <div key={label} className="flex justify-between">
-                  <span className="text-gray-500">{label}</span>
-                  <span className="font-medium text-red-600">{formatCurrency(value)}</span>
+                  <span className="text-muted">{label}</span>
+                  <span className="font-medium text-red-600 dark:text-red-400">
+                    {formatCurrency(value)}
+                  </span>
                 </div>
               ))}
           </div>
@@ -687,39 +735,39 @@ function ResultadosTab() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+              <tr className="border-b border-border-subtle bg-surface-muted/60">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Fondo
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Capital
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Ingresos
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Egresos
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Neto
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border-subtle">
               {data.fondos.map((f: EstadoResultadosFondo) => (
-                <tr key={f.fondo.id} className="hover:bg-gray-50/50 transition-colors">
+                <tr key={f.fondo.id} className="hover:bg-surface-hover transition-colors">
                   <td className="px-5 py-3 font-medium">{f.fondo.nombre}</td>
                   <td className="px-5 py-3 text-right">
                     {formatCurrency(f.fondo.capitalDisponible)}
                   </td>
-                  <td className="px-5 py-3 text-right text-green-600">
+                  <td className="px-5 py-3 text-right text-green-600 dark:text-green-400">
                     {formatCurrency(f.ingresos.total)}
                   </td>
-                  <td className="px-5 py-3 text-right text-red-600">
+                  <td className="px-5 py-3 text-right text-red-600 dark:text-red-400">
                     {formatCurrency(f.egresos.total)}
                   </td>
                   <td
-                    className={`px-5 py-3 text-right font-medium ${f.resultadoNeto >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                    className={`px-5 py-3 text-right font-medium ${f.resultadoNeto >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
                   >
                     {formatCurrency(f.resultadoNeto)}
                   </td>
@@ -737,6 +785,16 @@ export function AportesTab() {
   const [tipo, setTipo] = useState<ReporteAportesQuery['tipo']>('TODOS')
   const { data, isLoading, isError, error, refetch } = useReporteAportes({ tipo })
 
+  const aportes = data?.aportes ?? []
+  const {
+    datosPagina: aportesPagina,
+    pagina,
+    setPagina,
+    totalPaginas,
+    desde,
+    hasta,
+  } = usePaginacionCliente(aportes, 15)
+
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
   if (isLoading)
     return (
@@ -746,52 +804,54 @@ export function AportesTab() {
     )
   if (!data) return <EmptyState title="Sin datos" />
 
-  const { aportes, resumen } = data
+  const { resumen } = data
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card padding="md">
-          <p className="text-xs text-gray-500">Total Aportes</p>
+          <p className="text-xs text-muted">Total Aportes</p>
           <p className="text-2xl font-bold">{resumen.totalAportes}</p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Monto Total</p>
+          <p className="text-xs text-muted">Monto Total</p>
           <p className="text-2xl font-bold">{formatCurrency(resumen.montoTotal)}</p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Obligatorios</p>
-          <p className="text-2xl font-bold text-blue-600">
+          <p className="text-xs text-muted">Obligatorios</p>
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             {formatCurrency(resumen.porTipo.obligatorio)}
           </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Extraordinarios</p>
-          <p className="text-2xl font-bold text-purple-600">
+          <p className="text-xs text-muted">Extraordinarios</p>
+          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
             {formatCurrency(resumen.porTipo.extraordinario)}
           </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Voluntarios</p>
-          <p className="text-2xl font-bold text-emerald-600">
+          <p className="text-xs text-muted">Voluntarios</p>
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
             {formatCurrency(resumen.porTipo.voluntario)}
           </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Multas</p>
-          <p className="text-2xl font-bold text-red-600">{formatCurrency(resumen.porTipo.multa)}</p>
+          <p className="text-xs text-muted">Multas</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {formatCurrency(resumen.porTipo.multa)}
+          </p>
         </Card>
       </div>
 
       {Object.keys(resumen.porMetodo).length > 0 && (
         <Card>
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Aportes por método de pago</h3>
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <h3 className="text-sm font-semibold text-foreground">Aportes por método de pago</h3>
           </div>
           <div className="p-5 flex flex-wrap gap-4 text-sm">
             {Object.entries(resumen.porMetodo).map(([metodo, monto]) => (
               <div key={metodo} className="flex flex-col">
-                <span className="text-xs text-gray-500">{metodo}</span>
+                <span className="text-xs text-muted">{metodo}</span>
                 <span className="font-semibold">{formatCurrency(monto)}</span>
               </div>
             ))}
@@ -846,37 +906,37 @@ export function AportesTab() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+              <tr className="border-b border-border-subtle bg-surface-muted/60">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Socio
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Fondo
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Periodo
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Tipo
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Monto
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Fecha
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {aportes.map((a: ReporteAporte) => (
-                <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
+            <tbody className="divide-y divide-border-subtle">
+              {aportesPagina.map((a: ReporteAporte) => (
+                <tr key={a.id} className="hover:bg-surface-hover transition-colors">
                   <td className="px-5 py-3">
                     <div className="font-medium">
                       {a.socio.nombres} {a.socio.apellidoPaterno}
                     </div>
-                    <div className="text-xs text-gray-500">{a.socio.codigo}</div>
+                    <div className="text-xs text-muted">{a.socio.codigo}</div>
                   </td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{a.fondo.nombre}</td>
+                  <td className="px-5 py-3 text-sm text-muted">{a.fondo.nombre}</td>
                   <td className="px-5 py-3 text-sm font-mono">{a.periodo}</td>
                   <td className="px-5 py-3">
                     <Badge
@@ -894,13 +954,19 @@ export function AportesTab() {
                     </Badge>
                   </td>
                   <td className="px-5 py-3 text-right font-medium">{formatCurrency(a.monto)}</td>
-                  <td className="px-5 py-3 text-sm text-gray-600">
+                  <td className="px-5 py-3 text-sm text-muted">
                     {new Date(a.fechaAporte).toLocaleDateString('es-PE')}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex flex-col items-center gap-2 border-t border-border-subtle px-5 py-3 sm:flex-row sm:justify-between">
+          <p className="text-xs text-muted">
+            Mostrando {desde}–{hasta} de {aportes.length}
+          </p>
+          <Pagination currentPage={pagina} totalPages={totalPaginas} onPageChange={setPagina} />
         </div>
       </Card>
     </div>
@@ -911,6 +977,16 @@ function MorososTab() {
   const [diasMinimos, setDiasMinimos] = useState(1)
   const { data, isLoading, isError, error, refetch } = useMorosos({ diasMinimos })
 
+  const morosos = data?.morosos ?? []
+  const {
+    datosPagina: morososPagina,
+    pagina,
+    setPagina,
+    totalPaginas,
+    desde,
+    hasta,
+  } = usePaginacionCliente(morosos, 15)
+
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
   if (isLoading)
     return (
@@ -920,24 +996,28 @@ function MorososTab() {
     )
   if (!data) return <EmptyState title="Sin datos" />
 
-  const { morosos, resumen } = data
+  const { resumen } = data
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card padding="md">
-          <p className="text-xs text-gray-500">Total Morosos</p>
-          <p className="text-2xl font-bold text-red-600">{resumen.totalMorosos}</p>
+          <p className="text-xs text-muted">Total Morosos</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {resumen.totalMorosos}
+          </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Monto Adeudado</p>
-          <p className="text-2xl font-bold text-red-600">
+          <p className="text-xs text-muted">Monto Adeudado</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
             {formatCurrency(resumen.montoTotalAdeudado)}
           </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Cuotas Vencidas</p>
-          <p className="text-2xl font-bold text-red-600">{resumen.cuotasVencidasTotal}</p>
+          <p className="text-xs text-muted">Cuotas Vencidas</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {resumen.cuotasVencidasTotal}
+          </p>
         </Card>
       </div>
 
@@ -957,39 +1037,39 @@ function MorososTab() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+              <tr className="border-b border-border-subtle bg-surface-muted/60">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Socio
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Fondo
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Días Atraso
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Cuotas Vencidas
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Monto Adeudado
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Teléfono
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {morosos.map((m: Moroso, i: number) => (
-                <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+            <tbody className="divide-y divide-border-subtle">
+              {morososPagina.map((m: Moroso, i: number) => (
+                <tr key={i} className="hover:bg-surface-hover transition-colors">
                   <td className="px-5 py-3">
                     <div className="font-medium">
                       {m.socio.nombres} {m.socio.apellidoPaterno}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted">
                       {m.socio.codigo} - {m.socio.dni}
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{m.fondo.nombre}</td>
+                  <td className="px-5 py-3 text-sm text-muted">{m.fondo.nombre}</td>
                   <td className="px-5 py-3 text-center">
                     <Badge
                       variant={
@@ -1000,14 +1080,20 @@ function MorososTab() {
                     </Badge>
                   </td>
                   <td className="px-5 py-3 text-center font-medium">{m.cuotasAtrasadas}</td>
-                  <td className="px-5 py-3 text-right font-medium text-red-600">
+                  <td className="px-5 py-3 text-right font-medium text-red-600 dark:text-red-400">
                     {formatCurrency(m.montoAdeudado)}
                   </td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{m.socio.telefono || '—'}</td>
+                  <td className="px-5 py-3 text-sm text-muted">{m.socio.telefono || '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex flex-col items-center gap-2 border-t border-border-subtle px-5 py-3 sm:flex-row sm:justify-between">
+          <p className="text-xs text-muted">
+            Mostrando {desde}–{hasta} de {morosos.length}
+          </p>
+          <Pagination currentPage={pagina} totalPages={totalPaginas} onPageChange={setPagina} />
         </div>
       </Card>
     </div>
@@ -1072,32 +1158,32 @@ function EstadoCuentaTab() {
       {data && (
         <div className="space-y-6">
           <Card>
-            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50">
-              <h3 className="text-sm font-semibold text-gray-900">
+            <div className="px-5 py-3 border-b border-border-subtle bg-surface-muted/60">
+              <h3 className="text-sm font-semibold text-foreground">
                 {data.socio.codigo} - {data.socio.nombres} {data.socio.apellidoPaterno}{' '}
                 {data.socio.apellidoMaterno}
               </h3>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted mt-1">
                 DNI: {data.socio.dni} | Ingreso:{' '}
                 {new Date(data.socio.fechaIngreso).toLocaleDateString('es-PE')}
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5">
               <div>
-                <p className="text-xs text-gray-500">Total Aportes</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-xs text-muted">Total Aportes</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {formatCurrency(data.resumen.totalAportes)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Total Préstamos</p>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-xs text-muted">Total Préstamos</p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {formatCurrency(data.resumen.totalPrestamos)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Deuda Total</p>
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-xs text-muted">Deuda Total</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                   {formatCurrency(data.resumen.totalDeuda)}
                 </p>
               </div>
@@ -1106,30 +1192,30 @@ function EstadoCuentaTab() {
 
           {data.prestamos.length > 0 && (
             <Card>
-              <div className="px-5 py-3 border-b border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-900">Préstamos</h3>
+              <div className="px-5 py-3 border-b border-border-subtle">
+                <h3 className="text-sm font-semibold text-foreground">Préstamos</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                    <tr className="border-b border-border-subtle">
+                      <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                         Fondo
                       </th>
-                      <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                      <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                         Monto
                       </th>
-                      <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                      <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                         Cuotas
                       </th>
-                      <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                      <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                         Estado
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border-subtle">
                     {data.prestamos.map((p) => (
-                      <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                      <tr key={p.id} className="hover:bg-surface-hover transition-colors">
                         <td className="px-5 py-3">{p.fondo.nombre}</td>
                         <td className="px-5 py-3 text-right">{formatCurrency(p.monto)}</td>
                         <td className="px-5 py-3 text-center">
@@ -1172,6 +1258,16 @@ function FlujoCajaTab() {
     fechaFin,
     cajaId: cajaId ? Number(cajaId) : undefined,
   })
+
+  const movimientos = data?.movimientos ?? []
+  const {
+    datosPagina: movimientosPagina,
+    pagina,
+    setPagina,
+    totalPaginas,
+    desde,
+    hasta,
+  } = usePaginacionCliente(movimientos, 15)
 
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
   if (isLoading)
@@ -1260,21 +1356,21 @@ function FlujoCajaTab() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card padding="md">
-          <p className="text-xs text-gray-500">Total Ingresos</p>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-xs text-muted">Total Ingresos</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
             {formatCurrency(data.resumen.totalIngresos)}
           </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Total Egresos</p>
-          <p className="text-2xl font-bold text-red-600">
+          <p className="text-xs text-muted">Total Egresos</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
             {formatCurrency(data.resumen.totalEgresos)}
           </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Flujo Neto</p>
+          <p className="text-xs text-muted">Flujo Neto</p>
           <p
-            className={`text-2xl font-bold ${data.resumen.flujoNeto >= 0 ? 'text-green-600' : 'text-red-600'}`}
+            className={`text-2xl font-bold ${data.resumen.flujoNeto >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
           >
             {formatCurrency(data.resumen.flujoNeto)}
           </p>
@@ -1283,39 +1379,39 @@ function FlujoCajaTab() {
 
       {data.porCaja.length > 0 && (
         <Card>
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Por Caja</h3>
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <h3 className="text-sm font-semibold text-foreground">Por Caja</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <tr className="border-b border-border-subtle bg-surface-muted/60">
+                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                     Caja
                   </th>
-                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                     Ingresos
                   </th>
-                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                     Egresos
                   </th>
-                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                  <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                     Saldo
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border-subtle">
                 {data.porCaja.map((c, i) => (
-                  <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={i} className="hover:bg-surface-hover transition-colors">
                     <td className="px-5 py-3 font-medium">{c.caja}</td>
-                    <td className="px-5 py-3 text-right text-green-600">
+                    <td className="px-5 py-3 text-right text-green-600 dark:text-green-400">
                       {formatCurrency(c.ingresos)}
                     </td>
-                    <td className="px-5 py-3 text-right text-red-600">
+                    <td className="px-5 py-3 text-right text-red-600 dark:text-red-400">
                       {formatCurrency(c.egresos)}
                     </td>
                     <td
-                      className={`px-5 py-3 text-right font-medium ${c.saldo >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                      className={`px-5 py-3 text-right font-medium ${c.saldo >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
                     >
                       {formatCurrency(c.saldo)}
                     </td>
@@ -1328,36 +1424,36 @@ function FlujoCajaTab() {
       )}
 
       <Card>
-        <div className="px-5 py-3 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-900">Detalle de Movimientos</h3>
+        <div className="px-5 py-3 border-b border-border-subtle">
+          <h3 className="text-sm font-semibold text-foreground">Detalle de Movimientos</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+              <tr className="border-b border-border-subtle bg-surface-muted/60">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Fecha
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Código
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Concepto
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Tipo
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Monto
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Caja
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {data.movimientos.map((m) => (
-                <tr key={m.id} className="hover:bg-gray-50/50 transition-colors">
+            <tbody className="divide-y divide-border-subtle">
+              {movimientosPagina.map((m) => (
+                <tr key={m.id} className="hover:bg-surface-hover transition-colors">
                   <td className="px-5 py-3 text-sm">
                     {new Date(m.fecha).toLocaleDateString('es-PE')}
                   </td>
@@ -1367,15 +1463,21 @@ function FlujoCajaTab() {
                     <Badge variant={m.tipo === 'INGRESO' ? 'green' : 'red'}>{m.tipo}</Badge>
                   </td>
                   <td
-                    className={`px-5 py-3 text-right font-medium ${m.tipo === 'INGRESO' ? 'text-green-600' : 'text-red-600'}`}
+                    className={`px-5 py-3 text-right font-medium ${m.tipo === 'INGRESO' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
                   >
                     {formatCurrency(m.monto)}
                   </td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{m.caja}</td>
+                  <td className="px-5 py-3 text-sm text-muted">{m.caja}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex flex-col items-center gap-2 border-t border-border-subtle px-5 py-3 sm:flex-row sm:justify-between">
+          <p className="text-xs text-muted">
+            Mostrando {desde}–{hasta} de {data.movimientos.length}
+          </p>
+          <Pagination currentPage={pagina} totalPages={totalPaginas} onPageChange={setPagina} />
         </div>
       </Card>
     </div>
@@ -1399,91 +1501,95 @@ function BalanceGeneralTab() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card padding="md">
-          <p className="text-xs text-gray-500">Total Activos</p>
-          <p className="text-2xl font-bold text-blue-600">{formatCurrency(data.activos.total)}</p>
+          <p className="text-xs text-muted">Total Activos</p>
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {formatCurrency(data.activos.total)}
+          </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Total Patrimonio</p>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-xs text-muted">Total Patrimonio</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
             {formatCurrency(data.patrimonio.total)}
           </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Ecuación Contable</p>
+          <p className="text-xs text-muted">Ecuación Contable</p>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant={cuadra ? 'green' : 'red'}>{cuadra ? 'CUADRA' : 'NO CUADRA'}</Badge>
-            <span className="text-xs text-gray-500">A = P</span>
+            <span className="text-xs text-muted">A = P</span>
           </div>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">ACTIVOS</h3>
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <h3 className="text-sm font-semibold text-foreground">ACTIVOS</h3>
           </div>
           <div className="p-5 space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-500">Cajas (Efectivo)</span>
+              <span className="text-muted">Cajas (Efectivo)</span>
               <span className="font-medium">{formatCurrency(data.activos.cajas)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Cartera de Créditos</span>
+              <span className="text-muted">Cartera de Créditos</span>
               <span className="font-medium">{formatCurrency(data.activos.cartera)}</span>
             </div>
-            <div className="flex justify-between border-t pt-2">
+            <div className="flex justify-between border-t border-border pt-2">
               <span className="font-semibold">Total Activos</span>
-              <span className="font-bold text-blue-600">{formatCurrency(data.activos.total)}</span>
+              <span className="font-bold text-blue-600 dark:text-blue-400">
+                {formatCurrency(data.activos.total)}
+              </span>
             </div>
           </div>
         </Card>
 
         <Card>
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">PATRIMONIO</h3>
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <h3 className="text-sm font-semibold text-foreground">PATRIMONIO</h3>
           </div>
           <div className="p-5 space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-500">Capital Inicial</span>
+              <span className="text-muted">Capital Inicial</span>
               <span className="font-medium">{formatCurrency(data.patrimonio.capitalInicial)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Aportes Acumulados</span>
-              <span className="font-medium text-green-600">
+              <span className="text-muted">Aportes Acumulados</span>
+              <span className="font-medium text-green-600 dark:text-green-400">
                 {formatCurrency(data.patrimonio.aportes)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Interés Ganado</span>
-              <span className="font-medium text-green-600">
+              <span className="text-muted">Interés Ganado</span>
+              <span className="font-medium text-green-600 dark:text-green-400">
                 {formatCurrency(data.patrimonio.interesGanado)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Gastos Operativos</span>
-              <span className="font-medium text-red-600">
+              <span className="text-muted">Gastos Operativos</span>
+              <span className="font-medium text-red-600 dark:text-red-400">
                 ({formatCurrency(data.patrimonio.gastosOperativos)})
               </span>
             </div>
             {data.patrimonio.capitalPrestadoActivo > 0 && (
               <div className="flex justify-between">
-                <span className="text-gray-500">Capital Prestado Activo</span>
-                <span className="font-medium text-amber-600">
+                <span className="text-muted">Capital Prestado Activo</span>
+                <span className="font-medium text-amber-600 dark:text-amber-400">
                   ({formatCurrency(data.patrimonio.capitalPrestadoActivo)})
                 </span>
               </div>
             )}
-            <div className="flex justify-between border-t pt-2">
-              <span className="text-gray-500">Resultado del Ejercicio</span>
+            <div className="flex justify-between border-t border-border pt-2">
+              <span className="text-muted">Resultado del Ejercicio</span>
               <span
-                className={`font-medium ${data.patrimonio.resultadoEjercicio >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                className={`font-medium ${data.patrimonio.resultadoEjercicio >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
               >
                 {formatCurrency(data.patrimonio.resultadoEjercicio)}
               </span>
             </div>
-            <div className="flex justify-between border-t pt-2">
+            <div className="flex justify-between border-t border-border pt-2">
               <span className="font-semibold">Total Patrimonio</span>
-              <span className="font-bold text-green-600">
+              <span className="font-bold text-green-600 dark:text-green-400">
                 {formatCurrency(data.patrimonio.total)}
               </span>
             </div>
@@ -1519,45 +1625,47 @@ function AntiguedadCarteraTab() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card padding="md">
-          <p className="text-xs text-gray-500">Total Cuotas Pendientes</p>
+          <p className="text-xs text-muted">Total Cuotas Pendientes</p>
           <p className="text-2xl font-bold">{data.total.cantidad}</p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Monto Total Pendiente</p>
-          <p className="text-2xl font-bold text-red-600">{formatCurrency(data.total.monto)}</p>
+          <p className="text-xs text-muted">Monto Total Pendiente</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {formatCurrency(data.total.monto)}
+          </p>
         </Card>
       </div>
       <Card>
-        <div className="px-5 py-3 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-900">Antigüedad por Rango de Días</h3>
+        <div className="px-5 py-3 border-b border-border-subtle">
+          <h3 className="text-sm font-semibold text-foreground">Antigüedad por Rango de Días</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+              <tr className="border-b border-border-subtle bg-surface-muted/60">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Rango de Días
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Cantidad Cuotas
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Monto
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   % del Total
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border-subtle">
               {data.rangos.map((r) => (
-                <tr key={r.rango} className="hover:bg-gray-50/50 transition-colors">
+                <tr key={r.rango} className="hover:bg-surface-hover transition-colors">
                   <td className="px-5 py-3">
                     <Badge variant={rangoColors[r.rango] || 'gray'}>{r.rango} días</Badge>
                   </td>
                   <td className="px-5 py-3 text-center font-medium">{r.cantidad}</td>
                   <td className="px-5 py-3 text-right font-medium">{formatCurrency(r.monto)}</td>
-                  <td className="px-5 py-3 text-right text-sm text-gray-600">
+                  <td className="px-5 py-3 text-right text-sm text-muted">
                     {data.total.monto > 0 ? ((r.monto / data.total.monto) * 100).toFixed(1) : 0}%
                   </td>
                 </tr>
@@ -1586,6 +1694,16 @@ function LibroDiarioTab() {
   const [fechaInicio, setFechaInicio] = useState(dates.inicio)
   const [fechaFin, setFechaFin] = useState(dates.fin)
   const { data, isLoading, isError, error, refetch } = useLibroDiario({ fechaInicio, fechaFin })
+
+  const asientos = data?.asientos ?? []
+  const {
+    datosPagina: asientosPagina,
+    pagina,
+    setPagina,
+    totalPaginas,
+    desde,
+    hasta,
+  } = usePaginacionCliente(asientos, 15)
 
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
   if (isLoading)
@@ -1639,40 +1757,40 @@ function LibroDiarioTab() {
         </div>
       </Card>
       <Card>
-        <div className="px-5 py-3 border-b border-gray-100 flex justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">Asientos Contables</h3>
+        <div className="px-5 py-3 border-b border-border-subtle flex justify-between">
+          <h3 className="text-sm font-semibold text-foreground">Asientos Contables</h3>
           <Badge variant="gray">{data.total} registros</Badge>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+              <tr className="border-b border-border-subtle bg-surface-muted/60">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Fecha
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Código
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Concepto
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Tipo
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Monto
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Caja
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Comprobante
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {data.asientos.map((a) => (
-                <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
+            <tbody className="divide-y divide-border-subtle">
+              {asientosPagina.map((a) => (
+                <tr key={a.id} className="hover:bg-surface-hover transition-colors">
                   <td className="px-5 py-3 text-sm">
                     {new Date(a.fecha).toLocaleDateString('es-PE')}
                   </td>
@@ -1682,16 +1800,22 @@ function LibroDiarioTab() {
                     <Badge variant={a.tipo === 'INGRESO' ? 'green' : 'red'}>{a.tipo}</Badge>
                   </td>
                   <td
-                    className={`px-5 py-3 text-right font-medium ${a.tipo === 'INGRESO' ? 'text-green-600' : 'text-red-600'}`}
+                    className={`px-5 py-3 text-right font-medium ${a.tipo === 'INGRESO' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
                   >
                     {formatCurrency(a.monto)}
                   </td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{a.caja}</td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{a.comprobante || '—'}</td>
+                  <td className="px-5 py-3 text-sm text-muted">{a.caja}</td>
+                  <td className="px-5 py-3 text-sm text-muted">{a.comprobante || '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex flex-col items-center gap-2 border-t border-border-subtle px-5 py-3 sm:flex-row sm:justify-between">
+          <p className="text-xs text-muted">
+            Mostrando {desde}–{hasta} de {data.asientos.length}
+          </p>
+          <Pagination currentPage={pagina} totalPages={totalPaginas} onPageChange={setPagina} />
         </div>
       </Card>
     </div>
@@ -1700,6 +1824,15 @@ function LibroDiarioTab() {
 
 export function ArqueosTab() {
   const { data, isLoading, isError, error, refetch } = useReporteArqueos()
+  const arqueos = data?.arqueos ?? []
+  const {
+    datosPagina: arqueosPagina,
+    pagina,
+    setPagina,
+    totalPaginas,
+    desde,
+    hasta,
+  } = usePaginacionCliente(arqueos, 15)
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
   if (isLoading)
     return (
@@ -1713,56 +1846,62 @@ export function ArqueosTab() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card padding="md">
-          <p className="text-xs text-gray-500">Total Arqueos</p>
+          <p className="text-xs text-muted">Total Arqueos</p>
           <p className="text-2xl font-bold">{data.resumen.total}</p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Aprobados</p>
-          <p className="text-2xl font-bold text-green-600">{data.resumen.aprobados}</p>
+          <p className="text-xs text-muted">Aprobados</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+            {data.resumen.aprobados}
+          </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Pendientes</p>
-          <p className="text-2xl font-bold text-yellow-600">{data.resumen.pendientes}</p>
+          <p className="text-xs text-muted">Pendientes</p>
+          <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+            {data.resumen.pendientes}
+          </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Con Diferencia</p>
-          <p className="text-2xl font-bold text-red-600">{data.resumen.conDiferencia}</p>
+          <p className="text-xs text-muted">Con Diferencia</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {data.resumen.conDiferencia}
+          </p>
         </Card>
       </div>
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+              <tr className="border-b border-border-subtle bg-surface-muted/60">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Código
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Fecha
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Caja
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Saldo Sistema
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Saldo Físico
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Diferencia
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Estado
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Aprobado por
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {data.arqueos.map((a) => (
-                <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
+            <tbody className="divide-y divide-border-subtle">
+              {arqueosPagina.map((a) => (
+                <tr key={a.id} className="hover:bg-surface-hover transition-colors">
                   <td className="px-5 py-3 font-mono text-xs">{a.codigo}</td>
                   <td className="px-5 py-3 text-sm">
                     {new Date(a.fecha).toLocaleDateString('es-PE')}
@@ -1771,18 +1910,24 @@ export function ArqueosTab() {
                   <td className="px-5 py-3 text-right">{formatCurrency(a.saldoSistema)}</td>
                   <td className="px-5 py-3 text-right">{formatCurrency(a.saldoFisico)}</td>
                   <td
-                    className={`px-5 py-3 text-right font-medium ${a.diferencia === 0 ? 'text-green-600' : 'text-red-600'}`}
+                    className={`px-5 py-3 text-right font-medium ${a.diferencia === 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
                   >
                     {formatCurrency(a.diferencia)}
                   </td>
                   <td className="px-5 py-3 text-center">
                     <Badge variant={a.estado === 'APROBADO' ? 'green' : 'yellow'}>{a.estado}</Badge>
                   </td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{a.aprobadoPor || '—'}</td>
+                  <td className="px-5 py-3 text-sm text-muted">{a.aprobadoPor || '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex flex-col items-center gap-2 border-t border-border-subtle px-5 py-3 sm:flex-row sm:justify-between">
+          <p className="text-xs text-muted">
+            Mostrando {desde}–{hasta} de {data.arqueos.length}
+          </p>
+          <Pagination currentPage={pagina} totalPages={totalPaginas} onPageChange={setPagina} />
         </div>
       </Card>
       <Button variant="secondary" size="sm" onClick={() => window.print()}>
@@ -1804,6 +1949,15 @@ function MovimientosCajaTab() {
     value: String(c.id),
     label: c.nombre,
   }))
+  const movimientos = data?.movimientos ?? []
+  const {
+    datosPagina: movimientosPagina,
+    pagina,
+    setPagina,
+    totalPaginas,
+    desde,
+    hasta,
+  } = usePaginacionCliente(movimientos, 15)
 
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
   if (isLoading)
@@ -1868,30 +2022,32 @@ function MovimientosCajaTab() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card padding="md">
-          <p className="text-xs text-gray-500">Total Movimientos</p>
+          <p className="text-xs text-muted">Total Movimientos</p>
           <p className="text-2xl font-bold">{data.resumen.total}</p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Ingresos</p>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-xs text-muted">Ingresos</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
             {formatCurrency(data.resumen.ingresos)}
           </p>
         </Card>
         <Card padding="md">
-          <p className="text-xs text-gray-500">Egresos</p>
-          <p className="text-2xl font-bold text-red-600">{formatCurrency(data.resumen.egresos)}</p>
+          <p className="text-xs text-muted">Egresos</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {formatCurrency(data.resumen.egresos)}
+          </p>
         </Card>
       </div>
 
       {data.resumen.porConcepto.length > 0 && (
         <Card>
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Por Concepto</h3>
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <h3 className="text-sm font-semibold text-foreground">Por Concepto</h3>
           </div>
           <div className="p-5 flex flex-wrap gap-4 text-sm">
             {data.resumen.porConcepto.map((c, i) => (
               <div key={i} className="flex flex-col">
-                <span className="text-xs text-gray-500">{c.concepto}</span>
+                <span className="text-xs text-muted">{c.concepto}</span>
                 <span className="font-semibold">{formatCurrency(c.monto)}</span>
               </div>
             ))}
@@ -1903,33 +2059,33 @@ function MovimientosCajaTab() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+              <tr className="border-b border-border-subtle bg-surface-muted/60">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Fecha
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Código
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Concepto
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Tipo
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Monto
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Caja
                 </th>
-                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-gray-500">
+                <th className="px-5 py-3.5 text-xs uppercase tracking-wider font-semibold text-muted">
                   Estado
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {data.movimientos.map((m) => (
-                <tr key={m.id} className="hover:bg-gray-50/50 transition-colors">
+            <tbody className="divide-y divide-border-subtle">
+              {movimientosPagina.map((m) => (
+                <tr key={m.id} className="hover:bg-surface-hover transition-colors">
                   <td className="px-5 py-3 text-sm">
                     {new Date(m.fecha).toLocaleDateString('es-PE')}
                   </td>
@@ -1939,11 +2095,11 @@ function MovimientosCajaTab() {
                     <Badge variant={m.tipo === 'INGRESO' ? 'green' : 'red'}>{m.tipo}</Badge>
                   </td>
                   <td
-                    className={`px-5 py-3 text-right font-medium ${m.tipo === 'INGRESO' ? 'text-green-600' : 'text-red-600'}`}
+                    className={`px-5 py-3 text-right font-medium ${m.tipo === 'INGRESO' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
                   >
                     {formatCurrency(m.monto)}
                   </td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{m.caja}</td>
+                  <td className="px-5 py-3 text-sm text-muted">{m.caja}</td>
                   <td className="px-5 py-3 text-center">
                     <Badge variant={m.estado === 'REGISTRADO' ? 'blue' : 'gray'}>{m.estado}</Badge>
                   </td>
@@ -1951,6 +2107,12 @@ function MovimientosCajaTab() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex flex-col items-center gap-2 border-t border-border-subtle px-5 py-3 sm:flex-row sm:justify-between">
+          <p className="text-xs text-muted">
+            Mostrando {desde}–{hasta} de {data.movimientos.length}
+          </p>
+          <Pagination currentPage={pagina} totalPages={totalPaginas} onPageChange={setPagina} />
         </div>
       </Card>
     </div>
@@ -2027,8 +2189,8 @@ export default function ReportesPage() {
                   <item.icon className={`h-5 w-5 ${colors.icon}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">{item.label}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+                  <p className="text-sm font-semibold text-foreground">{item.label}</p>
+                  <p className="text-xs text-muted mt-0.5">{item.desc}</p>
                 </div>
               </div>
             </Card>

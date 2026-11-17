@@ -390,3 +390,124 @@ describe('cajaService.createMovimiento', () => {
     expect(result).toHaveProperty('id', 3)
   })
 })
+
+describe('cajaService.listMovimientos', () => {
+  it('combina búsqueda y rango de fechas local incluyendo el día final', async () => {
+    mockPrisma.movimientoCaja.findMany.mockResolvedValue([])
+    mockPrisma.movimientoCaja.count.mockResolvedValue(0)
+
+    const resultado = await cajaService.listMovimientos({
+      cajaId: 1,
+      search: 'aporte',
+      fechaInicio: '2026-07-01',
+      fechaFin: '2026-07-31',
+      page: 2,
+      limit: 15,
+    })
+
+    const esperadoInicio = new Date(2026, 6, 1, 0, 0, 0, 0)
+    const esperadoFin = new Date(2026, 6, 31, 23, 59, 59, 999)
+
+    expect(mockPrisma.movimientoCaja.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          cajaId: 1,
+          OR: [
+            { codigo: { contains: 'aporte' } },
+            { descripcion: { contains: 'aporte' } },
+            { comprobante: { contains: 'aporte' } },
+            { referencia: { contains: 'aporte' } },
+          ],
+          fechaMovimiento: { gte: esperadoInicio, lte: esperadoFin },
+        },
+        skip: 15,
+        take: 15,
+      })
+    )
+    expect(resultado).toMatchObject({ total: 0, page: 2, limit: 15, totalPages: 0 })
+  })
+})
+
+describe('cajaService.getLibroCaja', () => {
+  const cajaConFondo = {
+    ...mockCaja,
+    fondo: { id: 1, nombre: 'Fondo Solidario', moneda: 'PEN' },
+  }
+
+  it('calcula saldo de apertura, saldo corrido y totales del período', async () => {
+    mockPrisma.caja.findUnique.mockResolvedValue(cajaConFondo as any)
+    mockPrisma.movimientoCaja.findMany
+      // Movimientos anteriores al rango: inciden en el saldo de apertura.
+      .mockResolvedValueOnce([
+        { monto: 500, concepto: { afectaSaldo: 'AUMENTA' } },
+        { monto: 200, concepto: { afectaSaldo: 'DISMINUYE' } },
+      ])
+      // Movimientos del rango, en orden cronológico.
+      .mockResolvedValueOnce([
+        {
+          id: 10,
+          codigo: 'MOV-1',
+          fechaMovimiento: new Date(2026, 6, 5, 10, 0),
+          tipo: 'INGRESO',
+          descripcion: 'Aporte',
+          comprobante: 'REC-1',
+          metodoPago: 'EFECTIVO',
+          monto: 300,
+          concepto: { id: 1, codigo: 'ING', nombre: 'Aporte', afectaSaldo: 'AUMENTA' },
+        },
+        {
+          id: 11,
+          codigo: 'MOV-2',
+          fechaMovimiento: new Date(2026, 6, 6, 9, 0),
+          tipo: 'EGRESO',
+          descripcion: 'Gasto',
+          comprobante: null,
+          metodoPago: 'EFECTIVO',
+          monto: 100,
+          concepto: { id: 2, codigo: 'EGR', nombre: 'Gasto', afectaSaldo: 'DISMINUYE' },
+        },
+      ])
+
+    const libro = await cajaService.getLibroCaja(1, {
+      fechaInicio: '2026-07-01',
+      fechaFin: '2026-07-31',
+    })
+
+    // saldoInicial 1000 + 500 - 200 = 1300
+    expect(libro?.saldoApertura).toBe(1300)
+    expect(libro?.totalIngresos).toBe(300)
+    expect(libro?.totalEgresos).toBe(100)
+    expect(libro?.saldoCierre).toBe(1500)
+    expect(libro?.movimientos).toHaveLength(2)
+    expect(libro?.movimientos[0]).toMatchObject({ ingreso: 300, egreso: 0, saldo: 1600 })
+    expect(libro?.movimientos[1]).toMatchObject({ ingreso: 0, egreso: 100, saldo: 1500 })
+
+    // Los movimientos anulados no entran al libro.
+    expect(mockPrisma.movimientoCaja.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          cajaId: 1,
+          estado: { not: 'ANULADO' },
+        }),
+      })
+    )
+  })
+
+  it('devuelve null cuando la caja no existe', async () => {
+    mockPrisma.caja.findUnique.mockResolvedValue(null)
+
+    const libro = await cajaService.getLibroCaja(999, {})
+
+    expect(libro).toBeNull()
+    expect(mockPrisma.movimientoCaja.findMany).not.toHaveBeenCalled()
+  })
+
+  it('rechaza un rango con fecha inicial posterior a la final', async () => {
+    mockPrisma.caja.findUnique.mockResolvedValue(cajaConFondo as any)
+
+    await expect(
+      cajaService.getLibroCaja(1, { fechaInicio: '2026-08-01', fechaFin: '2026-07-01' })
+    ).rejects.toThrow(new HttpError(400, 'La fecha inicial no puede ser posterior a la final'))
+  })
+})

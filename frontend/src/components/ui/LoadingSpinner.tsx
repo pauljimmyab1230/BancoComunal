@@ -16,7 +16,7 @@ export default function LoadingSpinner({ size = 'md', text, className = '' }: Lo
       <div
         className={`${sizeMap[size]} animate-spin rounded-full border-4 border-secondary/20 border-t-secondary`}
       />
-      {text && <p className="text-sm text-gray-500">{text}</p>}
+      {text && <p className="text-sm text-muted">{text}</p>}
     </div>
   )
 }

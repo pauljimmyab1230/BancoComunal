@@ -65,13 +65,13 @@ export default function FormField({
 
   return (
     <div className={`space-y-1.5 ${className}`}>
-      <label htmlFor={idControl} className="block text-sm font-medium text-gray-900">
+      <label htmlFor={idControl} className="block text-sm font-medium text-foreground">
         {label}
         {required && <span className="ml-0.5 text-red-500">*</span>}
       </label>
       {contenido}
       {description && !error && (
-        <p id={idDescripcion} className="text-xs text-gray-600">
+        <p id={idDescripcion} className="text-xs text-muted">
           {description}
         </p>
       )}

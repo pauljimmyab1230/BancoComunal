@@ -36,6 +36,25 @@ export function useCajaResumen(id: number) {
   })
 }
 
+export function useResumenGeneralCaja() {
+  return useQuery({
+    queryKey: ['caja', 'resumen-general'],
+    queryFn: () => cajaApi.getResumenGeneral(),
+  })
+}
+
+export function useLibroCaja(
+  id: number,
+  params?: { fechaInicio?: string; fechaFin?: string },
+  habilitado = true
+) {
+  return useQuery({
+    queryKey: ['caja', 'libro', id, params],
+    queryFn: () => cajaApi.getLibroCaja(id, params),
+    enabled: !!id && habilitado,
+  })
+}
+
 export function useConceptos(params?: { estado?: string; tipo?: string }) {
   return useQuery({
     queryKey: ['caja', 'conceptos', params],
@@ -52,6 +71,7 @@ export function useCreateCaja() {
     onSuccess: (res) => {
       toast.success(res.message || 'Caja creada correctamente')
       queryClient.invalidateQueries({ queryKey: ['cajas'] })
+      queryClient.invalidateQueries({ queryKey: ['caja', 'resumen-general'] })
       navigate('/caja')
     },
     onError: (error: Error) => {
@@ -69,6 +89,7 @@ export function useUpdateCaja(id: number) {
     onSuccess: (res) => {
       toast.success(res.message || 'Caja actualizada correctamente')
       queryClient.invalidateQueries({ queryKey: ['cajas'] })
+      queryClient.invalidateQueries({ queryKey: ['caja', 'resumen-general'] })
       queryClient.invalidateQueries({ queryKey: ['caja', id] })
       navigate(`/caja/${id}`)
     },
@@ -86,6 +107,7 @@ export function useDeleteCaja() {
     onSuccess: () => {
       toast.success('Caja eliminada correctamente')
       queryClient.invalidateQueries({ queryKey: ['cajas'] })
+      queryClient.invalidateQueries({ queryKey: ['caja', 'resumen-general'] })
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al eliminar caja')

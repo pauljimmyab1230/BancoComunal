@@ -3,6 +3,31 @@ import prisma from '../../config/prisma'
 function round2Caja(n: number): number {
   return Math.round((n + Math.sign(n || 1) * 1e-9) * 100) / 100
 }
+
+/**
+ * Convierte una fecha `YYYY-MM-DD` (o ISO) al inicio o al final del día en horario local.
+ * `new Date('2026-07-01')` se interpreta como UTC y en zonas con desfase negativo
+ * desplaza el rango un día, por eso se construye con los componentes de la fecha.
+ */
+function parseFechaCaja(valor: string | Date, finDelDia = false): Date {
+  if (valor instanceof Date) {
+    const fecha = new Date(valor.getTime())
+    if (finDelDia) fecha.setHours(23, 59, 59, 999)
+    else fecha.setHours(0, 0, 0, 0)
+    return fecha
+  }
+  const [anio, mes, dia] = valor.slice(0, 10).split('-').map(Number)
+  if (!anio || !mes || !dia) {
+    const fecha = new Date(valor)
+    if (isNaN(fecha.getTime())) return fecha
+    if (finDelDia) fecha.setHours(23, 59, 59, 999)
+    else fecha.setHours(0, 0, 0, 0)
+    return fecha
+  }
+  return finDelDia
+    ? new Date(anio, mes - 1, dia, 23, 59, 59, 999)
+    : new Date(anio, mes - 1, dia, 0, 0, 0, 0)
+}
 import { HttpError } from '../../middleware/httpError'
 import { generateCodigo } from './movimientoHelper'
 import { z } from 'zod'
@@ -427,12 +452,23 @@ export const cajaService = {
     conceptoId?: number
     tipo?: string
     estado?: string
+    search?: string
     fechaInicio?: string
     fechaFin?: string
     page?: number
     limit?: number
   }) {
-    const { cajaId, conceptoId, tipo, estado, fechaInicio, fechaFin, page = 1, limit = 20 } = params
+    const {
+      cajaId,
+      conceptoId,
+      tipo,
+      estado,
+      search,
+      fechaInicio,
+      fechaFin,
+      page = 1,
+      limit = 20,
+    } = params
     const skip = (page - 1) * limit
 
     const where: Prisma.MovimientoCajaWhereInput = {}
@@ -440,10 +476,26 @@ export const cajaService = {
     if (conceptoId) where.conceptoId = conceptoId
     if (tipo) where.tipo = tipo
     if (estado) where.estado = estado
+    if (search) {
+      where.OR = [
+        { codigo: { contains: search } },
+        { descripcion: { contains: search } },
+        { comprobante: { contains: search } },
+        { referencia: { contains: search } },
+      ]
+    }
     if (fechaInicio || fechaFin) {
-      where.fechaMovimiento = {}
-      if (fechaInicio) where.fechaMovimiento.gte = new Date(fechaInicio)
-      if (fechaFin) where.fechaMovimiento.lte = new Date(fechaFin)
+      // El rango se interpreta en horario local y "hasta" incluye todo el día.
+      const rango: Prisma.DateTimeFilter = {}
+      if (fechaInicio) {
+        const inicio = parseFechaCaja(fechaInicio)
+        if (!isNaN(inicio.getTime())) rango.gte = inicio
+      }
+      if (fechaFin) {
+        const fin = parseFechaCaja(fechaFin, true)
+        if (!isNaN(fin.getTime())) rango.lte = fin
+      }
+      if (rango.gte || rango.lte) where.fechaMovimiento = rango
     }
 
     const [data, total] = await Promise.all([
@@ -474,6 +526,125 @@ export const cajaService = {
       where: { id },
       include: { caja: true, concepto: true },
     })
+  },
+
+  /**
+   * Libro de caja: movimientos del período en orden cronológico con saldo corrido.
+   * El saldo de apertura se calcula sumando los efectos de todo lo anterior al rango.
+   */
+  async getLibroCaja(cajaId: number, params: { fechaInicio?: string; fechaFin?: string }) {
+    const caja = await prisma.caja.findUnique({
+      where: { id: cajaId },
+      include: { fondo: { select: { id: true, nombre: true, moneda: true } } },
+    })
+    if (!caja) return null
+
+    let desde: Date | undefined
+    let hasta: Date | undefined
+    if (params.fechaInicio) {
+      desde = parseFechaCaja(params.fechaInicio)
+      if (isNaN(desde.getTime())) throw new HttpError(400, 'Fecha inicial inválida')
+    }
+    if (params.fechaFin) {
+      hasta = parseFechaCaja(params.fechaFin, true)
+      if (isNaN(hasta.getTime())) throw new HttpError(400, 'Fecha final inválida')
+    }
+    if (desde && hasta && desde > hasta) {
+      throw new HttpError(400, 'La fecha inicial no puede ser posterior a la final')
+    }
+
+    const whereBase: Prisma.MovimientoCajaWhereInput = {
+      cajaId,
+      estado: { not: 'ANULADO' },
+    }
+
+    // Suma los efectos de todos los movimientos anteriores al rango consultado.
+    const calcularEfecto = (monto: number, afectaSaldo?: string | null): number => {
+      if (afectaSaldo === 'AUMENTA') return monto
+      if (afectaSaldo === 'DISMINUYE') return -monto
+      return 0
+    }
+
+    const [anteriores, movimientos] = await Promise.all([
+      desde
+        ? prisma.movimientoCaja.findMany({
+            where: { ...whereBase, fechaMovimiento: { lt: desde } },
+            include: { concepto: { select: { afectaSaldo: true } } },
+          })
+        : Promise.resolve([]),
+      prisma.movimientoCaja.findMany({
+        where: {
+          ...whereBase,
+          ...(desde || hasta
+            ? {
+                fechaMovimiento: {
+                  ...(desde ? { gte: desde } : {}),
+                  ...(hasta ? { lte: hasta } : {}),
+                },
+              }
+            : {}),
+        },
+        orderBy: [{ fechaMovimiento: 'asc' }, { id: 'asc' }],
+        include: {
+          concepto: {
+            select: { id: true, codigo: true, nombre: true, afectaSaldo: true },
+          },
+        },
+      }),
+    ])
+
+    const saldoApertura = round2Caja(
+      anteriores.reduce(
+        (total, movimiento) =>
+          total + calcularEfecto(Number(movimiento.monto), movimiento.concepto?.afectaSaldo),
+        Number(caja.saldoInicial)
+      )
+    )
+
+    let saldoCorrido = saldoApertura
+    let totalIngresos = 0
+    let totalEgresos = 0
+
+    const filas = movimientos.map((movimiento) => {
+      const monto = Number(movimiento.monto)
+      const efecto = calcularEfecto(monto, movimiento.concepto?.afectaSaldo)
+      saldoCorrido = round2Caja(saldoCorrido + efecto)
+
+      if (efecto > 0) totalIngresos = round2Caja(totalIngresos + monto)
+      if (efecto < 0) totalEgresos = round2Caja(totalEgresos + monto)
+
+      return {
+        id: movimiento.id,
+        codigo: movimiento.codigo,
+        fechaMovimiento: movimiento.fechaMovimiento,
+        tipo: movimiento.tipo,
+        concepto: movimiento.concepto?.nombre ?? '',
+        descripcion: movimiento.descripcion ?? '',
+        comprobante: movimiento.comprobante ?? '',
+        metodoPago: movimiento.metodoPago,
+        ingreso: efecto > 0 ? monto : 0,
+        egreso: efecto < 0 ? monto : 0,
+        saldo: saldoCorrido,
+      }
+    })
+
+    return {
+      caja: {
+        id: caja.id,
+        codigo: caja.codigo,
+        nombre: caja.nombre,
+        moneda: caja.moneda,
+        saldoActual: Number(caja.saldoActual),
+        fondo: caja.fondo,
+      },
+      desde: desde ? desde.toISOString() : null,
+      hasta: hasta ? hasta.toISOString() : null,
+      saldoApertura,
+      totalIngresos,
+      totalEgresos,
+      saldoCierre: saldoCorrido,
+      movimientos: filas,
+    }
   },
 
   async createMovimiento(data: z.infer<typeof createMovimientoSchema>) {
@@ -964,6 +1135,72 @@ export const cajaService = {
     if (!existing) return false
     await prisma.flujoCajaProyectado.delete({ where: { id } })
     return true
+  },
+
+  // Resumen general de todas las cajas (tarjetas del listado)
+  async getResumenGeneral() {
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+    const manana = new Date(hoy)
+    manana.setDate(manana.getDate() + 1)
+
+    const [cajas, movimientosHoy, arqueosPendientes, flujoProximos] = await Promise.all([
+      prisma.caja.findMany({
+        select: { estado: true, moneda: true, saldoActual: true },
+      }),
+      prisma.movimientoCaja.findMany({
+        where: { estado: { not: 'ANULADO' }, fechaMovimiento: { gte: hoy, lt: manana } },
+        include: {
+          concepto: { select: { afectaSaldo: true } },
+          caja: { select: { moneda: true } },
+        },
+      }),
+      prisma.arqueoCaja.count({ where: { estado: 'PENDIENTE' } }),
+      prisma.flujoCajaProyectado.count({
+        where: { fecha: { gte: hoy }, estado: 'PROYECTADO' },
+      }),
+    ])
+
+    const saldosPorMoneda: Record<string, number> = {}
+    for (const caja of cajas) {
+      saldosPorMoneda[caja.moneda] = (saldosPorMoneda[caja.moneda] ?? 0) + Number(caja.saldoActual)
+    }
+
+    const ingresos = movimientosHoy
+      .filter((m) => m.concepto?.afectaSaldo === 'AUMENTA')
+      .reduce((total, m) => total + Number(m.monto), 0)
+    const egresos = movimientosHoy
+      .filter((m) => m.concepto?.afectaSaldo === 'DISMINUYE')
+      .reduce((total, m) => total + Number(m.monto), 0)
+
+    // Los montos de hoy se agrupan por moneda para no sumar soles con dólares.
+    const hoyPorMoneda: Record<string, { ingresos: number; egresos: number; neto: number }> = {}
+    for (const movimiento of movimientosHoy) {
+      const moneda = movimiento.caja?.moneda ?? 'PEN'
+      const acumulado = hoyPorMoneda[moneda] ?? { ingresos: 0, egresos: 0, neto: 0 }
+      const monto = Number(movimiento.monto)
+      if (movimiento.concepto?.afectaSaldo === 'AUMENTA') acumulado.ingresos += monto
+      else if (movimiento.concepto?.afectaSaldo === 'DISMINUYE') acumulado.egresos += monto
+      acumulado.neto = acumulado.ingresos - acumulado.egresos
+      hoyPorMoneda[moneda] = acumulado
+    }
+
+    return {
+      totalCajas: cajas.length,
+      cajasActivas: cajas.filter((c) => c.estado === 'ACTIVA').length,
+      cajasInactivas: cajas.filter((c) => c.estado === 'INACTIVA').length,
+      cajasCerradas: cajas.filter((c) => c.estado === 'CERRADA').length,
+      saldosPorMoneda,
+      hoy: {
+        movimientos: movimientosHoy.length,
+        ingresos,
+        egresos,
+        neto: ingresos - egresos,
+      },
+      hoyPorMoneda,
+      arqueosPendientes,
+      flujoProximos,
+    }
   },
 
   // Resumen

@@ -3,10 +3,13 @@ import { create } from 'zustand'
 const URL_API = import.meta.env.VITE_API_URL || '/api'
 
 export interface UsuarioSesion {
+  id?: number
+  username?: string
   name: string
   email: string
   role?: string
   cambiarPassword?: boolean
+  twoFactorEnabled?: boolean
 }
 
 interface AuthState {
@@ -35,10 +38,13 @@ function guardarUsuario(user: UsuarioSesion): void {
 function mapearUsuario(data: Record<string, unknown> | undefined): UsuarioSesion | null {
   if (!data) return null
   return {
+    id: typeof data.id === 'number' ? data.id : undefined,
+    username: typeof data.username === 'string' ? data.username : undefined,
     name: String(data.nombres ?? data.name ?? ''),
     email: String(data.correo ?? data.email ?? ''),
     role: data.rol as string | undefined,
     cambiarPassword: Boolean(data.cambiarPassword),
+    twoFactorEnabled: Boolean(data.twoFactorEnabled),
   }
 }
 
@@ -70,7 +76,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   restaurarSesion: async () => {
     const actual = cargarUsuario()
-    if (actual) {
+    // Las sesiones antiguas pueden no tener id: se refrescan para completar los datos.
+    if (actual?.id) {
       set({ user: actual, isAuthenticated: true, verificandoSesion: false })
       return true
     }

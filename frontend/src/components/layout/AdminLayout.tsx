@@ -39,7 +39,7 @@ export default function AdminLayout() {
   const sidebarExpandida = sidebarExpanded || sidebarHovered
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="relative flex h-screen overflow-hidden bg-background text-foreground">
       <AdminSidebar
         expanded={sidebarExpanded}
         hovered={sidebarHovered}
@@ -51,7 +51,7 @@ export default function AdminLayout() {
       />
 
       <div
-        className={`flex flex-1 flex-col overflow-hidden transition-all duration-300 ${
+        className={`relative flex flex-1 flex-col overflow-hidden transition-all duration-300 ${
           sidebarExpandida ? 'lg:ml-[240px]' : 'lg:ml-[68px]'
         }`}
       >

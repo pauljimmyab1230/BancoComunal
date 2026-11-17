@@ -2,7 +2,7 @@ import { useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useForm, useController } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Save, User } from 'lucide-react'
+import { ArrowLeft, Save, User, Phone, Camera, CalendarCheck } from 'lucide-react'
 import { socioFormSchema, type SocioFormValues } from '../schemas/socioSchema'
 import { useSocio, useCreateSocio, useUpdateSocio } from '../hooks/useSocios'
 import {
@@ -157,8 +157,8 @@ export default function SocioFormPage() {
               <User className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-gray-900">Datos Personales</h3>
-              <p className="text-xs text-gray-500">Información principal del socio</p>
+              <h3 className="text-base font-semibold text-foreground">Datos Personales</h3>
+              <p className="text-xs text-muted">Información principal del socio</p>
             </div>
           </div>
 
@@ -230,11 +230,11 @@ export default function SocioFormPage() {
         <Card padding="lg">
           <div className="mb-6 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
-              <User className="h-5 w-5" />
+              <Phone className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-gray-900">Contacto</h3>
-              <p className="text-xs text-gray-500">Información de contacto del socio</p>
+              <h3 className="text-base font-semibold text-foreground">Contacto</h3>
+              <p className="text-xs text-muted">Información de contacto del socio</p>
             </div>
           </div>
 
@@ -278,11 +278,11 @@ export default function SocioFormPage() {
         <Card padding="lg">
           <div className="mb-6 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
-              <User className="h-5 w-5" />
+              <Camera className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-gray-900">Fotografía</h3>
-              <p className="text-xs text-gray-500">Foto del socio para identificación</p>
+              <h3 className="text-base font-semibold text-foreground">Fotografía</h3>
+              <p className="text-xs text-muted">Foto del socio para identificación</p>
             </div>
           </div>
 
@@ -300,11 +300,11 @@ export default function SocioFormPage() {
         <Card padding="lg">
           <div className="mb-6 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
-              <User className="h-5 w-5" />
+              <CalendarCheck className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-gray-900">Afiliación</h3>
-              <p className="text-xs text-gray-500">Datos de ingreso a la organización</p>
+              <h3 className="text-base font-semibold text-foreground">Afiliación</h3>
+              <p className="text-xs text-muted">Datos de ingreso a la organización</p>
             </div>
           </div>
 
@@ -327,7 +327,7 @@ export default function SocioFormPage() {
           </div>
         </Card>
 
-        <div className="flex justify-end gap-3">
+        <div className="sticky bottom-0 z-10 mt-2 flex items-center justify-end gap-3 rounded-2xl border border-border bg-surface/90 px-4 py-3 shadow-[var(--shadow-pop)] backdrop-blur-xl">
           <Button variant="ghost" type="button" onClick={() => navigate('/socios')}>
             Cancelar
           </Button>

@@ -36,7 +36,7 @@ export default function Pagination({
         type="button"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-hover hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
         aria-label="Anterior"
       >
         <ChevronLeft className="h-4 w-4" />
@@ -46,7 +46,7 @@ export default function Pagination({
         page === '...' ? (
           <span
             key={`ellipsis-${i}`}
-            className="flex h-9 w-9 items-center justify-center text-sm text-gray-400"
+            className="flex h-9 w-9 items-center justify-center text-sm text-subtle"
           >
             ···
           </span>
@@ -57,8 +57,8 @@ export default function Pagination({
             onClick={() => onPageChange(page)}
             className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
               page === currentPage
-                ? 'bg-secondary text-white shadow-md shadow-secondary/25'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-secondary text-white shadow-sm shadow-secondary/30'
+                : 'text-muted hover:bg-surface-hover hover:text-foreground'
             }`}
             aria-current={page === currentPage ? 'page' : undefined}
           >
@@ -71,7 +71,7 @@ export default function Pagination({
         type="button"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-hover hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
         aria-label="Siguiente"
       >
         <ChevronRight className="h-4 w-4" />

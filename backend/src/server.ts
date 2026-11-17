@@ -9,6 +9,7 @@ import path from 'path'
 import fs from 'fs'
 import { env } from './config/env'
 import { logger } from './config/logger'
+import prisma from './config/prisma'
 import { errorHandler } from './middleware/errorHandler'
 import { authenticate, authenticateUploads } from './middleware/auth'
 import { seedDatabase } from './config/seed'
@@ -18,6 +19,7 @@ import socioRoutes from './modules/socios/socioRoutes'
 import fondosRoutes from './modules/fondos/fondoRoutes'
 import aportesRoutes from './modules/aportes/aporteRoutes'
 import creditosRoutes from './modules/creditos/creditoRoutes'
+import cotizacionesRoutes from './modules/cotizaciones/cotizacionRoutes'
 import cajaRoutes from './modules/caja/cajaRoutes'
 import reportesRoutes from './modules/reportes/reportesRoutes'
 import configuracionRoutes from './modules/configuracion/configuracionRoutes'
@@ -70,17 +72,30 @@ app.use('/api/socios', authenticate, socioRoutes)
 app.use('/api/fondos', authenticate, fondosRoutes)
 app.use('/api/aportes', authenticate, aportesRoutes)
 app.use('/api/creditos', authenticate, creditosRoutes)
+app.use('/api/cotizaciones', authenticate, cotizacionesRoutes)
 app.use('/api/caja', authenticate, cajaRoutes)
 app.use('/api/reportes', authenticate, reportesRoutes)
 app.use('/api/configuracion', configuracionRoutes)
 app.use('/api/auditoria', auditoriaRoutes)
 app.use('/api/dashboard', authenticate, dashboardRoutes)
 
-// Health check
-app.get('/api/health', (_req, res) => {
-  res.json({
-    success: true,
-    message: 'Banquito Solidario API funcionando',
+// Health check (liveness + readiness: verifica la conexión a la base de datos)
+app.get('/api/health', async (_req, res) => {
+  let database = 'up'
+  try {
+    await prisma.$queryRaw`SELECT 1`
+  } catch {
+    database = 'down'
+  }
+  const sano = database === 'up'
+  res.status(sano ? 200 : 503).json({
+    success: sano,
+    status: sano ? 'ok' : 'degraded',
+    message: sano
+      ? 'Banquito Solidario API funcionando'
+      : 'Banquito Solidario API degradada: sin conexión a la base de datos',
+    uptime: process.uptime(),
+    database,
     timestamp: new Date().toISOString(),
   })
 })

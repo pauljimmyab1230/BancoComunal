@@ -12,6 +12,23 @@ export const cajaCreateSchema = z.object({
 
 export const cajaUpdateSchema = cajaCreateSchema.partial()
 
+/** Formulario de la UI: los numéricos viajan como string y se convierten al enviar. */
+export const cajaFormSchema = z.object({
+  nombre: z
+    .string()
+    .min(2, 'El nombre debe tener al menos 2 caracteres')
+    .max(100, 'El nombre no puede superar los 100 caracteres'),
+  descripcion: z.string().max(500, 'La descripción no puede superar los 500 caracteres').optional(),
+  tipo: z.enum(['PRINCIPAL', 'SECUNDARIA', 'CAJA_CHICA']),
+  moneda: z.enum(['PEN', 'USD']),
+  saldoInicial: z
+    .string()
+    .min(1, 'Ingrese el saldo inicial')
+    .refine((v) => !isNaN(Number(v)) && Number(v) >= 0, 'El saldo inicial no puede ser negativo'),
+  fondoId: z.string().min(1, 'Seleccione un fondo'),
+  estado: z.enum(['ACTIVA', 'INACTIVA', 'CERRADA']),
+})
+
 export const movimientoCreateSchema = z.object({
   cajaId: z.number().min(1, 'Caja es requerida'),
   conceptoId: z.number().min(1, 'Concepto es requerido'),
@@ -56,6 +73,7 @@ export const flujoProyectadoCreateSchema = z.object({
 })
 
 export type CajaCreateInput = z.infer<typeof cajaCreateSchema>
+export type CajaFormValues = z.infer<typeof cajaFormSchema>
 export type MovimientoCreateInput = z.infer<typeof movimientoCreateSchema>
 export type ArqueoCreateInput = z.infer<typeof arqueoCreateSchema>
 export type AprobarArqueoInput = z.infer<typeof aprobarArqueoSchema>

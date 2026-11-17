@@ -8,3 +8,11 @@ export function useDashboard() {
     refetchInterval: 30000,
   })
 }
+
+export function useEvolucionDashboard(meses = 12) {
+  return useQuery({
+    queryKey: ['dashboard', 'evolucion', meses],
+    queryFn: () => dashboardApi.getEvolucion(meses),
+    staleTime: 60_000,
+  })
+}

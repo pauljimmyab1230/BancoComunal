@@ -65,7 +65,7 @@ export default function ImageUpload({
   if (preview) {
     return (
       <div
-        className={`relative inline-block overflow-hidden rounded-xl border border-gray-200 ${className}`}
+        className={`relative inline-block overflow-hidden rounded-xl border border-border ${className}`}
       >
         <img src={preview} alt="Preview" className="h-40 w-full object-cover" />
         <button
@@ -92,16 +92,16 @@ export default function ImageUpload({
         className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-all focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20 ${
           dragOver
             ? 'border-secondary bg-secondary/5'
-            : 'border-gray-300 bg-gray-50/50 hover:border-secondary/50 hover:bg-secondary/5'
+            : 'border-border bg-surface-muted/50 hover:border-secondary/50 hover:bg-secondary/5'
         }`}
       >
         <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
           {dragOver ? <Upload className="h-6 w-6" /> : <ImageIcon className="h-6 w-6" />}
         </div>
-        <p className="text-sm font-medium text-gray-900">
+        <p className="text-sm font-medium text-foreground">
           Arrastra una imagen o haz clic para subir
         </p>
-        <p className="mt-1 text-xs text-gray-500">PNG, JPG, WEBP (máx. {maxSizeMB}MB)</p>
+        <p className="mt-1 text-xs text-muted">PNG, JPG, WEBP (máx. {maxSizeMB}MB)</p>
         <input
           ref={inputRef}
           type="file"

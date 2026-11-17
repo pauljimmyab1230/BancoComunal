@@ -55,7 +55,7 @@ export default function DataTable<T>({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center rounded-2xl border border-gray-200 bg-white py-20">
+      <div className="flex items-center justify-center rounded-2xl border border-border bg-surface py-20">
         <LoadingSpinner text="Cargando datos..." />
       </div>
     )
@@ -73,11 +73,13 @@ export default function DataTable<T>({
   }
 
   return (
-    <div className={`overflow-hidden rounded-2xl border border-gray-200 bg-white ${className}`}>
+    <div
+      className={`overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] ${className}`}
+    >
       <div className="overflow-x-auto">
         <table className="w-full min-w-[600px] text-left text-sm">
           <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/50">
+            <tr className="border-b border-border-subtle bg-surface-muted/60">
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -85,8 +87,8 @@ export default function DataTable<T>({
                   aria-sort={
                     sortKey !== col.key ? 'none' : sortDir === 'asc' ? 'ascending' : 'descending'
                   }
-                  className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500 ${
-                    col.sortable ? 'cursor-pointer select-none hover:text-gray-700' : ''
+                  className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted ${
+                    col.sortable ? 'cursor-pointer select-none hover:text-foreground' : ''
                   } ${col.className || ''}`}
                 >
                   {col.sortable ? (
@@ -110,16 +112,16 @@ export default function DataTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border-subtle">
             {data.map((item, index) => (
               <tr
                 key={String(((item as Record<string, unknown>)[keyField] as string) ?? index)}
-                className="transition-colors hover:bg-gray-50/50"
+                className="transition-colors hover:bg-surface-muted/60"
               >
                 {columns.map((col) => (
                   <td
                     key={col.key}
-                    className={`px-5 py-4 text-sm text-gray-900 ${col.className || ''}`}
+                    className={`px-5 py-4 text-sm text-foreground ${col.className || ''}`}
                   >
                     {col.render
                       ? col.render(item, index)
@@ -133,7 +135,7 @@ export default function DataTable<T>({
       </div>
 
       {currentPage !== undefined && totalPages !== undefined && onPageChange && (
-        <div className="border-t border-gray-100 px-5 py-4">
+        <div className="border-t border-border-subtle px-5 py-4">
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}

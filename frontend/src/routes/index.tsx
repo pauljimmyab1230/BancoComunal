@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Navigate } from 'react-router-dom'
 import AdminLayout from '@/components/layout/AdminLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
+import RequireRole from '@/components/auth/RequireRole'
 
 const LoginPage = lazy(() => import('@/pages/LoginPage'))
 
@@ -17,6 +18,9 @@ const AporteDetailPage = lazy(() => import('@/modules/aportes/pages/AporteDetail
 const CreditosListPage = lazy(() => import('@/modules/creditos/pages/CreditosListPage'))
 const CreditoFormPage = lazy(() => import('@/modules/creditos/pages/CreditoFormPage'))
 const CreditoDetailPage = lazy(() => import('@/modules/creditos/pages/CreditoDetailPage'))
+const CotizacionesListPage = lazy(() => import('@/modules/cotizaciones/pages/CotizacionesListPage'))
+const CotizacionFormPage = lazy(() => import('@/modules/cotizaciones/pages/CotizacionFormPage'))
+const CotizacionDetailPage = lazy(() => import('@/modules/cotizaciones/pages/CotizacionDetailPage'))
 const CajaListPage = lazy(() => import('@/modules/caja/pages/CajaListPage'))
 const CajaFormPage = lazy(() => import('@/modules/caja/pages/CajaFormPage'))
 const CajaDetailPage = lazy(() => import('@/modules/caja/pages/CajaDetailPage'))
@@ -27,10 +31,10 @@ const DashboardPage = lazy(() => import('@/modules/dashboard/pages/DashboardPage
 
 function Loading() {
   return (
-    <div className="flex h-screen items-center justify-center bg-[#F8FAFC]">
+    <div className="flex h-screen items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-secondary border-t-transparent" />
-        <p className="text-sm text-gray-500">Cargando...</p>
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-secondary/20 border-t-secondary" />
+        <p className="text-sm text-muted">Cargando...</p>
       </div>
     </div>
   )
@@ -196,6 +200,38 @@ export const routes = [
         ),
       },
       {
+        path: 'cotizaciones',
+        element: (
+          <SuspenseWrapper>
+            <CotizacionesListPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: 'cotizaciones/nueva',
+        element: (
+          <SuspenseWrapper>
+            <CotizacionFormPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: 'cotizaciones/:id',
+        element: (
+          <SuspenseWrapper>
+            <CotizacionDetailPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: 'cotizaciones/:id/editar',
+        element: (
+          <SuspenseWrapper>
+            <CotizacionFormPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
         path: 'caja',
         element: (
           <SuspenseWrapper>
@@ -238,9 +274,11 @@ export const routes = [
       {
         path: 'configuracion',
         element: (
-          <SuspenseWrapper>
-            <ConfiguracionPage />
-          </SuspenseWrapper>
+          <RequireRole rol="ADMIN">
+            <SuspenseWrapper>
+              <ConfiguracionPage />
+            </SuspenseWrapper>
+          </RequireRole>
         ),
       },
       {

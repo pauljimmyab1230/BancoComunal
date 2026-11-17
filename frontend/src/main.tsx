@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
+import './stores/themeStore' // aplica el tema guardado antes del primer render (evita parpadeo)
 import App from './App'
 
 createRoot(document.getElementById('root')!).render(
@@ -9,5 +10,5 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <App />
     </BrowserRouter>
-  </StrictMode>,
+  </StrictMode>
 )

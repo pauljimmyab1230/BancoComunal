@@ -19,6 +19,8 @@ export interface Caja {
     movimientos: number
     arqueos: number
   }
+  totalMovimientos?: number
+  totalArqueos?: number
 }
 
 export interface ConceptoCaja {
@@ -115,6 +117,55 @@ export interface ResumenCaja {
   }
   arqueosPendientes: number
   flujoProximos: number
+}
+
+export interface ResumenGeneralCaja {
+  totalCajas: number
+  cajasActivas: number
+  cajasInactivas: number
+  cajasCerradas: number
+  saldosPorMoneda: Record<string, number>
+  hoy: {
+    movimientos: number
+    ingresos: number
+    egresos: number
+    neto: number
+  }
+  hoyPorMoneda: Record<string, { ingresos: number; egresos: number; neto: number }>
+  arqueosPendientes: number
+  flujoProximos: number
+}
+
+export interface FilaLibroCaja {
+  id: number
+  codigo: string
+  fechaMovimiento: string
+  tipo: string
+  concepto: string
+  descripcion: string
+  comprobante: string
+  metodoPago: string
+  ingreso: number
+  egreso: number
+  saldo: number
+}
+
+export interface LibroCaja {
+  caja: {
+    id: number
+    codigo: string
+    nombre: string
+    moneda: string
+    saldoActual: number
+    fondo?: { id: number; nombre: string; moneda: string }
+  }
+  desde: string | null
+  hasta: string | null
+  saldoApertura: number
+  totalIngresos: number
+  totalEgresos: number
+  saldoCierre: number
+  movimientos: FilaLibroCaja[]
 }
 
 export interface PaginationParams {

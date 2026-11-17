@@ -14,7 +14,6 @@ import {
   Shield,
   FileText,
   Users,
-  Camera,
   QrCode,
   Download,
   Plus,
@@ -45,6 +44,7 @@ import {
 } from '@/components/ui'
 import { socioApi } from '../api/socioApi'
 import { getErrorMessage, openProtectedPdf } from '@/lib/api'
+import { getSocioIniciales, getClaseAvatar } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -72,6 +72,8 @@ const beneficiarioSchema = z.object({
 
 type BeneficiarioForm = z.infer<typeof beneficiarioSchema>
 
+type TabId = 'resumen' | 'beneficiarios' | 'fondos' | 'aportes' | 'creditos' | 'documentos'
+
 function formatBytes(bytes: number) {
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB'
@@ -89,12 +91,12 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-hover text-muted">
         <Icon className="h-4 w-4" />
       </div>
       <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-sm font-medium text-gray-900">{value}</p>
+        <p className="text-xs text-muted">{label}</p>
+        <p className="text-sm font-medium text-foreground">{value}</p>
       </div>
     </div>
   )
@@ -105,6 +107,7 @@ export default function SocioDetailPage() {
   const { data, isLoading, isError, error, refetch } = useSocio(Number(id))
   const socio = data?.data
   const queryClient = useQueryClient()
+  const [tabActiva, setTabActiva] = useState<TabId>('resumen')
 
   // Beneficiario modal
   const [showBenModal, setShowBenModal] = useState(false)
@@ -364,7 +367,7 @@ export default function SocioDetailPage() {
   if (!socio) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-gray-500">Socio no encontrado</p>
+        <p className="text-muted">Socio no encontrado</p>
         <Button
           as="link"
           to="/socios"
@@ -378,16 +381,22 @@ export default function SocioDetailPage() {
     )
   }
 
-  const estadoBadge =
-    socio.estado === 'A' ? (
-      <Badge variant="green">Activo</Badge>
-    ) : (
-      <Badge variant="red">Inactivo</Badge>
-    )
+  const anios = socio.fechaIngreso
+    ? Math.max(0, new Date().getFullYear() - new Date(socio.fechaIngreso).getFullYear())
+    : 0
+
+  const tabs: { id: TabId; label: string; count?: number }[] = [
+    { id: 'resumen', label: 'Resumen' },
+    { id: 'beneficiarios', label: 'Beneficiarios', count: socio.beneficiarios?.length || 0 },
+    { id: 'fondos', label: 'Fondos', count: socio.fondosSocios?.length || 0 },
+    { id: 'aportes', label: 'Aportes' },
+    { id: 'creditos', label: 'Créditos' },
+    { id: 'documentos', label: 'Documentos', count: socio.documentos?.length || 0 },
+  ]
 
   return (
     <div>
-      <div className="mb-8 flex flex-wrap items-center gap-3">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <Button variant="ghost" as="link" to="/socios" iconLeft={<ArrowLeft className="h-4 w-4" />}>
           Socios
         </Button>
@@ -398,7 +407,7 @@ export default function SocioDetailPage() {
           disabled={printingFicha}
           iconLeft={<Printer className="h-4 w-4" />}
         >
-          {printingFicha ? 'Generando...' : 'Ficha Imprimible'}
+          {printingFicha ? 'Generando...' : 'Ficha'}
         </Button>
         <Button
           variant="secondary"
@@ -409,7 +418,6 @@ export default function SocioDetailPage() {
           {printingCuenta ? 'Generando...' : 'Estado de Cuenta'}
         </Button>
         <Button
-          variant="secondary"
           as="link"
           to={`/socios/${socio.id}/editar`}
           iconLeft={<Pencil className="h-4 w-4" />}
@@ -418,97 +426,142 @@ export default function SocioDetailPage() {
         </Button>
       </div>
 
-      {/* Header */}
-      <Card padding="lg" className="mb-6">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-secondary/10">
-            {socio.fotoUrl ? (
-              <img
-                src={socio.fotoUrl}
-                alt={socio.nombreCompleto}
-                className="h-full w-full rounded-2xl object-cover"
-              />
-            ) : (
-              <Camera className="h-8 w-8 text-secondary" />
-            )}
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">{socio.nombreCompleto}</h1>
-              {estadoBadge}
+      {/* Cabecera tipo portada */}
+      <Card padding="none" className="mb-6 overflow-hidden">
+        <div className="relative bg-gradient-to-br from-secondary via-secondary-strong to-accent px-6 py-6 text-white sm:px-8">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/20 ring-2 ring-white/40">
+              {socio.fotoUrl ? (
+                <img
+                  src={socio.fotoUrl}
+                  alt={socio.nombreCompleto}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-2xl font-bold text-white">
+                  {getSocioIniciales(socio.nombres, socio.apellidoPaterno)}
+                </span>
+              )}
             </div>
-            <p className="mt-1 text-sm text-gray-500">
-              Código: <span className="font-medium text-gray-900">{socio.codigo}</span>
-              {' · '}DNI: <span className="font-medium text-gray-900">{socio.dni}</span>
-            </p>
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold text-white">{socio.nombreCompleto}</h1>
+                <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white">
+                  {socio.estado === 'A' ? 'Activo' : 'Inactivo'}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-white/80">
+                Código: <span className="font-semibold text-white">{socio.codigo}</span>
+                {' · '}DNI: <span className="font-semibold text-white">{socio.dni}</span>
+              </p>
+            </div>
+            <button
+              onClick={() => setShowQr(true)}
+              aria-label="Ver código QR del socio"
+              className="flex items-center gap-2 rounded-xl border border-white/30 bg-white/15 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-white/25"
+            >
+              <QrCode className="h-5 w-5" />
+              <span className="hidden sm:inline">QR</span>
+            </button>
           </div>
-          <button
-            onClick={() => setShowQr(true)}
-            aria-label="Ver código QR del socio"
-            className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-900 transition-all hover:bg-gray-50"
-          >
-            <QrCode className="h-5 w-5" />
-            <span className="hidden sm:inline">QR</span>
-          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 p-6 sm:grid-cols-4 sm:px-8">
+          <StatItem label="Fondos" value={socio.fondosSocios?.length || 0} />
+          <StatItem label="Beneficiarios" value={socio.beneficiarios?.length || 0} />
+          <StatItem label="Documentos" value={socio.documentos?.length || 0} />
+          <StatItem
+            label="Antigüedad"
+            value={anios > 0 ? `${anios} año${anios === 1 ? '' : 's'}` : '—'}
+          />
         </div>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Datos Personales */}
-        <Card padding="lg">
-          <div className="mb-4 flex items-center gap-2">
-            <User className="h-5 w-5 text-secondary" />
-            <h3 className="text-lg font-semibold text-gray-900">Datos Personales</h3>
-          </div>
-          <div className="space-y-4">
-            <InfoRow
-              icon={User}
-              label="Género"
-              value={socio.genero === 'M' ? 'Masculino' : 'Femenino'}
-            />
-            <InfoRow
-              icon={Calendar}
-              label="Fecha de Nacimiento"
-              value={
-                socio.fechaNacimiento ? new Date(socio.fechaNacimiento).toLocaleDateString() : '—'
-              }
-            />
-            <InfoRow
-              icon={Shield}
-              label="Estado Civil"
-              value={
-                { S: 'Soltero', C: 'Casado', V: 'Viudo', D: 'Divorciado' }[
-                  socio.estadoCivil || ''
-                ] || '—'
-              }
-            />
-            <InfoRow
-              icon={Calendar}
-              label="Ingreso"
-              value={new Date(socio.fechaIngreso).toLocaleDateString()}
-            />
-          </div>
-        </Card>
+      {/* Pestañas */}
+      <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setTabActiva(tab.id)}
+            className={`flex shrink-0 items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
+              tabActiva === tab.id
+                ? 'bg-secondary text-white shadow-sm shadow-secondary/30'
+                : 'text-muted hover:bg-surface-hover hover:text-foreground'
+            }`}
+          >
+            {tab.label}
+            {tab.count !== undefined && (
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+                  tabActiva === tab.id ? 'bg-white/20 text-white' : 'bg-surface-hover text-muted'
+                }`}
+              >
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
 
-        {/* Contacto */}
-        <Card padding="lg">
-          <div className="mb-4 flex items-center gap-2">
-            <Phone className="h-5 w-5 text-secondary" />
-            <h3 className="text-lg font-semibold text-gray-900">Contacto</h3>
-          </div>
-          <div className="space-y-4">
-            <InfoRow icon={Phone} label="Teléfono" value={socio.telefono || '—'} />
-            <InfoRow icon={Mail} label="Correo" value={socio.email || '—'} />
-            <InfoRow icon={MapPin} label="Dirección" value={socio.direccion || '—'} />
-          </div>
-        </Card>
+      {/* Contenido de pestañas */}
+      {tabActiva === 'resumen' && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card padding="lg">
+            <div className="mb-4 flex items-center gap-2">
+              <User className="h-5 w-5 text-secondary" />
+              <h3 className="text-lg font-semibold text-foreground">Datos Personales</h3>
+            </div>
+            <div className="space-y-4">
+              <InfoRow
+                icon={User}
+                label="Género"
+                value={socio.genero === 'M' ? 'Masculino' : 'Femenino'}
+              />
+              <InfoRow
+                icon={Calendar}
+                label="Fecha de Nacimiento"
+                value={
+                  socio.fechaNacimiento ? new Date(socio.fechaNacimiento).toLocaleDateString() : '—'
+                }
+              />
+              <InfoRow
+                icon={Shield}
+                label="Estado Civil"
+                value={
+                  { S: 'Soltero', C: 'Casado', V: 'Viudo', D: 'Divorciado' }[
+                    socio.estadoCivil || ''
+                  ] || '—'
+                }
+              />
+              <InfoRow
+                icon={Calendar}
+                label="Ingreso"
+                value={new Date(socio.fechaIngreso).toLocaleDateString()}
+              />
+            </div>
+          </Card>
 
-        {/* Documentos */}
+          <Card padding="lg">
+            <div className="mb-4 flex items-center gap-2">
+              <Phone className="h-5 w-5 text-secondary" />
+              <h3 className="text-lg font-semibold text-foreground">Contacto</h3>
+            </div>
+            <div className="space-y-4">
+              <InfoRow icon={Phone} label="Teléfono" value={socio.telefono || '—'} />
+              <InfoRow icon={Mail} label="Correo" value={socio.email || '—'} />
+              <InfoRow icon={MapPin} label="Dirección" value={socio.direccion || '—'} />
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {tabActiva === 'documentos' && (
         <Card padding="lg">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-secondary" />
-              <h3 className="text-lg font-semibold text-gray-900">Documentos</h3>
+              <h3 className="text-lg font-semibold text-foreground">Documentos</h3>
             </div>
             <Button
               variant="secondary"
@@ -519,21 +572,21 @@ export default function SocioDetailPage() {
               Subir
             </Button>
           </div>
-          <div className="space-y-3">
-            {!socio.documentos || socio.documentos.length === 0 ? (
-              <p className="text-sm text-gray-600">Sin documentos adjuntos</p>
-            ) : (
-              socio.documentos.map((doc) => (
+          {!socio.documentos || socio.documentos.length === 0 ? (
+            <p className="text-sm text-muted">Sin documentos adjuntos</p>
+          ) : (
+            <div className="space-y-3">
+              {socio.documentos.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center gap-3 rounded-lg border border-gray-100 p-3"
+                  className="flex items-center gap-3 rounded-lg border border-border-subtle p-3"
                 >
-                  <FileText className="h-8 w-8 text-gray-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                  <FileText className="h-8 w-8 shrink-0 text-subtle" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
                       {doc.nombreArchivo}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted">
                       {doc.tipoDocumento} · {formatBytes(doc.tamano)}
                     </p>
                   </div>
@@ -541,7 +594,7 @@ export default function SocioDetailPage() {
                     href={doc.rutaArchivo}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg p-1.5 text-gray-500 hover:text-secondary"
+                    className="rounded-lg p-1.5 text-muted hover:text-secondary"
                   >
                     <Download className="h-4 w-4" />
                   </a>
@@ -549,22 +602,23 @@ export default function SocioDetailPage() {
                     onClick={() => setDocAEliminar(doc.id)}
                     aria-label={`Eliminar documento ${doc.nombreArchivo}`}
                     title="Eliminar documento"
-                    className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="rounded-lg p-1.5 text-muted transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
+      )}
 
-        {/* Beneficiarios */}
-        <Card padding="lg" className="lg:col-span-2">
+      {tabActiva === 'beneficiarios' && (
+        <Card padding="lg">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-secondary" />
-              <h3 className="text-lg font-semibold text-gray-900">Beneficiarios</h3>
+              <h3 className="text-lg font-semibold text-foreground">Beneficiarios</h3>
             </div>
             <Button
               variant="secondary"
@@ -576,22 +630,24 @@ export default function SocioDetailPage() {
             </Button>
           </div>
           {!socio.beneficiarios || socio.beneficiarios.length === 0 ? (
-            <p className="text-sm text-gray-600">No tiene beneficiarios registrados</p>
+            <p className="text-sm text-muted">No tiene beneficiarios registrados</p>
           ) : (
             <div className="space-y-3">
               {socio.beneficiarios.map((ben) => (
                 <div
                   key={ben.id}
-                  className="flex items-center gap-4 rounded-lg border border-gray-100 p-4"
+                  className="flex items-center gap-4 rounded-lg border border-border-subtle p-4"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-600">
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold ${getClaseAvatar(ben.nombres)}`}
+                  >
                     {ben.nombres.charAt(0)}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-foreground">
                       {ben.nombres} {ben.apellidoPaterno} {ben.apellidoMaterno}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted">
                       DNI: {ben.dni} · {etiquetasParentesco[ben.parentesco] || ben.parentesco}
                       {ben.telefono && ` · ${ben.telefono}`}
                       {ben.fechaNacimiento &&
@@ -602,7 +658,7 @@ export default function SocioDetailPage() {
                     onClick={() => openEditBen(ben)}
                     aria-label={`Editar beneficiario ${ben.nombres}`}
                     title="Editar beneficiario"
-                    className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                    className="rounded-lg p-1.5 text-muted transition-colors hover:bg-secondary/10 hover:text-secondary"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
@@ -610,7 +666,7 @@ export default function SocioDetailPage() {
                     onClick={() => setBenAEliminar(ben.id)}
                     aria-label={`Eliminar beneficiario ${ben.nombres}`}
                     title="Eliminar beneficiario"
-                    className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="rounded-lg p-1.5 text-muted transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -619,38 +675,39 @@ export default function SocioDetailPage() {
             </div>
           )}
         </Card>
+      )}
 
-        {/* Fondos */}
-        <Card padding="lg" className="lg:col-span-2">
+      {tabActiva === 'fondos' && (
+        <Card padding="lg">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Landmark className="h-5 w-5 text-secondary" />
-              <h3 className="text-lg font-semibold text-gray-900">Fondos</h3>
+              <h3 className="text-lg font-semibold text-foreground">Fondos</h3>
             </div>
             <Button variant="secondary" size="sm" as="link" to="/fondos">
               Ver todos
             </Button>
           </div>
           {!socio.fondosSocios || socio.fondosSocios.length === 0 ? (
-            <p className="text-sm text-gray-600">No pertenece a ningún fondo</p>
+            <p className="text-sm text-muted">No pertenece a ningún fondo</p>
           ) : (
             <div className="space-y-3">
               {socio.fondosSocios.map((fs) => (
                 <div
                   key={fs.id}
-                  className="flex items-center gap-4 rounded-lg border border-gray-100 p-4"
+                  className="flex items-center gap-4 rounded-lg border border-border-subtle p-4"
                 >
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
                     <Landmark className="h-5 w-5" />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <Link
                       to={`/fondos/${fs.fondo?.id ?? fs.fondoId}`}
-                      className="text-sm font-medium text-gray-900 hover:text-secondary"
+                      className="text-sm font-medium text-foreground hover:text-secondary"
                     >
                       {fs.fondo?.nombre ?? `Fondo #${fs.fondoId}`}
                     </Link>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted">
                       {fs.numeroSocio ? `N° ${fs.numeroSocio}` : ''}
                       {fs.cargo ? ` · ${fs.cargo}` : ''}
                       {fs.nivel ? ` · ${fs.nivel}` : ''}
@@ -664,13 +721,14 @@ export default function SocioDetailPage() {
             </div>
           )}
         </Card>
+      )}
 
-        {/* Aportes */}
-        <Card padding="lg" className="lg:col-span-2">
+      {tabActiva === 'aportes' && (
+        <Card padding="lg">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <HandCoins className="h-5 w-5 text-secondary" />
-              <h3 className="text-lg font-semibold text-gray-900">Aportes</h3>
+              <h3 className="text-lg font-semibold text-foreground">Aportes</h3>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -689,13 +747,14 @@ export default function SocioDetailPage() {
           </div>
           <AportesSocioSection socioId={socio.id} />
         </Card>
+      )}
 
-        {/* Créditos */}
-        <Card padding="lg" className="lg:col-span-2">
+      {tabActiva === 'creditos' && (
+        <Card padding="lg">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <HandCoins className="h-5 w-5 text-secondary" />
-              <h3 className="text-lg font-semibold text-gray-900">Créditos</h3>
+              <h3 className="text-lg font-semibold text-foreground">Créditos</h3>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -714,7 +773,7 @@ export default function SocioDetailPage() {
           </div>
           <CreditosSocioSection socioId={socio.id} />
         </Card>
-      </div>
+      )}
 
       {/* Modal Beneficiario (Add/Edit) */}
       <Modal
@@ -836,7 +895,7 @@ export default function SocioDetailPage() {
             />
           </FormField>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Archivo</label>
+            <label className="mb-1 block text-xs font-medium text-muted">Archivo</label>
             <input
               ref={docInputRef}
               type="file"
@@ -846,12 +905,12 @@ export default function SocioDetailPage() {
             <button
               type="button"
               onClick={() => docInputRef.current?.click()}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 p-6 text-sm text-gray-500 transition-colors hover:border-secondary hover:text-secondary"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-6 text-sm text-muted transition-colors hover:border-secondary hover:text-secondary"
             >
               <Upload className="h-5 w-5" />
               {docFile ? docFile.name : 'Seleccionar archivo'}
             </button>
-            {docFile && <p className="mt-1 text-xs text-gray-600">{formatBytes(docFile.size)}</p>}
+            {docFile && <p className="mt-1 text-xs text-muted">{formatBytes(docFile.size)}</p>}
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <Button
@@ -883,7 +942,7 @@ export default function SocioDetailPage() {
         title="Elegir Fondo"
         maxWidth="sm"
       >
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted">
           El socio pertenece a varios fondos. Selecciona para cuál generar
           {fondoSelectorFor === 'aportes' && ' el historial de aportes'}
           {fondoSelectorFor === 'creditos' && ' el historial de créditos'}
@@ -909,10 +968,10 @@ export default function SocioDetailPage() {
                     generarFicha(rel.fondoId)
                   }
                 }}
-                className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 text-left transition-all hover:border-secondary hover:bg-secondary/5 disabled:opacity-50"
+                className="flex items-center justify-between rounded-xl border border-border px-4 py-3 text-left transition-all hover:border-secondary hover:bg-secondary/5 disabled:opacity-50"
               >
-                <span className="text-sm font-medium text-gray-900">{rel.fondo?.nombre}</span>
-                <span className="text-xs text-gray-600">Imprimir →</span>
+                <span className="text-sm font-medium text-foreground">{rel.fondo?.nombre}</span>
+                <span className="text-xs text-muted">Imprimir →</span>
               </button>
             ))}
         </div>
@@ -926,7 +985,7 @@ export default function SocioDetailPage() {
         maxWidth="sm"
       >
         <div className="flex flex-col items-center gap-4 py-4">
-          <div className="rounded-xl border border-gray-200 p-4 bg-white">
+          <div className="rounded-xl border border-border bg-surface p-4">
             <QRCode
               value={`BANCO-SOLIDARIO-SOCIO:${socio.codigo}|DNI:${socio.dni}|NOMBRE:${socio.nombreCompleto}`}
               size={200}
@@ -934,8 +993,8 @@ export default function SocioDetailPage() {
             />
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-gray-900">{socio.nombreCompleto}</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-sm font-medium text-foreground">{socio.nombreCompleto}</p>
+            <p className="text-xs text-muted">
               {socio.codigo} · DNI: {socio.dni}
             </p>
           </div>
@@ -963,57 +1022,65 @@ export default function SocioDetailPage() {
   )
 }
 
+function StatItem({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div>
+      <p className="text-xs text-muted">{label}</p>
+      <p className="text-xl font-bold text-foreground">{value}</p>
+    </div>
+  )
+}
+
 function AportesSocioSection({ socioId }: { socioId: number }) {
   const { data, isLoading } = useAportes({ socioId, limit: 5 })
   const aportes = data?.data || []
 
-  if (isLoading) return <p className="text-sm text-gray-600">Cargando aportes...</p>
-  if (aportes.length === 0)
-    return <p className="text-sm text-gray-600">No hay aportes registrados</p>
+  if (isLoading) return <p className="text-sm text-muted">Cargando aportes...</p>
+  if (aportes.length === 0) return <p className="text-sm text-muted">No hay aportes registrados</p>
 
   const formatMonto = (monto: number, moneda = 'PEN') =>
     monto.toLocaleString('es-PE', { style: 'currency', currency: moneda })
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
+    <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full min-w-[560px] text-left text-sm">
         <thead>
-          <tr className="border-b border-gray-100 bg-gray-50/50">
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+          <tr className="border-b border-border-subtle bg-surface-muted/60">
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted">
               Fondo
             </th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted">
               Tipo
             </th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted">
               Monto
             </th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted">
               Período
             </th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted">
               Fecha
             </th>
             <th className="px-4 py-3" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-border-subtle">
           {aportes.map((a: Aporte) => (
-            <tr key={a.id} className="transition-colors hover:bg-gray-50/50">
+            <tr key={a.id} className="transition-colors hover:bg-surface-muted/60">
               <td className="px-4 py-3">
                 <Link
                   to={`/fondos/${a.fondo.id}`}
-                  className="font-medium text-gray-900 hover:text-secondary"
+                  className="font-medium text-foreground hover:text-secondary"
                 >
                   {a.fondo.nombre}
                 </Link>
               </td>
-              <td className="px-4 py-3 text-gray-600">{a.tipo}</td>
-              <td className="px-4 py-3 font-medium text-gray-900">
+              <td className="px-4 py-3 text-muted">{a.tipo}</td>
+              <td className="px-4 py-3 font-medium text-foreground">
                 {formatMonto(a.monto, a.fondo.moneda)}
               </td>
-              <td className="px-4 py-3 text-gray-600">{a.periodo}</td>
-              <td className="px-4 py-3 text-gray-600">
+              <td className="px-4 py-3 text-muted">{a.periodo}</td>
+              <td className="px-4 py-3 text-muted">
                 {format(new Date(a.fechaAporte), 'dd MMM yyyy', { locale: es })}
               </td>
               <td className="px-4 py-3 text-right">
@@ -1036,52 +1103,52 @@ function CreditosSocioSection({ socioId }: { socioId: number }) {
   const { data, isLoading } = useCreditos({ socioId, limit: 10 })
   const prestamos = data?.data || []
 
-  if (isLoading) return <p className="text-sm text-gray-600">Cargando créditos...</p>
+  if (isLoading) return <p className="text-sm text-muted">Cargando créditos...</p>
   if (prestamos.length === 0)
-    return <p className="text-sm text-gray-600">No tiene créditos registrados</p>
+    return <p className="text-sm text-muted">No tiene créditos registrados</p>
 
   const formatMonto = (m: number) =>
     m.toLocaleString('es-PE', { style: 'currency', currency: 'PEN' })
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
+    <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full min-w-[560px] text-left text-sm">
         <thead>
-          <tr className="border-b border-gray-100 bg-gray-50/50">
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+          <tr className="border-b border-border-subtle bg-surface-muted/60">
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted">
               Fondo
             </th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted">
               Monto
             </th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted">
               Cuotas
             </th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted">
               Pagadas
             </th>
-            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted">
               Estado
             </th>
             <th className="px-4 py-3" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-border-subtle">
           {prestamos.map((p: Prestamo) => (
-            <tr key={p.id} className="transition-colors hover:bg-gray-50/50">
+            <tr key={p.id} className="transition-colors hover:bg-surface-muted/60">
               <td className="px-4 py-3">
                 <Link
                   to={`/fondos/${p.fondo.id}`}
-                  className="font-medium text-gray-900 hover:text-secondary"
+                  className="font-medium text-foreground hover:text-secondary"
                 >
                   {p.fondo.nombre}
                 </Link>
               </td>
-              <td className="px-4 py-3 font-medium text-gray-900">{formatMonto(p.monto)}</td>
-              <td className="px-4 py-3 text-gray-600">
+              <td className="px-4 py-3 font-medium text-foreground">{formatMonto(p.monto)}</td>
+              <td className="px-4 py-3 text-muted">
                 {p.numeroCuotas} × {formatMonto(p.montoCuota)}
               </td>
-              <td className="px-4 py-3 text-emerald-600">
+              <td className="px-4 py-3 text-emerald-600 dark:text-emerald-400">
                 {p.totalCuotas || 0}/{p.numeroCuotas}
               </td>
               <td className="px-4 py-3">

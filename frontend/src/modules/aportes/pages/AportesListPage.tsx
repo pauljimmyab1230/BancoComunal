@@ -1,7 +1,21 @@
-import { useState } from 'react'
-import { Plus, Eye, Trash2, Banknote, Wallet, Calendar, Receipt } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import {
+  Plus,
+  Eye,
+  Trash2,
+  Banknote,
+  Wallet,
+  Calendar,
+  Receipt,
+  Download,
+  ChevronDown,
+  FileText,
+  FileSpreadsheet,
+} from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAportes, useDeleteAporte } from '../hooks/useAportes'
+import { useFiltrosUrl } from '@/hooks/useFiltrosUrl'
+import { aportesApi } from '../api/aportesApi'
 import {
   Button,
   DataTable,
@@ -17,6 +31,7 @@ import {
 import { Link, useSearchParams } from 'react-router-dom'
 import api from '@/lib/api'
 import { openProtectedPdf, getErrorMessage } from '@/lib/api'
+import { getSocioIniciales, getClaseAvatar, exportCsv, exportXlsx } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import type { Aporte } from '../types'
 
@@ -28,10 +43,10 @@ const TIPOS = [
   { value: 'MULTA', label: 'Multa' },
 ]
 
-const ESTADOS = [
-  { value: '', label: 'Todos los estados' },
-  { value: 'ACTIVO', label: 'Activo' },
-  { value: 'ANULADO', label: 'Anulado' },
+const FILTROS_ESTADO = [
+  { value: '', label: 'Todos' },
+  { value: 'ACTIVO', label: 'Activos' },
+  { value: 'ANULADO', label: 'Anulados' },
 ]
 
 const tipoBadge = (tipo: string) => {
@@ -55,15 +70,23 @@ const formatMonto = (monto: number, moneda = 'PEN') => {
 
 export default function AportesListPage() {
   const [searchParams] = useSearchParams()
-  const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
-  const [tipo, setTipo] = useState('')
-  const [estado, setEstado] = useState('')
+  const { search, page, tipo, estado, periodo, actualizar } = useFiltrosUrl('ap')
   const [fondo, setFondo] = useState(searchParams.get('fondoId') ?? '')
-  const [periodo, setPeriodo] = useState('')
   const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
 
   const socioId = searchParams.get('socioId')
+
+  useEffect(() => {
+    const cerrar = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', cerrar)
+    return () => document.removeEventListener('mousedown', cerrar)
+  }, [])
 
   const { data: fondosData } = useQuery({
     queryKey: ['fondos-select', { estado: undefined }],
@@ -88,24 +111,67 @@ export default function AportesListPage() {
   const aportes = data?.data || []
   const totalPorMoneda = data?.totalAportadoPorMoneda || {}
 
+  const handleDelete = () => {
+    if (deleteId === null) return
+    deleteMutation.mutate(deleteId, {
+      onSuccess: () => setDeleteId(null),
+    })
+  }
+
+  const handleImprimirComprobante = async (aporte: Aporte) => {
+    try {
+      await openProtectedPdf(`/reportes/comprobante-aporte/pdf?aporteId=${aporte.id}`)
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al generar el comprobante de ingreso'))
+    }
+  }
+
+  const exportar = async (formato: 'csv' | 'xlsx') => {
+    try {
+      const result = await aportesApi.list({
+        search,
+        limit: 1000,
+        tipo: tipo || undefined,
+        estado: estado || undefined,
+        fondoId: fondo ? Number(fondo) : undefined,
+        periodo: periodo || undefined,
+        socioId: socioId ? Number(socioId) : undefined,
+      })
+      const headers = ['Socio', 'Tipo', 'Monto', 'Periodo', 'Fondo', 'Estado', 'Fecha']
+      const filas = result.data.map((a: Aporte) => [
+        `${a.socio.nombres} ${a.socio.apellidoPaterno} ${a.socio.apellidoMaterno}`,
+        a.tipo,
+        a.monto,
+        a.periodo,
+        a.fondo.nombre,
+        a.estado,
+        a.fechaAporte,
+      ])
+      if (formato === 'csv') exportCsv('aportes.csv', headers, filas)
+      else exportXlsx('aportes.xlsx', headers, filas)
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Error al exportar aportes'))
+    } finally {
+      setExportOpen(false)
+    }
+  }
+
   const columns = [
     {
       key: 'socio',
       label: 'Socio',
       render: (a: Aporte) => (
-        <Link
-          to={`/socios/${a.socio.id}`}
-          className="flex items-center gap-2 text-sm hover:text-secondary"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/10 text-xs font-bold text-secondary">
-            {a.socio.nombres.charAt(0)}
-            {a.socio.apellidoPaterno.charAt(0)}
+        <Link to={`/socios/${a.socio.id}`} className="flex items-center gap-3">
+          <div
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${getClaseAvatar(a.socio.codigo)}`}
+          >
+            {getSocioIniciales(a.socio.nombres, a.socio.apellidoPaterno)}
           </div>
           <div>
-            <p className="font-medium text-gray-900">
+            <p className="font-medium text-foreground hover:text-secondary">
               {a.socio.nombres} {a.socio.apellidoPaterno}
             </p>
-            <p className="text-xs text-gray-400">{a.socio.codigo}</p>
+            <p className="text-xs text-subtle">{a.socio.codigo}</p>
           </div>
         </Link>
       ),
@@ -119,15 +185,15 @@ export default function AportesListPage() {
       key: 'monto',
       label: 'Monto',
       render: (a: Aporte) => (
-        <span className="font-medium">{formatMonto(a.monto, a.fondo.moneda)}</span>
+        <span className="font-medium text-foreground">{formatMonto(a.monto, a.fondo.moneda)}</span>
       ),
     },
     {
       key: 'periodo',
       label: 'Período',
       render: (a: Aporte) => (
-        <span className="flex items-center gap-1 text-sm text-gray-600">
-          <Calendar className="h-3.5 w-3.5 text-gray-400" />
+        <span className="flex items-center gap-1 text-sm text-muted">
+          <Calendar className="h-3.5 w-3.5 text-subtle" />
           {a.periodo}
         </span>
       ),
@@ -136,7 +202,7 @@ export default function AportesListPage() {
       key: 'fondo',
       label: 'Fondo',
       render: (a: Aporte) => (
-        <Link to={`/fondos/${a.fondo.id}`} className="text-sm text-gray-600 hover:text-secondary">
+        <Link to={`/fondos/${a.fondo.id}`} className="text-sm text-muted hover:text-secondary">
           {a.fondo.nombre}
         </Link>
       ),
@@ -160,20 +226,25 @@ export default function AportesListPage() {
           <button
             onClick={() => handleImprimirComprobante(a)}
             title="Ver comprobante"
-            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+            aria-label="Ver comprobante"
+            className="rounded-lg p-2 text-subtle transition-colors hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10"
           >
             <Receipt className="h-4 w-4" />
           </button>
           <Link
             to={`/aportes/${a.id}`}
-            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-secondary/10 hover:text-secondary"
+            aria-label={`Ver aporte ${a.id}`}
+            title="Ver detalle"
+            className="rounded-lg p-2 text-subtle transition-colors hover:bg-secondary/10 hover:text-secondary"
           >
             <Eye className="h-4 w-4" />
           </Link>
           {a.estado === 'ACTIVO' && (
             <button
               onClick={() => setDeleteId(a.id)}
-              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+              aria-label={`Anular aporte ${a.id}`}
+              title="Anular"
+              className="rounded-lg p-2 text-subtle transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -183,20 +254,8 @@ export default function AportesListPage() {
     },
   ]
 
-  const handleDelete = () => {
-    if (deleteId === null) return
-    deleteMutation.mutate(deleteId, {
-      onSuccess: () => setDeleteId(null),
-    })
-  }
-
-  const handleImprimirComprobante = async (aporte: Aporte) => {
-    try {
-      await openProtectedPdf(`/reportes/comprobante-aporte/pdf?aporteId=${aporte.id}`)
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Error al generar el comprobante de ingreso'))
-    }
-  }
+  const desde = (data?.page ?? 1 - 1) * (data?.limit ?? 10) + 1
+  const hasta = Math.min((data?.page ?? 1) * (data?.limit ?? 10), data?.total ?? 0)
 
   return (
     <div>
@@ -205,96 +264,161 @@ export default function AportesListPage() {
           title="Aportes"
           description="Registro de aportes de socios a fondos rotatorios"
         />
-        <Button as="link" to="/aportes/nuevo" iconLeft={<Plus className="h-4 w-4" />}>
-          Nuevo Aporte
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="relative" ref={exportRef}>
+            <Button
+              variant="secondary"
+              onClick={() => setExportOpen(!exportOpen)}
+              iconLeft={<Download className="h-4 w-4" />}
+              iconRight={<ChevronDown className="h-4 w-4" />}
+            >
+              Exportar
+            </Button>
+            {exportOpen && (
+              <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-[var(--shadow-pop)]">
+                <button
+                  type="button"
+                  onClick={() => exportar('csv')}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-surface-hover"
+                >
+                  <FileText className="h-4 w-4 text-subtle" />
+                  CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportar('xlsx')}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-surface-hover"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-subtle" />
+                  Excel
+                </button>
+              </div>
+            )}
+          </div>
+          <Button as="link" to="/aportes/nuevo" iconLeft={<Plus className="h-4 w-4" />}>
+            Nuevo Aporte
+          </Button>
+        </div>
       </div>
 
       {/* Cards resumen */}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Card padding="md">
+        <Card padding="md" hover={false}>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
-              <Banknote className="h-5 w-5" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/12 text-secondary">
+              <Banknote className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-foreground">
                 {isLoading ? '—' : data?.total || 0}
               </p>
-              <p className="text-xs text-gray-500">Total Aportes</p>
+              <p className="text-xs text-muted">Total Aportes</p>
             </div>
           </div>
         </Card>
-        <Card padding="md">
+        <Card padding="md" hover={false}>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-              <Wallet className="h-5 w-5" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+              <Wallet className="h-6 w-6" />
             </div>
             <div>
               {isLoading ? (
-                <p className="text-2xl font-bold text-gray-900">—</p>
+                <p className="text-2xl font-bold text-foreground">—</p>
               ) : Object.keys(totalPorMoneda).length > 0 ? (
                 Object.entries(totalPorMoneda).map(([moneda, monto]) => (
-                  <p key={moneda} className="text-lg font-bold text-gray-900">
+                  <p key={moneda} className="text-lg font-bold text-foreground">
                     {formatMonto(monto, moneda)}
                   </p>
                 ))
               ) : (
-                <p className="text-2xl font-bold text-gray-900">0.00</p>
+                <p className="text-2xl font-bold text-foreground">0.00</p>
               )}
-              <p className="text-xs text-gray-500">Total Aportado</p>
+              <p className="text-xs text-muted">Total Aportado</p>
             </div>
           </div>
         </Card>
-        <Card padding="md">
+        <Card padding="md" hover={false}>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-              <Calendar className="h-5 w-5" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+              <Calendar className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-foreground">
                 {isLoading ? '—' : data?.totalActivos || 0}
               </p>
-              <p className="text-xs text-gray-500">Aportes Activos</p>
+              <p className="text-xs text-muted">Aportes Activos</p>
             </div>
           </div>
         </Card>
       </div>
 
-      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
-        <SearchInput
-          placeholder="Buscar por socio, comprobante o período..."
-          value={search}
-          onChange={(val) => {
-            setSearch(val)
-            setPage(1)
-          }}
-          className="w-full max-w-md"
-        />
-        <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {data?.porTipo && Object.keys(data.porTipo).length > 0 && (
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Por tipo:
+          </span>
+          {Object.entries(data.porTipo).map(([tipo, info]) => (
+            <div
+              key={tipo}
+              className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5"
+            >
+              {tipoBadge(tipo)}
+              <span className="text-sm font-semibold text-foreground">
+                {info.monto.toLocaleString('es-PE', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+              <span className="text-xs text-muted">({info.cantidad})</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mb-6 flex flex-wrap items-end gap-3">
+        <div className="min-w-[200px] max-w-md flex-1">
+          <SearchInput
+            placeholder="Buscar por socio, comprobante o período..."
+            value={search}
+            onChange={(val) => {
+              actualizar({ search: val })
+            }}
+          />
+        </div>
+
+        <div className="flex items-center gap-1 rounded-xl border border-border bg-surface p-1">
+          {FILTROS_ESTADO.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => {
+                actualizar({ estado: f.value })
+              }}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                estado === f.value
+                  ? 'bg-secondary text-white shadow-sm shadow-secondary/30'
+                  : 'text-muted hover:bg-surface-hover hover:text-foreground'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid flex-1 gap-3 sm:grid-cols-3">
           <Select
             value={tipo}
             onChange={(e) => {
-              setTipo(e.target.value)
-              setPage(1)
+              actualizar({ tipo: e.target.value })
             }}
             options={TIPOS}
             placeholder="Todos los tipos"
           />
           <Select
-            value={estado}
-            onChange={(e) => {
-              setEstado(e.target.value)
-              setPage(1)
-            }}
-            options={ESTADOS}
-            placeholder="Todos los estados"
-          />
-          <Select
             value={fondo}
             onChange={(e) => {
               setFondo(e.target.value)
-              setPage(1)
+              actualizar({ page: 1 })
             }}
             options={[
               { value: '', label: 'Todos los fondos' },
@@ -309,10 +433,10 @@ export default function AportesListPage() {
             type="month"
             value={periodo}
             onChange={(e) => {
-              setPeriodo(e.target.value)
-              setPage(1)
+              actualizar({ periodo: e.target.value })
             }}
             placeholder="Período"
+            aria-label="Filtrar por período"
           />
         </div>
       </div>
@@ -320,19 +444,26 @@ export default function AportesListPage() {
       {isError ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
-        <DataTable
-          columns={columns}
-          data={aportes}
-          loading={isLoading}
-          keyField="id"
-          emptyTitle="No hay aportes registrados"
-          emptyDescription="Registra el primer aporte para comenzar."
-          emptyActionLabel="Nuevo Aporte"
-          emptyActionTo="/aportes/nuevo"
-          currentPage={data?.page}
-          totalPages={data?.totalPages}
-          onPageChange={setPage}
-        />
+        <>
+          <DataTable
+            columns={columns}
+            data={aportes}
+            loading={isLoading}
+            keyField="id"
+            emptyTitle="No hay aportes registrados"
+            emptyDescription="Registra el primer aporte para comenzar."
+            emptyActionLabel="Nuevo Aporte"
+            emptyActionTo="/aportes/nuevo"
+            currentPage={data?.page}
+            totalPages={data?.totalPages}
+            onPageChange={(pagina) => actualizar({ page: pagina })}
+          />
+          {data && data.total > 0 && (
+            <p className="mt-3 text-center text-xs text-muted">
+              Mostrando {desde}–{hasta} de {data.total} aportes
+            </p>
+          )}
+        </>
       )}
 
       <ConfirmDialog

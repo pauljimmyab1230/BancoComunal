@@ -235,4 +235,122 @@ export const dashboardService = {
       actividadReciente,
     }
   },
+
+  /**
+   * Series históricas mensuales para los gráficos de evolución del dashboard.
+   * Agrupa los últimos `meses` (por defecto 12) por mes calendario.
+   */
+  async getEvolucion(meses = 12) {
+    const hoy = new Date()
+    const inicio = new Date(hoy.getFullYear(), hoy.getMonth() - (meses - 1), 1)
+
+    const buckets: { etiqueta: string; inicio: Date; fin: Date }[] = []
+    for (let i = 0; i < meses; i++) {
+      const d = new Date(inicio.getFullYear(), inicio.getMonth() + i, 1)
+      buckets.push({
+        etiqueta: d.toLocaleDateString('es-PE', { month: 'short', year: '2-digit' }),
+        inicio: d,
+        fin: new Date(d.getFullYear(), d.getMonth() + 1, 1),
+      })
+    }
+
+    const [movimientos, aportes, prestamos, sociosNuevos, cuotasVencidas] = await Promise.all([
+      prisma.movimientoCaja.findMany({
+        where: { fechaMovimiento: { gte: inicio }, estado: { not: 'ANULADO' } },
+        select: { tipo: true, monto: true, fechaMovimiento: true },
+      }),
+      prisma.aporte.findMany({
+        where: { fechaAporte: { gte: inicio }, estado: 'ACTIVO' },
+        select: { monto: true, fechaAporte: true },
+      }),
+      prisma.prestamo.findMany({
+        where: { fechaDesembolso: { gte: inicio }, estado: { not: 'ANULADO' } },
+        select: { monto: true, fechaDesembolso: true },
+      }),
+      prisma.socio.findMany({
+        where: { fechaIngreso: { gte: inicio } },
+        select: { fechaIngreso: true },
+        orderBy: { fechaIngreso: 'asc' },
+      }),
+      prisma.cuotaPrestamo.findMany({
+        where: { estado: { in: ['VENCIDO', 'PARCIAL'] } },
+        select: {
+          saldoPendiente: true,
+          prestamo: { select: { fondoSocio: { select: { fondo: { select: { nombre: true } } } } } },
+        },
+      }),
+    ])
+
+    const redondear = (n: number) => Math.round(n * 100) / 100
+
+    const enRango = (fecha: Date, b: { inicio: Date; fin: Date }) =>
+      fecha >= b.inicio && fecha < b.fin
+
+    const ingresosEgresos = buckets.map((b) => {
+      let ingresos = 0
+      let egresos = 0
+      for (const m of movimientos) {
+        if (!enRango(m.fechaMovimiento, b)) continue
+        if (m.tipo === 'INGRESO') ingresos += Number(m.monto)
+        else if (m.tipo === 'EGRESO') egresos += Number(m.monto)
+      }
+      return {
+        etiqueta: b.etiqueta,
+        ingresos: redondear(ingresos),
+        egresos: redondear(egresos),
+        neto: redondear(ingresos - egresos),
+      }
+    })
+
+    const aportesPorMes = buckets.map((b) => {
+      let monto = 0
+      let cantidad = 0
+      for (const a of aportes) {
+        if (enRango(a.fechaAporte, b)) {
+          monto += Number(a.monto)
+          cantidad++
+        }
+      }
+      return { etiqueta: b.etiqueta, monto: redondear(monto), cantidad }
+    })
+
+    const desembolsosPorMes = buckets.map((b) => {
+      let monto = 0
+      let cantidad = 0
+      for (const p of prestamos) {
+        if (enRango(p.fechaDesembolso, b)) {
+          monto += Number(p.monto)
+          cantidad++
+        }
+      }
+      return { etiqueta: b.etiqueta, monto: redondear(monto), cantidad }
+    })
+
+    const altasSocios = buckets.map((b) => {
+      const cantidad = sociosNuevos.filter((s) => enRango(s.fechaIngreso, b)).length
+      return { etiqueta: b.etiqueta, cantidad }
+    })
+
+    const porFondo: Record<string, { vencidas: number; montoAdeudado: number }> = {}
+    for (const c of cuotasVencidas) {
+      const nombre = c.prestamo?.fondoSocio?.fondo?.nombre ?? 'Sin fondo'
+      porFondo[nombre] = porFondo[nombre] ?? { vencidas: 0, montoAdeudado: 0 }
+      porFondo[nombre].vencidas++
+      porFondo[nombre].montoAdeudado += Number(c.saldoPendiente)
+    }
+    const morosidadPorFondo = Object.entries(porFondo).map(([fondo, valor]) => ({
+      fondo,
+      vencidas: valor.vencidas,
+      montoAdeudado: redondear(valor.montoAdeudado),
+    }))
+
+    return {
+      periodo: { inicio: inicio.toISOString(), fin: hoy.toISOString() },
+      ingresosEgresos,
+      aportes: aportesPorMes,
+      desembolsos: desembolsosPorMes,
+      altasSocios,
+      morosidadPorFondo,
+    }
+  },
 }

@@ -112,6 +112,7 @@ export const fondoService = {
       capitalDisponible: Number(fondo.capitalDisponible),
       capitalPrestado,
       socios: fondo.fondosSocios,
+      totalSocios: fondo.fondosSocios.length,
       fondosSocios: undefined,
     }
   },

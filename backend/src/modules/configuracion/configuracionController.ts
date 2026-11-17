@@ -5,6 +5,9 @@ import {
   usuarioUpdateSchema,
   usuarioPasswordSchema,
   changeOwnPasswordSchema,
+  twoFactorConfirmSchema,
+  twoFactorLoginSchema,
+  twoFactorDisableSchema,
   loginSchema,
   refreshTokenSchema,
   conceptoCajaCreateSchema,
@@ -32,6 +35,15 @@ export const configuracionController = {
       }
       const data = await configuracionService.listUsuarios(params)
       res.json({ success: true, ...data })
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  async getResumen(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await configuracionService.getResumen()
+      res.json({ success: true, data })
     } catch (error) {
       next(error)
     }
@@ -124,6 +136,14 @@ export const configuracionController = {
       const { username, password } = loginSchema.parse(req.body)
       const result = await configuracionService.login(username, password)
 
+      if ('requireTwoFactor' in result) {
+        return res.json({
+          success: true,
+          data: result,
+          message: 'Código de verificación requerido',
+        })
+      }
+
       // Establecer tokens como cookies httpOnly
       res.cookie('accessToken', result.token, { ...COOKIE_OPTIONS, maxAge: 8 * 60 * 60 * 1000 }) // 8 horas
       res.cookie('refreshToken', result.refreshToken, {
@@ -132,6 +152,58 @@ export const configuracionController = {
       }) // 7 días
 
       res.json({ success: true, data: result, message: 'Inicio de sesión exitoso' })
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  async verifyTwoFactorLogin(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { twoFactorToken, code } = twoFactorLoginSchema.parse(req.body)
+      const result = await configuracionService.verifyTwoFactorLogin(twoFactorToken, code)
+
+      res.cookie('accessToken', result.token, { ...COOKIE_OPTIONS, maxAge: 8 * 60 * 60 * 1000 })
+      res.cookie('refreshToken', result.refreshToken, {
+        ...COOKIE_OPTIONS,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      })
+
+      res.json({ success: true, data: result, message: 'Inicio de sesión exitoso' })
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  async startTwoFactor(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId
+      if (!userId) return res.status(401).json({ success: false, message: 'No autenticado' })
+      const data = await configuracionService.startTwoFactor(userId)
+      res.json({ success: true, data })
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  async confirmTwoFactor(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId
+      if (!userId) return res.status(401).json({ success: false, message: 'No autenticado' })
+      const { code } = twoFactorConfirmSchema.parse(req.body)
+      const data = await configuracionService.confirmTwoFactor(userId, code, req.ip)
+      res.json({ success: true, data, message: 'Autenticación en dos pasos activada' })
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  async disableTwoFactor(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId
+      if (!userId) return res.status(401).json({ success: false, message: 'No autenticado' })
+      const { password } = twoFactorDisableSchema.parse(req.body)
+      const data = await configuracionService.disableTwoFactor(userId, password, req.ip)
+      res.json({ success: true, data, message: 'Autenticación en dos pasos desactivada' })
     } catch (error) {
       next(error)
     }
@@ -258,7 +330,7 @@ export const configuracionController = {
   async updateOrganizacion(req: Request, res: Response, next: NextFunction) {
     try {
       const data = organizacionUpdateSchema.parse(req.body)
-      const result = await configuracionService.updateOrganizacion(data)
+      const result = await configuracionService.updateOrganizacion(data, req.user?.userId, req.ip)
       res.json({ success: true, data: result, message: 'Organización actualizada correctamente' })
     } catch (error) {
       next(error)

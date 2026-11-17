@@ -1,16 +1,21 @@
 ﻿import { z } from 'zod'
 
+/**
+ * Política de contraseñas (endurecida):
+ * mínimo 10 caracteres, al menos una letra, un número y un símbolo.
+ */
 const passwordValidation = z
   .string()
-  .min(8, 'La contraseÃ±a debe tener al menos 8 caracteres')
-  .max(255)
+  .min(10, 'La contraseña debe tener al menos 10 caracteres')
+  .max(255, 'La contraseña no puede superar los 255 caracteres')
   .regex(/[a-zA-Z]/, 'La contraseña debe contener al menos una letra')
-  .regex(/[0-9]/, 'La contraseÃ±a debe contener al menos un nÃºmero')
+  .regex(/[0-9]/, 'La contraseña debe contener al menos un número')
+  .regex(/[^a-zA-Z0-9]/, 'La contraseña debe contener al menos un símbolo')
 
 export const usuarioCreateSchema = z.object({
   nombres: z.string().min(1).max(100),
   apellidoPaterno: z.string().min(1).max(50),
-  apellidoMaterno: z.string().min(1).max(50),
+  apellidoMaterno: z.string().max(50).optional().or(z.literal('')),
   username: z.string().min(3).max(50),
   password: passwordValidation,
   correo: z.string().email().max(150).optional().or(z.literal('')),
@@ -26,8 +31,21 @@ export const usuarioPasswordSchema = z.object({
 })
 
 export const changeOwnPasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'La contraseÃ±a actual es requerida'),
+  currentPassword: z.string().min(1, 'La contraseña actual es requerida'),
   newPassword: passwordValidation,
+})
+
+export const twoFactorConfirmSchema = z.object({
+  code: z.string().regex(/^\d{6}$/, 'El código debe tener 6 dígitos'),
+})
+
+export const twoFactorLoginSchema = z.object({
+  twoFactorToken: z.string().min(1, 'Token de verificación requerido'),
+  code: z.string().min(6).max(12, 'Código inválido'),
+})
+
+export const twoFactorDisableSchema = z.object({
+  password: z.string().min(1, 'La contraseña es requerida'),
 })
 
 export const loginSchema = z.object({

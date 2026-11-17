@@ -41,8 +41,21 @@ const refreshTokenLimiter = rateLimit({
   },
 })
 
+// Rate limiter dedicado para el segundo paso de 2FA (10 por minuto por IP)
+const twoFactorLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Demasiados intentos de verificación. Intente de nuevo en 1 minuto.',
+  },
+})
+
 // Login (público) con rate limiting estricto
 router.post('/login', loginLimiter, configuracionController.login)
+router.post('/login/2fa', twoFactorLimiter, configuracionController.verifyTwoFactorLogin)
 router.post('/refresh-token', refreshTokenLimiter, configuracionController.refreshToken)
 router.post('/logout', configuracionController.logout)
 
@@ -51,6 +64,14 @@ router.use(authenticate)
 
 // Cambio de contraseña propio (cualquier usuario autenticado)
 router.post('/change-password', changePasswordLimiter, configuracionController.changeOwnPassword)
+
+// 2FA (autoservicio del usuario autenticado)
+router.post('/2fa/start', configuracionController.startTwoFactor)
+router.post('/2fa/confirm', configuracionController.confirmTwoFactor)
+router.post('/2fa/disable', configuracionController.disableTwoFactor)
+
+// Resumen del panel (solo ADMIN)
+router.get('/resumen', authorize('ADMIN'), configuracionController.getResumen)
 
 // Usuarios (solo ADMIN)
 router.get('/usuarios', authorize('ADMIN'), configuracionController.listUsuarios)

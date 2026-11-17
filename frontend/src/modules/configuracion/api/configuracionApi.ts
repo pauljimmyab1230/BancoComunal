@@ -5,6 +5,7 @@ import type {
   Organizacion,
   PaginationParams,
   PaginatedResponse,
+  ResumenConfiguracion,
 } from '../types'
 
 export type CreateUsuarioInput = Omit<Usuario, 'id' | 'estado' | 'ultimoAcceso' | 'createdAt'> & {
@@ -12,13 +13,35 @@ export type CreateUsuarioInput = Omit<Usuario, 'id' | 'estado' | 'ultimoAcceso' 
   estado?: string
 }
 export type UpdateUsuarioInput = Partial<Omit<Usuario, 'id' | 'createdAt' | 'ultimoAcceso'>>
-export type CreateConceptoInput = Omit<ConceptoCajaItem, 'id' | 'estado'>
-export type UpdateConceptoInput = Partial<Omit<ConceptoCajaItem, 'id' | 'estado'>>
+export type CreateConceptoInput = Omit<ConceptoCajaItem, 'id'>
+export type UpdateConceptoInput = Partial<Omit<ConceptoCajaItem, 'id'>>
 
 export const configuracionApi = {
   // Login
   login: async (username: string, password: string) => {
     const { data } = await api.post('/configuracion/login', { username, password })
+    return data
+  },
+
+  // Segundo paso del login con 2FA
+  verifyTwoFactorLogin: async (twoFactorToken: string, code: string) => {
+    const { data } = await api.post('/configuracion/login/2fa', { twoFactorToken, code })
+    return data
+  },
+
+  // 2FA (autoservicio)
+  startTwoFactor: async () => {
+    const { data } = await api.post('/configuracion/2fa/start')
+    return data
+  },
+
+  confirmTwoFactor: async (code: string) => {
+    const { data } = await api.post('/configuracion/2fa/confirm', { code })
+    return data
+  },
+
+  disableTwoFactor: async (password: string) => {
+    const { data } = await api.post('/configuracion/2fa/disable', { password })
     return data
   },
 
@@ -29,6 +52,12 @@ export const configuracionApi = {
       newPassword,
     })
     return data
+  },
+
+  // Resumen del panel de configuración
+  getResumen: async (): Promise<ResumenConfiguracion> => {
+    const { data } = await api.get('/configuracion/resumen')
+    return data.data
   },
 
   // Usuarios
